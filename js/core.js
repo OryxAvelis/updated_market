@@ -430,7 +430,7 @@ const HEADER_HTML = `
         </div>
         <div class="dropdown">
           <button class="account-pill dropdown-toggle" data-bs-toggle="dropdown">
-            <i class="fa-regular fa-user"></i> <span class="d-none d-md-inline" data-i18n="my_account">My Account</span> <i class="fa-solid fa-chevron-down hdr-chev"></i>
+            <i class="fa-regular fa-user"></i> <span class="d-none d-xl-inline" data-i18n="my_account">My Account</span> <i class="fa-solid fa-chevron-down hdr-chev"></i>
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
             <li><a class="dropdown-item" href="login.html"><i class="fa-solid fa-right-to-bracket me-2"></i><span data-i18n="login_link">Login / Sign In</span></a></li>
@@ -535,11 +535,9 @@ const TABBAR_HTML = `
     <span data-i18n="tab_search">Search</span>
     <em class="tab-dot"></em>
   </button>
-  <a class="tab-item tab-center" data-tab="cart" href="cart.html" title="Cart" data-i18n-title="cart_title">
-    <span class="tab-fab">
-      <i class="fa-solid fa-cart-shopping"></i>
-      <span class="fab-badge" id="mCartCount" data-n="0">0</span>
-    </span>
+  <a class="tab-item" data-tab="cart" href="cart.html" title="Cart" data-i18n-title="cart_title">
+    <i class="fa-solid fa-cart-shopping"></i>
+    <span class="tab-badge" id="mCartCount" data-n="0">0</span>
     <span data-i18n="tab_cart">Cart</span>
     <em class="tab-dot"></em>
   </a>

@@ -129,30 +129,56 @@
   border-radius: 16px;
   box-shadow: var(--shadow);
   border: 1px solid rgba(0,0,0,0.03);
-  display: flex;
-  flex-wrap: wrap;
-  padding: 18px 12px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  padding: 18px 16px;
 }
 .trust-item {
-  flex: 1 1 220px;
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 14px;
-  padding: 8px 16px;
+  padding: 10px 16px;
   border-left: 1px solid var(--border);
+  min-width: 0;
 }
 .trust-item:first-child { border-left: none; }
 .trust-item i {
   font-size: 1.7rem;
   color: var(--orange);
   transition: transform 0.2s;
+  width: 1.4em;
+  flex-shrink: 0;
+  text-align: center;
 }
 .trust-item:hover i { animation: iconPop 0.45s ease; }
 @keyframes iconPop { 50% { transform: scale(1.18) rotate(-8deg); } }
-.trust-item strong { display: block; font-size: 0.9rem; font-weight: 700; }
+.trust-item strong {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
 .trust-item small { color: var(--muted); font-size: 0.78rem; }
-@media (max-width: 767.98px) { .trust-item { border-left: none; } }
+
+/* Phones: tidy 2x2 grid of soft cards */
+@media (max-width: 767.98px) {
+  .trust-bar {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 12px;
+  }
+  .trust-item {
+    border-left: none;
+    flex-direction: column;
+    text-align: center;
+    gap: 8px;
+    padding: 14px 8px;
+    background: #f9fafb;
+    border-radius: 12px;
+  }
+  .trust-item i { font-size: 1.45rem; }
+  .trust-item strong { font-size: 0.85rem; }
+}
 
 /* ========== ACCOUNT PANEL ========== */
 .account-panel {

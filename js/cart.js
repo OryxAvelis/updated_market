@@ -6,15 +6,22 @@
 
 async function renderCart() {
   const box = $('cartItems');
+  const summaryCol = $('summaryCol');
   const count = cart.reduce((s, i) => s + i.qty, 0);
   $('cartLabel').textContent = `(${count})`;
 
   if (cart.length === 0) {
+    // Empty cart: full-width centered state, same style as orders/wishlist
+    // empty pages — the order summary stays hidden until there are items.
+    box.className = 'col-12';
+    summaryCol.style.display = 'none';
     box.innerHTML = `<div class="text-center py-5"><i class="fa-solid fa-cart-shopping fa-3x text-muted mb-3"></i><h5>${t('cart_empty')}</h5><a class="btn btn-orange mt-2" href="categories.html">${t('continue_shopping')}</a></div>`;
-    $('goCheckout').disabled = true;
-    updateSummary(0);
     return;
   }
+
+  box.className = 'col-lg-8';
+  summaryCol.style.display = '';
+  box.innerHTML = `<div class="text-center py-5 text-muted"><div class="spinner-border spinner-border-sm text-warning" role="status"></div><div class="mt-2 small">${t('loading')}</div></div>`;
 
   // Product info comes from the cart snapshot, cache, or API (core.js)
   const items = await getCartItems();
