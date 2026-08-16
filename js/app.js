@@ -114,10 +114,55 @@ function addRecent(product) {
 }
 
 // ---------- API ----------
+// CORS proxies used as automatic fallback when a direct fetch is blocked or
+// hangs (happens on file:// where the page origin is the opaque "null").
+const API_HOST = 'https://api.mmarket.ma';
+const PROXIES = [
+  { json: true, bin: true, url: u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u) },
+  { json: true, bin: false, url: u => 'https://r.jina.ai/' + u },
+  { json: true, bin: false, url: u => 'https://api.allorigins.win/get?url=' + encodeURIComponent(u),
+    unwrap: d => JSON.parse(d.contents) },
+  { json: true, bin: true, url: u => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u) },
+];
+
+function fetchWithTimeout(url, ms) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(timer));
+}
+
+// Fetch API JSON: direct first, then through CORS proxies (file:// safety net)
+async function apiJSON(url) {
+  try {
+    const res = await fetchWithTimeout(url, 8000);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return await res.json();
+  } catch (e) {
+    for (const px of PROXIES) {
+      try {
+        const res = await fetchWithTimeout(px.url(url), 6000);
+        if (!res.ok) continue;
+        const data = await res.json();
+        return px.unwrap ? px.unwrap(data) : data;
+      } catch { /* try next proxy */ }
+    }
+    throw e;
+  }
+}
+
+// If the browser blocks product images from the API on file://, reroute via a raw proxy
+document.addEventListener('error', e => {
+  const el = e.target;
+  if (!el || el.tagName !== 'IMG' || !el.src.startsWith(API_HOST)) return;
+  const raw = PROXIES.filter(p => p.bin);
+  const i = +el.dataset.px || 0;
+  if (i >= raw.length) return;
+  el.dataset.px = String(i + 1);
+  el.src = raw[i].url(el.src);
+}, true);
+
 async function fetchCategories() {
-  const res = await fetch(`${API}/categories/`);
-  if (!res.ok) throw new Error('Categories failed');
-  const data = await res.json();
+  const data = await apiJSON(`${API}/categories/`);
   // Exclude smoking category
   return (Array.isArray(data) ? data : data.results || [])
     .filter(c => c.id !== EXCLUDE_CAT && c.parent_id == null);
@@ -127,16 +172,12 @@ async function fetchProducts(page = 1, categoryId = null, search = '') {
   let url = `${API}/products/?include_descendants=true&page=${page}&page_size=12`;
   if (categoryId) url += `&category=${categoryId}`;
   if (search) url += `&search=${encodeURIComponent(search)}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Products failed');
-  return res.json(); // { count, next, previous, results }
+  return apiJSON(url); // { count, next, previous, results }
 }
 
 async function fetchProduct(id) {
   if (productCache[id]) return productCache[id];
-  const res = await fetch(`${API}/products/${id}/`);
-  if (!res.ok) throw new Error('Product not found');
-  const p = await res.json();
+  const p = await apiJSON(`${API}/products/${id}/`);
   productCache[id] = p;
   return p;
 }
@@ -1012,8 +1053,11 @@ async function init() {
     products = data.results || [];
   } catch (e) {
     console.error(e);
+    const fileHint = location.protocol === 'file:'
+      ? '<br><small class="text-muted">file:// detected — if this persists, a browser extension/setting is blocking the request. Try an Incognito window or http://localhost.</small>'
+      : '';
     document.getElementById('homeProducts').innerHTML =
-      `<div class="col-12 text-center text-danger py-5">${t('api_error')}</div>`;
+      `<div class="col-12 text-center text-danger py-5">${t('api_error')}${fileHint}</div>`;
   }
 
   // Back to top
