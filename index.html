@@ -15,33 +15,48 @@
   <!-- HEADER -->
   <header class="top-header">
     <div class="container-fluid px-3 px-lg-4">
-      <div class="d-flex align-items-center gap-3 py-2 header-row">
+      <div class="header-card d-flex align-items-center gap-3 header-row">
         <a href="#" class="logo" data-view="home">
           <img src="img/logo-round.png" alt="AM MARKET — Shop More, Live Better" class="logo-img">
+          <span class="logo-text">
+            <span class="brand">AM <span class="text-orange">MARKET</span></span>
+            <small data-i18n="tagline">SHOP MORE, LIVE BETTER</small>
+          </span>
         </a>
 
         <div class="search-box flex-grow-1">
           <div class="input-group">
+            <span class="search-lead"><i class="fa-solid fa-magnifying-glass"></i></span>
             <input type="text" class="form-control" id="searchInput" placeholder="Search for products, brands and more..." data-i18n-ph="search_ph" />
-            <button class="btn btn-orange" id="searchBtn"><i class="fa-solid fa-magnifying-glass"></i></button>
+            <button class="btn btn-orange" id="searchBtn"><i class="fa-solid fa-magnifying-glass"></i> <span class="d-none d-lg-inline" data-i18n="search_btn">Search</span></button>
           </div>
         </div>
 
-        <div class="d-flex align-items-center gap-2 header-actions">
+        <div class="d-flex align-items-center gap-1 gap-lg-2 header-actions">
           <button class="btn-icon lang-btn" data-lang-toggle title="Français / English">
-            <i class="fa-solid fa-globe"></i> <span class="d-none d-md-inline" id="langLabel">EN</span>
+            <i class="fa-solid fa-globe"></i> <span class="d-none d-md-inline" id="langLabel">EN</span> <i class="fa-solid fa-chevron-down hdr-chev"></i>
           </button>
-          <button class="btn-icon" data-view="wishlist" title="Wishlist" data-i18n-title="wish_title">
+          <button class="btn-icon labeled" data-view="wishlist" title="Wishlist" data-i18n-title="wish_title">
             <i class="fa-regular fa-heart"></i>
             <span class="badge-count" id="wishCount">0</span>
+            <span class="lbl d-none d-xl-block" data-i18n="wish_title">Wishlist</span>
           </button>
-          <button class="btn-icon" data-view="cart" title="Cart" data-i18n-title="cart_title">
+          <button class="btn-icon labeled" data-view="cart" title="Cart" data-i18n-title="cart_title">
             <i class="fa-solid fa-cart-shopping"></i>
             <span class="badge-count" id="cartCount">0</span>
+            <span class="lbl d-none d-xl-block" data-i18n="cart_title">Cart</span>
           </button>
           <div class="dropdown">
-            <button class="btn-icon dropdown-toggle" data-bs-toggle="dropdown">
-              <i class="fa-regular fa-user"></i> <span class="d-none d-md-inline" data-i18n="my_account">My Account</span>
+            <button class="btn-icon labeled dropdown-toggle" data-bs-toggle="dropdown" title="Notifications" data-i18n-title="notif_title">
+              <i class="fa-regular fa-bell"></i>
+              <span class="badge-count" id="notifCount">0</span>
+              <span class="lbl d-none d-xl-block" data-i18n="notif_title">Notifications</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end notif-menu" id="notifMenu"></ul>
+          </div>
+          <div class="dropdown">
+            <button class="account-pill dropdown-toggle" data-bs-toggle="dropdown">
+              <i class="fa-regular fa-user"></i> <span class="d-none d-md-inline" data-i18n="my_account">My Account</span> <i class="fa-solid fa-chevron-down hdr-chev"></i>
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
               <li><a class="dropdown-item" href="login.html"><i class="fa-solid fa-right-to-bracket me-2"></i><span data-i18n="login_link">Login / Sign In</span></a></li>
@@ -62,12 +77,16 @@
       <!-- SIDEBAR -->
       <aside class="col-lg-2 d-none d-lg-block" id="sidebar">
         <div class="card border-0 shadow-sm">
-          <div class="card-header bg-orange text-white fw-semibold py-2">
+          <div class="card-header bg-orange text-white fw-semibold py-2 d-flex align-items-center">
             <i class="fa-solid fa-bars me-2"></i> <span data-i18n="all_categories">All Categories</span>
+            <i class="fa-solid fa-chevron-up ms-auto small"></i>
           </div>
           <ul class="list-group list-group-flush" id="categoryList">
             <li class="list-group-item text-center text-muted small py-3" data-i18n="loading">Loading...</li>
           </ul>
+          <a href="#" class="sidebar-foot" data-view="shop">
+            <i class="fa-solid fa-table-cells-large me-2"></i><span data-i18n="view_all_cats">View All Categories</span>
+          </a>
         </div>
       </aside>
 
@@ -76,30 +95,74 @@
 
         <!-- HOME -->
         <section id="homeView" class="view active">
-          <div class="hero-banner mb-4">
-            <div class="hero-bubbles">
-              <span></span><span></span><span></span><span></span><span></span>
+          <div class="row g-3 mb-3 home-top">
+            <div class="col-xl-9">
+              <div class="hero-banner">
+                <div class="hero-bubbles">
+                  <span></span><span></span><span></span><span></span><span></span>
+                </div>
+                <div class="hero-slides" id="heroSlides">
+                  <div class="hero-slide s1 active">
+                    <div class="hero-text">
+                      <h1 data-i18n-html="hero_title">Big Deals<br>For Your Home!</h1>
+                      <p data-i18n="hero_sub">We have the products you love at the prices you'll love.</p>
+                      <button class="btn btn-light hero-cta" data-view="shop"><span data-i18n="shop_now">Shop Now</span> <i class="fa-solid fa-arrow-right"></i></button>
+                    </div>
+                    <img class="hero-img" src="img/hero-cart.png" alt="" draggable="false">
+                  </div>
+                  <div class="hero-slide s2">
+                    <div class="hero-text">
+                      <h1 data-i18n="hero2_title">Fresh Groceries Every Day</h1>
+                      <p data-i18n="hero2_sub">Fruits, dairy & essentials delivered fast.</p>
+                      <button class="btn btn-light hero-cta" data-view="shop"><span data-i18n="shop_now">Shop Now</span> <i class="fa-solid fa-arrow-right"></i></button>
+                    </div>
+                  </div>
+                  <div class="hero-slide s3">
+                    <div class="hero-text">
+                      <h1 data-i18n="hero3_title">Up to 50% OFF Snacks</h1>
+                      <p data-i18n="hero3_sub">Stock up on your favorites for less.</p>
+                      <button class="btn btn-light hero-cta" data-view="shop"><span data-i18n="shop_now">Shop Now</span> <i class="fa-solid fa-arrow-right"></i></button>
+                    </div>
+                  </div>
+                  <div class="hero-slide s4">
+                    <div class="hero-text">
+                      <h1 data-i18n="hero4_title">Free Delivery over 200 DH</h1>
+                      <p data-i18n="hero4_sub">Fast & safe delivery all over Morocco.</p>
+                      <button class="btn btn-light hero-cta" data-view="shop"><span data-i18n="shop_now">Shop Now</span> <i class="fa-solid fa-arrow-right"></i></button>
+                    </div>
+                  </div>
+                </div>
+                <div class="hero-dots" id="heroDots"></div>
+              </div>
             </div>
-            <div class="hero-text">
-              <h1 data-i18n-html="hero_title">Big Deals<br>For Your Home!</h1>
-              <p data-i18n="hero_sub">Up to 50% OFF on selected items</p>
-              <button class="btn btn-light fw-semibold px-4" data-view="shop" data-i18n="shop_now">Shop Now</button>
+
+            <div class="col-xl-3 d-none d-xl-block">
+              <aside class="account-panel">
+                <div class="ap-head">
+                  <span class="ap-avatar"><i class="fa-solid fa-user"></i></span>
+                  <div class="ap-id">
+                    <strong id="apName">Guest</strong>
+                    <a href="login.html" id="apProfileLink" class="small" data-i18n="view_profile">View Profile</a>
+                  </div>
+                </div>
+                <ul class="ap-menu">
+                  <li><a href="#" data-view="orders"><i class="fa-solid fa-box-archive"></i><span data-i18n="my_orders">My Orders</span></a></li>
+                  <li><a href="#" data-view="wishlist"><i class="fa-regular fa-heart"></i><span data-i18n="my_wishlist">My Wishlist</span></a></li>
+                  <li><a href="#" data-soon><i class="fa-solid fa-location-dot"></i><span data-i18n="my_addresses">My Addresses</span></a></li>
+                  <li><a href="#" data-soon><i class="fa-regular fa-star"></i><span data-i18n="my_reviews">My Reviews</span></a></li>
+                  <li><a href="#" data-soon><i class="fa-solid fa-gear"></i><span data-i18n="account_settings">Account Settings</span></a></li>
+                  <li class="ap-sep"><a href="#" data-soon><i class="fa-regular fa-circle-question"></i><span data-i18n="help_center">Help Center</span></a></li>
+                  <li class="ap-sep" id="logoutRow"><a href="#" id="logoutLink"><i class="fa-solid fa-arrow-right-from-bracket"></i><span data-i18n="logout">Logout</span></a></li>
+                </ul>
+              </aside>
             </div>
           </div>
 
-          <div class="row g-2 mb-4">
-            <div class="col-6 col-md-3">
-              <div class="trust-box"><i class="fa-solid fa-truck"></i><div><strong data-i18n="trust1_t">Free Delivery</strong><small data-i18n="trust1_s">On orders over 200 DH</small></div></div>
-            </div>
-            <div class="col-6 col-md-3">
-              <div class="trust-box"><i class="fa-solid fa-tags"></i><div><strong data-i18n="trust2_t">Best Price</strong><small data-i18n="trust2_s">Guarantee</small></div></div>
-            </div>
-            <div class="col-6 col-md-3">
-              <div class="trust-box"><i class="fa-solid fa-rotate-left"></i><div><strong data-i18n="trust3_t">Easy Returns</strong><small data-i18n="trust3_s">Within 7 days</small></div></div>
-            </div>
-            <div class="col-6 col-md-3">
-              <div class="trust-box"><i class="fa-solid fa-shield-halved"></i><div><strong data-i18n="trust4_t">Secure Payment</strong><small data-i18n="trust4_s">100% protected</small></div></div>
-            </div>
+          <div class="trust-bar mb-4">
+            <div class="trust-item"><i class="fa-solid fa-shield-halved"></i><div><strong data-i18n="trust4_t">Secure Payment</strong><small data-i18n="trust4_s">100% protected</small></div></div>
+            <div class="trust-item"><i class="fa-solid fa-truck-fast"></i><div><strong data-i18n="trust1_t">Fast Delivery</strong><small data-i18n="trust1_s">All over Morocco</small></div></div>
+            <div class="trust-item"><i class="fa-solid fa-rotate"></i><div><strong data-i18n="trust3_t">Easy Returns</strong><small data-i18n="trust3_s">Within 7 days</small></div></div>
+            <div class="trust-item"><i class="fa-solid fa-headset"></i><div><strong data-i18n="trust5_t">24/7 Support</strong><small data-i18n="trust5_s">We're here for you</small></div></div>
           </div>
 
           <div class="d-flex justify-content-between align-items-center mb-3">
