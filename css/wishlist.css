@@ -1,0 +1,6 @@
+/* ==========================================================
+   AM MARKET — wishlist.css (wishlist.html)
+   Wishlist grid reuses the shared product cards (common.css).
+   ========================================================== */
+
+#wishItems { min-height: 40vh; }

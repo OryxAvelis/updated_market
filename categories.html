@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AM MARKET — All Categories</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/common.css" />
+  <link rel="stylesheet" href="css/categories.css" />
+  <link rel="icon" type="image/png" href="img/logo-round.png" />
+</head>
+<body data-page="categories">
+
+  <main class="container-fluid px-3 px-lg-4 py-3">
+    <div class="row g-3">
+
+      <!-- SIDEBAR -->
+      <aside class="col-lg-2 d-none d-lg-block" id="sidebar">
+        <div class="card border-0 shadow-sm">
+          <div class="card-header bg-orange text-white fw-semibold py-2 d-flex align-items-center">
+            <i class="fa-solid fa-bars me-2"></i> <span data-i18n="all_categories">All Categories</span>
+            <i class="fa-solid fa-chevron-up ms-auto small"></i>
+          </div>
+          <div class="list-group list-group-flush" id="categoryList">
+            <div class="list-group-item text-center text-muted small py-3" data-i18n="loading">Loading...</div>
+          </div>
+          <a href="categories.html" class="sidebar-foot">
+            <i class="fa-solid fa-table-cells-large me-2"></i><span data-i18n="view_all_cats">View All Categories</span>
+          </a>
+        </div>
+      </aside>
+
+      <!-- CATALOG -->
+      <div class="col-lg-10">
+        <nav class="mb-3">
+          <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a href="index.html" data-i18n="home">Home</a></li>
+            <li class="breadcrumb-item active" id="shopCrumb">All Categories</li>
+          </ol>
+        </nav>
+
+        <div class="row g-3">
+          <!-- FILTERS -->
+          <div class="col-md-3">
+            <div class="card border-0 shadow-sm filters-panel sticky-top" style="top:90px">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <h6 class="fw-bold mb-0" data-i18n="filters">Filters</h6>
+                  <button class="btn btn-link btn-sm text-orange p-0" id="clearFilters" data-i18n="clear">Clear</button>
+                </div>
+
+                <h6 class="fw-semibold small text-muted mb-2" data-i18n="category">Category</h6>
+                <div id="filterCategories" class="mb-3 filter-scroll"></div>
+
+                <h6 class="fw-semibold small text-muted mb-2" data-i18n="price_dh">Price (DH)</h6>
+                <div class="mb-3">
+                  <input type="range" class="form-range" id="priceRange" min="0" max="1000" step="10" value="1000">
+                  <div class="d-flex justify-content-between small text-muted">
+                    <span>0</span>
+                    <span id="priceLabel">1000 DH</span>
+                  </div>
+                </div>
+
+                <h6 class="fw-semibold small text-muted mb-2" data-i18n="availability">Availability</h6>
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" id="filterAvailable" checked>
+                  <label class="form-check-label small" for="filterAvailable" data-i18n="in_stock_only">In stock only</label>
+                </div>
+                <div class="form-check mb-3">
+                  <input class="form-check-input" type="checkbox" id="filterPromo">
+                  <label class="form-check-label small" for="filterPromo" data-i18n="on_promo">On promotion</label>
+                </div>
+
+                <h6 class="fw-semibold small text-muted mb-2" data-i18n="brand">Brand</h6>
+                <div id="filterBrands" class="filter-scroll mb-2"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- PRODUCTS -->
+          <div class="col-md-9">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+              <h4 class="fw-bold mb-0" id="shopTitle">All Categories</h4>
+              <div class="d-flex align-items-center gap-2">
+                <span class="small text-muted" id="resultCount"></span>
+                <select class="form-select form-select-sm w-auto" id="sortSelect">
+                  <option value="default" data-i18n="sort_default">Default</option>
+                  <option value="price-asc" data-i18n="sort_asc">Price: Low to High</option>
+                  <option value="price-desc" data-i18n="sort_desc">Price: High to Low</option>
+                  <option value="name" data-i18n="sort_name">Name A–Z</option>
+                </select>
+              </div>
+            </div>
+            <div class="row g-3" id="shopProducts"></div>
+            <nav class="mt-4" id="paginationNav" style="display:none">
+              <ul class="pagination justify-content-center flex-wrap mb-0" id="pagination"></ul>
+            </nav>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/core.js"></script>
+  <script src="js/categories.js"></script>
+</body>
+</html>

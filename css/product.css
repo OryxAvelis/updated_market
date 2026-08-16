@@ -1,0 +1,21 @@
+/* ==========================================================
+   AM MARKET — product.css (product.html)
+   Product detail page: image panel.
+   ========================================================== */
+
+.detail-img {
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 20px;
+}
+.detail-img img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}

@@ -156,7 +156,7 @@ const I18N = {
     newsletter: 'Newsletter',
     newsletter_sub: 'Get updates on latest products.',
     go: 'Go',
-    rights: '© 2026 <a href="#" data-view="home" class="text-blue fw-semibold">AM MARKET</a>. All rights reserved.',
+    rights: '© 2026 <a href="index.html" class="text-blue fw-semibold">AM MARKET</a>. All rights reserved.',
     // Login page
     back_home: 'Back to Store',
     brand_login_title: 'Welcome back!',
@@ -342,7 +342,7 @@ const I18N = {
     newsletter: 'Newsletter',
     newsletter_sub: 'Recevez nos nouveautés et offres.',
     go: 'OK',
-    rights: '© 2026 <a href="#" data-view="home" class="text-blue fw-semibold">AM MARKET</a>. Tous droits réservés.',
+    rights: '© 2026 <a href="index.html" class="text-blue fw-semibold">AM MARKET</a>. Tous droits réservés.',
     // Page connexion
     back_home: 'Retour à la boutique',
     brand_login_title: 'Bon retour !',

@@ -1,0 +1,159 @@
+/* ==========================================================
+   AM MARKET — categories.css (categories.html)
+   Filters panel, sort dropdown, result count, pagination,
+   empty-search state.
+   ========================================================== */
+
+/* ========== FILTERS PANEL ========== */
+.filters-panel {
+  border: none !important;
+  border-radius: 16px !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06) !important;
+  overflow: hidden;
+}
+.filters-panel .card-body {
+  padding: 1.25rem;
+}
+.filters-panel h6.fw-bold {
+  font-size: 1rem;
+  letter-spacing: -0.2px;
+}
+.filters-panel #clearFilters {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none !important;
+}
+.filters-panel #clearFilters:hover {
+  text-decoration: underline !important;
+}
+.filters-panel .fw-semibold.small {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #9ca3af !important;
+  margin-bottom: 0.5rem !important;
+  margin-top: 0.25rem;
+}
+.filter-scroll {
+  max-height: 160px;
+  overflow-y: auto;
+  padding-right: 4px;
+  margin-bottom: 1rem !important;
+  font-size: 0.85rem;
+}
+.filter-scroll::-webkit-scrollbar { width: 4px; }
+.filter-scroll::-webkit-scrollbar-thumb {
+  background: #e5e7eb;
+  border-radius: 4px;
+}
+.filter-scroll .form-check {
+  margin-bottom: 0.35rem;
+  padding-left: 1.6rem;
+}
+.filter-scroll .form-check-label {
+  font-size: 0.84rem;
+  color: #4b5563;
+  cursor: pointer;
+}
+.filters-panel .form-check-input {
+  width: 1.05em;
+  height: 1.05em;
+  margin-top: 0.2em;
+  cursor: pointer;
+  border: 1.5px solid #d1d5db;
+}
+.filters-panel .form-check-input:checked {
+  background-color: var(--orange);
+  border-color: var(--orange);
+}
+.filters-panel .form-range {
+  height: 0.4rem;
+}
+.filters-panel .form-range::-webkit-slider-thumb {
+  width: 18px;
+  height: 18px;
+  background: var(--orange);
+  border: 3px solid #fff;
+  box-shadow: 0 2px 6px rgba(26,111,212,0.4);
+}
+.filters-panel .form-range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: var(--orange);
+  border: 3px solid #fff;
+}
+.form-range::-webkit-slider-thumb {
+  background: var(--orange);
+}
+.form-range::-moz-range-thumb {
+  background: var(--orange);
+}
+
+/* ========== SORT DROPDOWN ========== */
+#sortSelect {
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.4rem 2rem 0.4rem 0.85rem;
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: #374151;
+  background-color: #fff;
+  cursor: pointer;
+  min-width: 160px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236b7280' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+}
+#sortSelect:hover {
+  border-color: #fdba74;
+}
+#sortSelect:focus {
+  border-color: var(--orange);
+  box-shadow: 0 0 0 3px rgba(26,111,212,0.12);
+  outline: none;
+}
+
+/* Result count badge */
+#resultCount {
+  font-size: 0.8rem;
+  color: #9ca3af;
+  background: #f3f4f6;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-weight: 500;
+}
+
+/* ========== PAGINATION ========== */
+.pagination .page-link {
+  color: var(--text);
+  border-radius: 8px !important;
+  margin: 0 3px;
+  border: 1px solid var(--border);
+  min-width: 36px;
+  text-align: center;
+  font-weight: 500;
+}
+.pagination .page-item.active .page-link {
+  background: var(--orange);
+  border-color: var(--orange);
+  color: #fff;
+}
+.pagination .page-link:hover {
+  background: var(--orange-light);
+  color: var(--orange);
+  border-color: var(--orange-soft);
+}
+.pagination .page-item.disabled .page-link {
+  color: #adb5bd;
+}
+
+/* ========== EMPTY SEARCH ========== */
+.empty-search .empty-icon { font-size: 3rem; opacity: 0.5; }
+.empty-search .suggest-btn { color: var(--orange); }
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 767.98px) {
+  .filters-panel.sticky-top { position: static !important; }
+}

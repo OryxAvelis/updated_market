@@ -1,0 +1,11 @@
+/* ==========================================================
+   AM MARKET — checkout.css (checkout.html)
+   Checkout form + sticky order summary on desktop.
+   ========================================================== */
+
+@media (min-width: 992px) {
+  .checkout-summary {
+    position: sticky;
+    top: 96px;
+  }
+}

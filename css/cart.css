@@ -1,0 +1,24 @@
+/* ==========================================================
+   AM MARKET — cart.css (cart.html)
+   Cart line items. Quantity stepper is in common.css.
+   ========================================================== */
+
+.cart-item {
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  gap: 16px;
+  box-shadow: var(--shadow);
+  margin-bottom: 12px;
+  border: 1px solid rgba(0,0,0,0.03);
+}
+.cart-item img {
+  width: 88px;
+  height: 88px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: #fafafa;
+  padding: 6px;
+  flex-shrink: 0;
+}
