@@ -1,0 +1,1 @@
+Vanilla client-side storefront and authentication UI for AM MARKET, rendering product browsing, cart/checkout/wishlist views with live data from api.mmarket.ma and bilingual EN/FR support.
