@@ -10,6 +10,17 @@
 - [i18n.js](file://js/i18n.js)
 </cite>
 
+## Update Summary
+**Changes Made**
+- Updated header section to document new floating card design with enhanced search functionality
+- Added comprehensive notification system documentation
+- Enhanced account panel dropdown styling documentation
+- Updated hero carousel implementation details
+- Expanded trust bar component documentation
+- Added mobile bottom toolbar navigation system
+- Enhanced internationalization support documentation
+- Updated responsive design patterns for mobile-first approach
+
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Project Structure](#project-structure)
@@ -59,28 +70,37 @@ G --> I["Auth Page Styles"]
 - Typography uses Inter with a clear hierarchy and line-height for readability.
 - Buttons, badges, and input groups follow consistent sizing, focus states, and transitions.
 - Marketplace components include:
-  - Header with search, language toggle, wishlist/cart badges, and account dropdown
-  - Hero banner with floating bubbles and animated text
+  - **Enhanced Header** with floating card design, advanced search functionality, language toggle, wishlist/cart badges, notifications, and improved account dropdown
+  - **Hero Carousel** with floating bubbles, animated text, and slide navigation
+  - **Trust Bar** with service guarantees and hover animations
+  - **Account Panel** with user profile management and menu items
   - Category grid and sidebar navigation
   - Product cards with image hover effects, discount badges, and action buttons
   - Detail view with quantity controls and related products
   - Cart and checkout layouts using Bootstrap grid and custom cards
+  - **Mobile Bottom Toolbar** with floating action button and tab navigation
   - Footer with brand info, navigation, newsletter form, and payment logos
 
 Key implementation references:
 - Custom properties and base styles: [style.css:1-28](file://css/style.css#L1-L28)
-- Header and search box: [style.css:31-103](file://css/style.css#L31-L103)
-- Hero banner and animations: [style.css:202-287](file://css/style.css#L202-L287)
-- Product card styles: [style.css:376-513](file://css/style.css#L376-L513)
-- Footer structure and styles: [style.css:587-799](file://css/style.css#L587-L799)
+- **Enhanced Header and Search**: [style.css:31-225](file://css/style.css#L31-L225)
+- **Hero Carousel Implementation**: [style.css:289-408](file://css/style.css#L289-L408)
+- **Trust Bar Component**: [style.css:409-439](file://css/style.css#L409-L439)
+- **Account Panel**: [style.css:440-501](file://css/style.css#L440-L501)
+- **Mobile Bottom Toolbar**: [style.css:1323-1445](file://css/style.css#L1323-L1445)
+- Product card styles: [style.css:549-687](file://css/style.css#L549-L687)
+- Footer structure and styles: [style.css:761-973](file://css/style.css#L761-L973)
 - Login page theme and form styles: [login.css:1-384](file://css/login.css#L1-L384)
 
 **Section sources**
 - [style.css:1-28](file://css/style.css#L1-L28)
-- [style.css:31-103](file://css/style.css#L31-L103)
-- [style.css:202-287](file://css/style.css#L202-L287)
-- [style.css:376-513](file://css/style.css#L376-L513)
-- [style.css:587-799](file://css/style.css#L587-L799)
+- [style.css:31-225](file://css/style.css#L31-L225)
+- [style.css:289-408](file://css/style.css#L289-L408)
+- [style.css:409-439](file://css/style.css#L409-L439)
+- [style.css:440-501](file://css/style.css#L440-L501)
+- [style.css:1323-1445](file://css/style.css#L1323-L1445)
+- [style.css:549-687](file://css/style.css#L549-L687)
+- [style.css:761-973](file://css/style.css#L761-L973)
 - [login.css:1-384](file://css/login.css#L1-L384)
 
 ## Architecture Overview
@@ -150,52 +170,120 @@ References:
 - [style.css:16-28](file://css/style.css#L16-L28)
 - [login.css:12-29](file://css/login.css#L12-L29)
 
-### Buttons and Interactive Elements
-- Primary buttons use the orange variable with hover and active states for feedback.
-- Outline variant provides secondary actions with matching focus behavior.
-- Icon buttons have consistent padding, radius, and hover background using theme tokens.
-- Badges display counts with compact sizing and visibility rules.
+### Enhanced Header with Floating Card Design
+- **Floating Card Header**: Modern card-based header with rounded corners, subtle shadow, and sticky positioning
+- **Advanced Search Box**: Full-width search input with integrated icon, focus states, and gradient background
+- **Language Toggle**: Persistent language switcher with globe icon and current language display
+- **Action Buttons**: Wishlist, cart, and notifications with badge counts and labeled options
+- **Improved Account Dropdown**: Enhanced dropdown menu with avatar, profile management, and organized menu items
 
 Guidelines:
-- Prefer .btn-orange and .btn-outline-orange for marketplace actions.
-- Use .btn-icon for tool-like actions; keep accessible titles via data-i18n-title or title attributes.
+- Maintain floating card design with proper z-index and shadow hierarchy
+- Ensure search input has proper focus states and accessible placeholder text
+- Keep badge counts synchronized with actual data through JavaScript updates
 
 References:
-- Button styles and badge: [style.css:105-164](file://css/style.css#L105-L164)
+- **Header floating card**: [style.css:31-44](file://css/style.css#L31-L44)
+- **Search functionality**: [style.css:86-124](file://css/style.css#L86-L124)
+- **Notification system**: [style.css:195-206](file://css/style.css#L195-L206)
+- **Account dropdown**: [style.css:180-194](file://css/style.css#L180-L194)
+- **JavaScript integration**: [app.js:217-244](file://js/app.js#L217-L244)
 
 **Section sources**
-- [style.css:105-164](file://css/style.css#L105-L164)
+- [style.css:31-44](file://css/style.css#L31-L44)
+- [style.css:86-124](file://css/style.css#L86-L124)
+- [style.css:195-206](file://css/style.css#L195-L206)
+- [style.css:180-194](file://css/style.css#L180-L194)
+- [app.js:217-244](file://js/app.js#L217-L244)
 
-### Header and Search
-- Sticky header with subtle shadow ensures persistent navigation.
-- Search input group has rounded borders, focus highlight, and integrated icon button.
-- Language toggle updates i18n labels and persists selection.
+### Hero Carousel Implementation
+- **Multi-slide Carousel**: Four promotional slides with unique gradient backgrounds and floating bubble decorations
+- **Slide Navigation**: Dot-based navigation with active state indicators and smooth transitions
+- **Animated Content**: Staggered rise-in animations for text elements and floating bubble effects
+- **Responsive Images**: Aspect-ratio maintained images with mask effects and floating animations
 
 Guidelines:
-- Maintain sticky positioning and z-index to avoid overlap with modals.
-- Ensure search input retains focus ring and accessible placeholder text.
+- Keep animations lightweight using transform and opacity for smooth performance
+- Ensure proper contrast between text and gradient backgrounds for accessibility
+- Implement lazy loading for images to improve initial load time
 
 References:
-- Header and search: [style.css:31-103](file://css/style.css#L31-L103)
-- Language toggle wiring: [i18n.js:388-417](file://js/i18n.js#L388-L417)
+- **Carousel structure**: [style.css:289-314](file://css/style.css#L289-L314)
+- **Slide animations**: [style.css:315-328](file://css/style.css#L315-L328)
+- **Navigation dots**: [style.css:329-348](file://css/style.css#L329-L348)
+- **Content animations**: [style.css:349-407](file://css/style.css#L349-L407)
+- **JavaScript control**: [app.js:246-262](file://js/app.js#L246-L262)
 
 **Section sources**
-- [style.css:31-103](file://css/style.css#L31-L103)
-- [i18n.js:388-417](file://js/i18n.js#L388-L417)
+- [style.css:289-314](file://css/style.css#L289-L314)
+- [style.css:315-328](file://css/style.css#L315-L328)
+- [style.css:329-348](file://css/style.css#L329-L348)
+- [style.css:349-407](file://css/style.css#L349-L407)
+- [app.js:246-262](file://js/app.js#L246-L262)
 
-### Hero Banner
-- Gradient background with decorative floating circles and staggered rise-in animations.
-- Text and call-to-action elements animate sequentially for engaging entry.
+### Trust Bar Component
+- **Service Guarantees**: Four key trust indicators (Fast Delivery, Best Price, Easy Returns, Secure Payment, 24/7 Support)
+- **Interactive Icons**: Hover animations with pop effects and color transitions
+- **Responsive Layout**: Flexible wrapping with proper spacing and mobile adaptations
+- **Internationalized Text**: All content supports English and French languages
 
 Guidelines:
-- Keep animations lightweight; prefer transform and opacity changes.
-- Ensure contrast between text and background for accessibility.
+- Maintain consistent icon sizing and spacing across all trust items
+- Ensure sufficient color contrast for accessibility
+- Keep text concise and impactful for quick scanning
 
 References:
-- Hero styles and keyframes: [style.css:202-287](file://css/style.css#L202-L287)
+- **Trust bar structure**: [style.css:409-439](file://css/style.css#L409-L439)
+- **Icon animations**: [style.css:429-435](file://css/style.css#L429-L435)
+- **Responsive behavior**: [style.css:438-439](file://css/style.css#L438-L439)
 
 **Section sources**
-- [style.css:202-287](file://css/style.css#L202-L287)
+- [style.css:409-439](file://css/style.css#L409-L439)
+
+### Account Panel with Enhanced Dropdown
+- **User Profile Display**: Avatar, name, and profile link with conditional rendering based on login status
+- **Organized Menu Items**: Grouped navigation with icons, separators, and hover effects
+- **Dynamic Content**: Real-time updates for user status and logout functionality
+- **Accessibility Features**: Proper ARIA labels and keyboard navigation support
+
+Guidelines:
+- Ensure proper state management for logged-in vs guest users
+- Maintain consistent icon sizing and spacing throughout the menu
+- Provide clear visual feedback for interactive elements
+
+References:
+- **Panel structure**: [style.css:440-501](file://css/style.css#L440-L501)
+- **Menu items**: [style.css:478-500](file://css/style.css#L478-L500)
+- **JavaScript logic**: [app.js:232-244](file://js/app.js#L232-L244)
+
+**Section sources**
+- [style.css:440-501](file://css/style.css#L440-L501)
+- [app.js:232-244](file://js/app.js#L232-L244)
+
+### Mobile Bottom Toolbar
+- **Floating Navigation**: Fixed bottom toolbar with backdrop blur and elevated design
+- **Tab Navigation**: Five main tabs (Home, Search, Cart, Favorites, Account) with active state indicators
+- **Floating Action Button**: Elevated cart button with pulse animation and count badge
+- **Responsive Behavior**: Automatically appears on mobile devices with safe area support
+
+Guidelines:
+- Ensure proper touch target sizing for mobile interactions
+- Maintain consistent spacing and alignment across all tabs
+- Implement smooth animations for tab switching and FAB interactions
+
+References:
+- **Toolbar structure**: [style.css:1323-1340](file://css/style.css#L1323-L1340)
+- **Tab items**: [style.css:1341-1374](file://css/style.css#L1341-L1374)
+- **FAB button**: [style.css:1375-1399](file://css/style.css#L1375-L1399)
+- **Badge system**: [style.css:1401-1427](file://css/style.css#L1401-L1427)
+- **Mobile responsiveness**: [style.css:1434-1445](file://css/style.css#L1434-L1445)
+
+**Section sources**
+- [style.css:1323-1340](file://css/style.css#L1323-L1340)
+- [style.css:1341-1374](file://css/style.css#L1341-L1374)
+- [style.css:1375-1399](file://css/style.css#L1375-L1399)
+- [style.css:1401-1427](file://css/style.css#L1401-L1427)
+- [style.css:1434-1445](file://css/style.css#L1434-L1445)
 
 ### Categories and Sidebar
 - Grid-based category cards with hover lift and border accent.
@@ -206,12 +294,12 @@ Guidelines:
 - Active states should be visually distinct and keyboard accessible.
 
 References:
-- Categories grid and cards: [style.css:329-366](file://css/style.css#L329-L366)
-- Sidebar list items: [style.css:167-199](file://css/style.css#L167-L199)
+- Categories grid and cards: [style.css:502-541](file://css/style.css#L502-L541)
+- Sidebar list items: [style.css:1110-1169](file://css/style.css#L1110-L1169)
 
 **Section sources**
-- [style.css:329-366](file://css/style.css#L329-L366)
-- [style.css:167-199](file://css/style.css#L167-L199)
+- [style.css:502-541](file://css/style.css#L502-L541)
+- [style.css:1110-1169](file://css/style.css#L1110-L1169)
 
 ### Product Cards
 - Card container with rounded corners, shadow, and hover elevation.
@@ -224,10 +312,10 @@ Guidelines:
 - Keep price and brand information concise; ensure truncation for long titles.
 
 References:
-- Product card styles: [style.css:376-513](file://css/style.css#L376-L513)
+- Product card styles: [style.css:549-687](file://css/style.css#L549-L687)
 
 **Section sources**
-- [style.css:376-513](file://css/style.css#L376-L513)
+- [style.css:549-687](file://css/style.css#L549-L687)
 
 ### Detail View
 - Large image area with aspect ratio and contained scaling.
@@ -239,10 +327,10 @@ Guidelines:
 - Provide clear stock status indicators and disabled states for unavailable items.
 
 References:
-- Detail image and quantity box: [style.css:515-554](file://css/style.css#L515-L554)
+- Detail image and quantity box: [style.css:688-729](file://css/style.css#L688-L729)
 
 **Section sources**
-- [style.css:515-554](file://css/style.css#L515-L554)
+- [style.css:688-729](file://css/style.css#L688-L729)
 
 ### Cart and Checkout
 - Cart items displayed in cards with image, pricing, and quantity controls.
@@ -254,12 +342,12 @@ Guidelines:
 - Ensure form fields have proper labels and error states.
 
 References:
-- Cart item styles: [style.css:557-574](file://css/style.css#L557-L574)
-- Checkout layout usage: [index.html:238-276](file://index.html#L238-L276)
+- Cart item styles: [style.css:730-749](file://css/style.css#L730-L749)
+- Checkout layout usage: [index.html:300-339](file://index.html#L300-L339)
 
 **Section sources**
-- [style.css:557-574](file://css/style.css#L557-L574)
-- [index.html:238-276](file://index.html#L238-L276)
+- [style.css:730-749](file://css/style.css#L730-L749)
+- [index.html:300-339](file://index.html#L300-L339)
 
 ### Footer
 - Brand block with logo and description.
@@ -272,10 +360,10 @@ Guidelines:
 - Use consistent icon containers and hover states.
 
 References:
-- Footer styles: [style.css:587-799](file://css/style.css#L587-L799)
+- Footer styles: [style.css:761-973](file://css/style.css#L761-L973)
 
 **Section sources**
-- [style.css:587-799](file://css/style.css#L587-L799)
+- [style.css:761-973](file://css/style.css#L761-L973)
 
 ### Authentication Page
 - Split layout with brand panel and form side.
@@ -296,6 +384,27 @@ References:
 - [login.css:72-184](file://css/login.css#L72-L184)
 - [login.css:237-284](file://css/login.css#L237-L284)
 - [login.css:298-374](file://css/login.css#L298-L374)
+
+### Enhanced Internationalization Support
+- **Bilingual Interface**: Complete English and French translations for all interface elements
+- **Dynamic Language Switching**: Real-time language changes without page reload
+- **Localized Content**: Category names, product descriptions, and user-facing text
+- **Persistent Preferences**: Language selection stored in localStorage
+
+Guidelines:
+- Use data-i18n attributes for static text and t() function for dynamic content
+- Ensure all new UI elements include proper translation keys
+- Test both language modes thoroughly for completeness
+
+References:
+- **Translation system**: [i18n.js:8-380](file://js/i18n.js#L8-L380)
+- **Language switching**: [i18n.js:420-462](file://js/i18n.js#L420-L462)
+- **Integration points**: [app.js:1139-1155](file://js/app.js#L1139-L1155)
+
+**Section sources**
+- [i18n.js:8-380](file://js/i18n.js#L8-L380)
+- [i18n.js:420-462](file://js/i18n.js#L420-L462)
+- [app.js:1139-1155](file://js/app.js#L1139-L1155)
 
 ## Dependency Analysis
 - CSS dependencies:
@@ -324,8 +433,8 @@ I18N["i18n.js"] --> UI
 **Section sources**
 - [index.html:7-10](file://index.html#L7-L10)
 - [login.html:7-10](file://login.html#L7-L10)
-- [app.js:1-1048](file://js/app.js#L1-L1048)
-- [i18n.js:1-418](file://js/i18n.js#L1-L418)
+- [app.js:1-1158](file://js/app.js#L1-L1158)
+- [i18n.js:1-462](file://js/i18n.js#L1-L462)
 
 ## Performance Considerations
 - CSS Delivery:
@@ -357,15 +466,22 @@ I18N["i18n.js"] --> UI
 - Accessibility:
   - Validate focus states for interactive elements.
   - Ensure sufficient color contrast, especially on gradient backgrounds.
+- **Mobile Toolbar Issues**:
+  - Check viewport meta tag for proper mobile scaling.
+  - Verify safe area insets for devices with notches.
+- **Language Switching Problems**:
+  - Ensure all new UI elements have corresponding translation keys.
+  - Verify localStorage persistence for language preferences.
 
 **Section sources**
 - [style.css:1-28](file://css/style.css#L1-L28)
-- [style.css:31-103](file://css/style.css#L31-L103)
-- [style.css:202-287](file://css/style.css#L202-L287)
+- [style.css:31-225](file://css/style.css#L31-L225)
+- [style.css:289-408](file://css/style.css#L289-L408)
+- [style.css:1323-1445](file://css/style.css#L1323-L1445)
 - [login.css:72-184](file://css/login.css#L72-L184)
 
 ## Conclusion
-AM MARKET’s design system combines Bootstrap 5.3.3 with a robust custom CSS layer that centralizes tokens, enforces consistent components, and supports a mobile-first responsive experience. By adhering to the established variables, typography, and interaction patterns, developers can extend the system confidently while maintaining visual coherence. The integration of Font Awesome and Inter ensures a polished interface, and thoughtful performance practices keep the application fast and accessible.
+AM MARKET's design system combines Bootstrap 5.3.3 with a robust custom CSS layer that centralizes tokens, enforces consistent components, and supports a mobile-first responsive experience. The recent comprehensive UI redesign includes an enhanced floating card header, advanced search functionality, notification system, improved account panel, hero carousel, trust bar, and mobile bottom toolbar. By adhering to the established variables, typography, and interaction patterns, developers can extend the system confidently while maintaining visual coherence. The integration of Font Awesome and Inter ensures a polished interface, and thoughtful performance practices keep the application fast and accessible.
 
 [No sources needed since this section summarizes without analyzing specific files]
 
@@ -379,11 +495,11 @@ AM MARKET’s design system combines Bootstrap 5.3.3 with a robust custom CSS la
 
 References:
 - Variable usage patterns: [style.css:1-14](file://css/style.css#L1-L14)
-- Button and input patterns: [style.css:105-164](file://css/style.css#L105-L164), [login.css:237-284](file://css/login.css#L237-L284)
+- Button and input patterns: [style.css:125-164](file://css/style.css#L125-L164), [login.css:237-284](file://css/login.css#L237-L284)
 
 **Section sources**
 - [style.css:1-14](file://css/style.css#L1-L14)
-- [style.css:105-164](file://css/style.css#L105-L164)
+- [style.css:125-164](file://css/style.css#L125-L164)
 - [login.css:237-284](file://css/login.css#L237-L284)
 
 ### Adapting the Theme for Different Use Cases
@@ -402,11 +518,27 @@ References:
 - Use Bootstrap grid breakpoints to adjust layouts for smaller screens.
 - Hide non-essential elements on mobile; prioritize critical actions.
 - Ensure touch targets are adequately sized and spaced.
+- Implement the mobile bottom toolbar for essential navigation functions.
 
 References:
-- Grid usage in pages: [index.html:59-291](file://index.html#L59-L291)
-- Mobile toolbar and responsive behaviors: [index.html:372-403](file://index.html#L372-L403)
+- Grid usage in pages: [index.html:74-355](file://index.html#L74-L355)
+- Mobile toolbar and responsive behaviors: [style.css:1007-1031](file://css/style.css#L1007-L1031), [style.css:1434-1445](file://css/style.css#L1434-L1445)
 
 **Section sources**
-- [index.html:59-291](file://index.html#L59-L291)
-- [index.html:372-403](file://index.html#L372-L403)
+- [index.html:74-355](file://index.html#L74-L355)
+- [style.css:1007-1031](file://css/style.css#L1007-L1031)
+- [style.css:1434-1445](file://css/style.css#L1434-L1445)
+
+### Internationalization Best Practices
+- Use data-i18n attributes for static text elements
+- Implement t() function for dynamic content with variable interpolation
+- Ensure complete translation coverage for all user-facing strings
+- Test language switching functionality thoroughly
+
+References:
+- Translation system: [i18n.js:432-462](file://js/i18n.js#L432-L462)
+- Integration examples: [app.js:1139-1155](file://js/app.js#L1139-L1155)
+
+**Section sources**
+- [i18n.js:432-462](file://js/i18n.js#L432-L462)
+- [app.js:1139-1155](file://js/app.js#L1139-L1155)
