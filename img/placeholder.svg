@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300" role="img" aria-label="No image available">
+  <circle cx="150" cy="138" r="58" fill="#c9d4e8" fill-opacity="0.35"/>
+  <g stroke="#1a6fd4" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M106 116h88l-12 54h-62z"/>
+    <path d="M106 116l-9-20H86"/>
+  </g>
+  <circle cx="124" cy="188" r="8" fill="#1a6fd4"/>
+  <circle cx="172" cy="188" r="8" fill="#1a6fd4"/>
+  <text x="150" y="232" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="600" fill="#9aa7bd">No image available</text>
+</svg>
+

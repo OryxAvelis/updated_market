@@ -1,0 +1,61 @@
+/* ==========================================================
+   AM MARKET — settings.css (settings.html)
+   Option cards reuse the checkout card styles (checkout.css
+   is loaded first: .co-card, .pay-icon, .pay-text, .pay-check).
+   ========================================================== */
+
+.set-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.set-options.one-col {
+  grid-template-columns: 1fr;
+}
+
+/* Same selectable-card pattern as .pay-opt (kept separate class so the
+   checkout JS is not coupled to this page) */
+.set-opt {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 2px solid var(--co-border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  min-height: 70px;
+}
+.set-opt input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.set-opt:hover { border-color: var(--orange-soft); }
+.set-opt.selected,
+.set-opt:has(input:checked) {
+  border-color: var(--co-accent);
+  background: var(--co-soft);
+}
+.set-opt.selected .pay-icon,
+.set-opt:has(input:checked) .pay-icon {
+  background: var(--co-accent);
+  color: #fff;
+}
+.set-opt.selected .pay-check,
+.set-opt:has(input:checked) .pay-check {
+  background: var(--co-accent);
+  border-color: var(--co-accent);
+  color: #fff;
+}
+
+.form-text {
+  color: var(--muted);
+  font-size: 0.76rem;
+  margin-top: 0.6rem;
+}
+
+@media (max-width: 575.98px) {
+  .set-options { grid-template-columns: 1fr; }
+}

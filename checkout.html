@@ -4,6 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AM MARKET — Checkout</title>
+  <meta name="description" content="Complete your AM MARKET order — delivery information, cash on delivery or card payment. Free delivery over 200 DH." />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="AM MARKET" />
+  <meta property="og:title" content="AM MARKET — Checkout" />
+  <meta property="og:description" content="Complete your order — delivery information, cash on delivery or card payment." />
+  <meta property="og:image" content="https://raw.githubusercontent.com/OryxAvelis/updated_market/main/img/logo-round.png" />
+  <meta name="twitter:card" content="summary" />
+  <script>(function(){var t=localStorage.getItem('am_theme')==='dark'?'dark':'light';document.documentElement.setAttribute('data-theme',t);document.documentElement.setAttribute('data-bs-theme',t);})();</script>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -15,41 +23,121 @@
 
   <main class="container-fluid px-3 px-lg-4 py-3">
     <h4 class="fw-bold mb-4" data-i18n="checkout">Checkout</h4>
+
+    <!-- Steps -->
+    <div class="co-steps">
+      <div class="co-step active">
+        <span class="step-dot"><i class="fa-solid fa-cart-shopping"></i></span>
+        <span data-i18n="step_cart">Cart</span>
+      </div>
+      <span class="co-step-line"></span>
+      <div class="co-step">
+        <span class="step-dot"><i class="fa-solid fa-truck-fast"></i></span>
+        <span data-i18n="step_delivery">Delivery</span>
+      </div>
+      <span class="co-step-line"></span>
+      <div class="co-step">
+        <span class="step-dot"><i class="fa-regular fa-credit-card"></i></span>
+        <span data-i18n="step_payment">Payment</span>
+      </div>
+      <span class="co-step-line"></span>
+      <div class="co-step">
+        <span class="step-dot"><i class="fa-solid fa-circle-check"></i></span>
+        <span data-i18n="step_confirm">Confirmation</span>
+      </div>
+    </div>
+
     <div class="row g-4">
       <div class="col-lg-7">
-        <div class="card border-0 shadow-sm mb-3">
-          <div class="card-body">
+
+        <!-- Delivery + payment -->
+        <div class="card border-0 co-card mb-4">
+          <div class="card-body p-4">
             <h6 class="fw-bold mb-3" data-i18n="delivery_info">Delivery Information</h6>
             <div class="row g-3">
               <div class="col-md-6"><label class="form-label" data-i18n="full_name">Full Name *</label><input type="text" class="form-control" id="cName" required></div>
-              <div class="col-md-6"><label class="form-label" data-i18n="phone">Phone *</label><input type="tel" class="form-control" id="cPhone" required></div>
-              <div class="col-12"><label class="form-label" data-i18n="email_label">Email *</label><input type="email" class="form-control" id="cEmail" required></div>
+              <div class="col-md-6">
+                <label class="form-label" data-i18n="phone">Phone *</label>
+                <div class="input-group">
+                  <span class="input-group-text fw-semibold">🇲🇦 +212</span>
+                  <input type="tel" class="form-control" id="cPhone" placeholder="06 12 34 56 78" data-i18n-ph="phone_ph" required>
+                </div>
+              </div>
+              <div class="col-md-12"><label class="form-label" data-i18n="email_label">Email *</label><input type="email" class="form-control" id="cEmail" required></div>
               <div class="col-12"><label class="form-label" data-i18n="address">Address *</label><textarea class="form-control" id="cAddress" rows="2" required></textarea></div>
-              <div class="col-md-6"><label class="form-label" data-i18n="city">City *</label><input type="text" class="form-control" id="cCity" required></div>
+              <div class="col-md-6">
+                <label class="form-label" data-i18n="city">City *</label>
+                <input type="text" class="form-control" id="cCity" list="maCities" required>
+                <datalist id="maCities">
+                  <option value="Casablanca"></option><option value="Rabat"></option><option value="Marrakech"></option>
+                  <option value="Fès"></option><option value="Tanger"></option><option value="Agadir"></option>
+                  <option value="Meknès"></option><option value="Oujda"></option><option value="Kénitra"></option>
+                  <option value="Tétouan"></option><option value="Salé"></option><option value="Safi"></option>
+                  <option value="El Jadida"></option><option value="Beni Mellal"></option><option value="Nador"></option>
+                  <option value="Khouribga"></option><option value="Settat"></option><option value="Essaouira"></option>
+                  <option value="Mohammedia"></option><option value="Laâyoune"></option>
+                </datalist>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" data-i18n="note_label">Delivery note (optional)</label>
+                <textarea class="form-control" id="cNote" rows="1" placeholder="Landmark, floor, instructions..." data-i18n-ph="note_ph"></textarea>
+              </div>
+            </div>
+
+            <div class="co-divider"></div>
+
+            <h6 class="fw-bold mb-3" data-i18n="payment_method">Payment Method</h6>
+            <div class="pay-options">
+              <label class="pay-opt selected">
+                <input type="radio" name="pay" id="pay1" value="Cash on Delivery" checked>
+                <span class="pay-icon"><i class="fa-solid fa-money-bill-wave"></i></span>
+                <span class="pay-text">
+                  <strong data-i18n="cod">Cash on Delivery</strong>
+                  <small data-i18n="cod_sub">Pay at your door</small>
+                </span>
+                <span class="pay-check"><i class="fa-solid fa-check"></i></span>
+              </label>
+              <label class="pay-opt">
+                <input type="radio" name="pay" id="pay2" value="Card">
+                <span class="pay-icon"><i class="fa-regular fa-credit-card"></i></span>
+                <span class="pay-text">
+                  <strong data-i18n="card_label">Credit / Debit Card</strong>
+                  <small data-i18n="card_sub">Secure online payment</small>
+                </span>
+                <span class="pay-check"><i class="fa-solid fa-check"></i></span>
+              </label>
             </div>
           </div>
         </div>
-        <div class="card border-0 shadow-sm">
-          <div class="card-body">
-            <h6 class="fw-bold mb-3" data-i18n="payment_method">Payment Method</h6>
-            <div class="form-check mb-2"><input class="form-check-input" type="radio" name="pay" id="pay1" value="Cash on Delivery" checked><label class="form-check-label" for="pay1" data-i18n="cod">Cash on Delivery</label></div>
-            <div class="form-check mb-2"><input class="form-check-input" type="radio" name="pay" id="pay2" value="Card"><label class="form-check-label" for="pay2" data-i18n="card_label">Credit / Debit Card</label></div>
-          </div>
-        </div>
+
+        <a href="cart.html" class="co-btn">
+          <i class="fa-solid fa-arrow-left"></i> <span data-i18n="back_to_cart">Back to Cart</span>
+        </a>
+
       </div>
+
       <div class="col-lg-5">
-        <div class="card border-0 shadow-sm checkout-summary">
-          <div class="card-body">
+        <div class="card border-0 co-card checkout-summary">
+          <div class="card-body p-4">
             <h6 class="fw-bold mb-3" data-i18n="order_summary">Order Summary</h6>
             <div id="coItems"></div>
             <hr>
             <div class="d-flex justify-content-between mb-1"><span class="text-muted" data-i18n="subtotal">Subtotal</span><span id="coSub">0 DH</span></div>
             <div class="d-flex justify-content-between mb-1"><span class="text-muted" data-i18n="delivery">Delivery</span><span id="coFee">0 DH</span></div>
             <div class="d-flex justify-content-between fw-bold fs-5 mt-2"><span data-i18n="total">Total</span><span class="text-orange" id="coTotal">0 DH</span></div>
-            <button class="btn btn-orange w-100 btn-lg mt-3" id="placeOrder" data-i18n="place_order">Place Order</button>
+            <div class="co-secure"><i class="fa-solid fa-lock me-1"></i><span data-i18n="secure_checkout">Secure checkout</span></div>
+            <button class="co-btn" id="placeOrder"><i class="fa-solid fa-bag-shopping me-1"></i> <span data-i18n="place_order">Place Order</span></button>
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Trust strip -->
+    <div class="co-trust">
+      <div class="t-item"><i class="fa-solid fa-shield-halved"></i><div><strong data-i18n="trust4_t">Secure Payment</strong><small data-i18n="trust4_s">100% protected</small></div></div>
+      <div class="t-item"><i class="fa-solid fa-truck-fast"></i><div><strong data-i18n="trust1_t">Fast Delivery</strong><small data-i18n="trust1_s">All over Morocco</small></div></div>
+      <div class="t-item"><i class="fa-solid fa-rotate"></i><div><strong data-i18n="trust3_t">Easy Returns</strong><small data-i18n="trust3_s">Within 7 days</small></div></div>
+      <div class="t-item"><i class="fa-solid fa-headset"></i><div><strong data-i18n="trust5_t">24/7 Support</strong><small data-i18n="trust5_s">We're here for you</small></div></div>
     </div>
   </main>
 

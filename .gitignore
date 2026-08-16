@@ -1,0 +1,10 @@
+# IDE-generated docs
+.qoder/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Node (if tooling is added later)
+node_modules/

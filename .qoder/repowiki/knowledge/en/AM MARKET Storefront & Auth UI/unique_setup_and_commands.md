@@ -1,1 +1,0 @@
-No build or install step required — serve the directory over HTTP so that `fetch` calls to `api.mmarket.ma` work and relative asset paths resolve. The store depends on an external API; without network access the product/category sections will show error messages defined in the i18n strings.

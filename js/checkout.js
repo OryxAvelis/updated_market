@@ -29,6 +29,7 @@ function placeOrder() {
   const email = $('cEmail').value.trim();
   const address = $('cAddress').value.trim();
   const city = $('cCity').value.trim();
+  const note = $('cNote')?.value.trim() || '';
   const payment = document.querySelector('input[name="pay"]:checked')?.value || 'Cash on Delivery';
 
   if (!name || !phone || !email || !address || !city) {
@@ -47,7 +48,7 @@ function placeOrder() {
   orders.unshift({
     id: 'AM' + Date.now().toString().slice(-6),
     date: new Date().toISOString(),
-    buyer: { name, phone, email, address, city },
+    buyer: { name, phone, email, address, city, note },
     payment,
     items,
     subtotal: sub,
@@ -59,14 +60,45 @@ function placeOrder() {
   saveOrders();
   cart = [];
   saveCart();
+
+  // Remember the delivery details for the next checkout (settings page shows them too)
+  saveDeliveryInfo({ name, phone, email, address, city });
+
   toast(t('order_ok'));
   setTimeout(() => { location.href = 'orders.html'; }, 900);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  prefillCheckout();
   renderCheckout();
   $('placeOrder')?.addEventListener('click', placeOrder);
+
+  // Payment option cards: sync the visual selected state with the radio inputs
+  const opts = document.querySelectorAll('.pay-opt');
+  const syncPayOpts = () => opts.forEach(o =>
+    o.classList.toggle('selected', o.querySelector('input').checked));
+  opts.forEach(o => o.querySelector('input').addEventListener('change', syncPayOpts));
+  syncPayOpts();
 });
+
+// Pre-fill the form from saved delivery details (settings) and the user
+// profile. Only empty fields are filled so nothing the visitor already
+// typed gets overwritten.
+function prefillCheckout() {
+  const d = getDeliveryInfo();
+  const u = getUser();
+  const fill = (id, v) => { if (v && !$(id).value) $(id).value = v; };
+  fill('cName', d.name || (u && u.name) || '');
+  fill('cPhone', d.phone || '');
+  fill('cEmail', d.email || (u && u.email) || '');
+  fill('cAddress', d.address || '');
+  fill('cCity', d.city || '');
+
+  // Default payment method from settings
+  const pay = getDefaultPay();
+  const radio = pay === 'card' ? $('pay2') : $('pay1');
+  if (radio) radio.checked = true;
+}
 
 // Re-render the summary only (never touches the form fields being filled in)
 window.addEventListener('am:langchange', renderCheckout);

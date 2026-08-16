@@ -18,7 +18,14 @@
   height: 88px;
   object-fit: contain;
   border-radius: 10px;
-  background: #fafafa;
+  background: var(--card-alt);
   padding: 6px;
   flex-shrink: 0;
+}
+
+/* Dark mode: thumbnail goes full-bleed (no white frame around the photo) */
+[data-theme="dark"] .cart-item img {
+  background: var(--card-alt);
+  padding: 0;
+  object-fit: cover;
 }

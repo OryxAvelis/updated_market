@@ -381,3 +381,42 @@ button { font-family: inherit; cursor: pointer; }
   .perks { display: none; }
   .auth-form-side { padding: 34px 26px; }
 }
+
+/* ========== DARK MODE ========== */
+/* The brand panel keeps its blue gradient; only the form side and page
+   background switch to the dark palette used across the site. */
+[data-theme="dark"] {
+  --orange: #5b9cff;
+  --orange-dark: #3d7fe8;
+  --orange-light: #1d2b47;
+  --orange-soft: #26365a;
+  --text: #e6eaf4;
+  --muted: #98a3b8;
+  --border: #2b3448;
+}
+[data-theme="dark"] body {
+  background:
+    radial-gradient(900px 500px at -10% -10%, #16223c 0%, transparent 60%),
+    radial-gradient(800px 500px at 110% 110%, #16223c 0%, transparent 60%),
+    #0e131e;
+}
+[data-theme="dark"] .auth-card {
+  background: #171e2c;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+}
+[data-theme="dark"] .back-home {
+  background: #1c2434;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  box-shadow: none;
+}
+[data-theme="dark"] .input-group-custom { background: #1c2434; }
+[data-theme="dark"] .input-group-custom:focus-within { background: #171e2c; }
+[data-theme="dark"] .input-group-custom > i,
+[data-theme="dark"] .eye { color: #7d8aa3; }
+[data-theme="dark"] .social-btn {
+  background: #1c2434;
+  color: var(--text);
+}
+[data-theme="dark"] .social-btn:hover { box-shadow: none; }
+[data-theme="dark"] .divider { color: #7d8aa3; }

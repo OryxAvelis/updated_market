@@ -4,7 +4,7 @@
    ========================================================== */
 
 .order-card {
-  background: #fff;
+  background: var(--card);
   border-radius: var(--radius);
   padding: 18px;
   box-shadow: var(--shadow);

@@ -29,7 +29,11 @@ function shopURL({ page = currentPage, cat = currentCat, q = searchQ } = {}) {
   const s = sp.toString();
   return 'categories.html' + (s ? '?' + s : '');
 }
-function syncURL() { history.replaceState(null, '', shopURL()); }
+// Some browsers restrict history.replaceState on file:// — if that happens,
+// skip the URL sync and keep working (links still carry the right hrefs).
+function syncURL() {
+  try { history.replaceState(null, '', shopURL()); } catch { /* file:// restricted */ }
+}
 
 // ---------- Client-side filters ----------
 function applyClientFilters(list) {
@@ -250,6 +254,17 @@ async function loadShopPage(page = 1) {
     }
 
     totalPages = Math.max(1, Math.ceil(totalCount / 12));
+
+    // Keep the price slider above the priciest product on the page so
+    // nothing is silently filtered out (min cap stays at 1000 DH)
+    const topPrice = pageProducts.reduce((m, p) => Math.max(m, Math.ceil(parseFloat(p.price) || 0)), 0);
+    const range = $('priceRange');
+    if (range && topPrice > 1000) {
+      const newMax = Math.ceil(topPrice * 1.1 / 10) * 10;
+      const wasAtMax = +range.value === +range.max;
+      range.max = newMax;
+      if (wasAtMax) { range.value = newMax; maxPrice = newMax; $('priceLabel').textContent = newMax + ' DH'; }
+    }
 
     renderFilterPanel(pageProducts);
     renderPageProducts(suggestion);

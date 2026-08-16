@@ -28,15 +28,15 @@ async function renderCart() {
 
   box.innerHTML = items.map(({ id, qty, product: p }) => `
     <div class="cart-item">
-      <img src="${p.image_url || ''}" alt="" onerror="this.src='https://via.placeholder.com/80'">
+      <img src="${p.image_url || ''}" alt="" onerror="this.onerror=null;this.src='img/placeholder.svg'">
       <div class="flex-grow-1">
         <div class="fw-semibold mb-1">${escapeHtml(p.name)}</div>
         <div class="text-muted small mb-2">${t('each', { p: formatPrice(p.price) })}</div>
         <div class="d-flex align-items-center gap-3">
-          <div class="qty-box">
-            <button type="button" class="q-minus" data-id="${id}">−</button>
-            <input type="number" value="${qty}" min="1" class="q-val" data-id="${id}">
-            <button type="button" class="q-plus" data-id="${id}">+</button>
+          <div class="qty-box" aria-label="Quantity">
+            <button type="button" class="q-minus" data-id="${id}" aria-label="-">−</button>
+            <input type="number" value="${qty}" min="1" class="q-val" data-id="${id}" aria-label="Quantity">
+            <button type="button" class="q-plus" data-id="${id}" aria-label="+">+</button>
           </div>
           <strong>${formatPrice(parseFloat(p.price) * qty)}</strong>
           <button class="btn btn-sm btn-outline-danger ms-auto rmv" data-id="${id}"><i class="fa-solid fa-trash"></i></button>

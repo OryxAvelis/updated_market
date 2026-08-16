@@ -25,7 +25,7 @@ async function renderDetail(id) {
       <div class="col-md-5">
         <div class="detail-img">
           <img src="${p.image_url || ''}" alt="${escapeHtml(p.name)}"
-               onerror="this.src='https://via.placeholder.com/400?text=No+Image'">
+               onerror="this.onerror=null;this.src='img/placeholder.svg'">
         </div>
       </div>
       <div class="col-md-7">
@@ -34,8 +34,8 @@ async function renderDetail(id) {
           <h3 class="fw-bold mb-2">${escapeHtml(p.name)}</h3>
 
           <div class="d-flex flex-wrap gap-2 mb-3">
-            ${p.category_name ? `<span class="badge bg-light text-dark border">${escapeHtml(catName(p.category_name))}</span>` : ''}
-            ${p.weight_volume ? `<span class="badge bg-light text-dark border">${escapeHtml(p.weight_volume)}</span>` : ''}
+            ${p.category_name ? `<span class="badge bg-body-tertiary border">${escapeHtml(catName(p.category_name))}</span>` : ''}
+            ${p.weight_volume ? `<span class="badge bg-body-tertiary border">${escapeHtml(p.weight_volume)}</span>` : ''}
             <span class="badge ${available ? 'bg-success' : 'bg-secondary'}">${available ? t('in_stock') : t('out_stock')}</span>
           </div>
 
@@ -50,9 +50,9 @@ async function renderDetail(id) {
           <div class="d-flex align-items-center gap-3 mb-4">
             <span class="fw-semibold">${t('quantity')}</span>
             <div class="qty-box">
-              <button type="button" id="dMinus">−</button>
-              <input type="number" id="dQty" value="1" min="1">
-              <button type="button" id="dPlus">+</button>
+              <button type="button" id="dMinus" aria-label="-">−</button>
+              <input type="number" id="dQty" value="1" min="1" aria-label="Quantity">
+              <button type="button" id="dPlus" aria-label="+">+</button>
             </div>
           </div>
 

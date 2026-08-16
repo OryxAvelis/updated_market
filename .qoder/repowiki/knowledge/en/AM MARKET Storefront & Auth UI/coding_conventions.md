@@ -1,6 +1,0 @@
-- User-facing text is never hardcoded in HTML; every string is referenced via `data-i18n`, `data-i18n-html`, `data-i18n-ph`, or `data-i18n-title` attributes and resolved through the shared `t()` function in `i18n.js`.
-- Language switching is implemented by toggling `am_lang` in `localStorage`, re-applying translations via `applyI18n()`, and broadcasting an `am:langchange` CustomEvent that other scripts listen to for reactive updates.
-- Persistent client state (cart, wishlist, orders, recently viewed) is stored under fixed `localStorage` keys grouped in a `LS` namespace object and updated through dedicated `save*` helpers that also refresh badge counts.
-- Views are implemented as sibling `<section id='xxxView' class='view'>` blocks inside `#mainContent`, with navigation driven by a single `showView(name)` function that toggles the `.active` class and triggers view-specific renderers.
-- API interactions use async `fetch` against a single `API` base URL constant, with category/product endpoints parameterized by query strings and response objects normalized before use.
-- Toast notifications are produced via a shared `toast(msg)` helper that renders into a Bootstrap toast container, used consistently across both storefront and login flows.

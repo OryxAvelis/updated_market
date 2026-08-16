@@ -1,1 +1,0 @@
-Vanilla HTML/CSS/JS with Bootstrap 5.3.3 (CSS + JS bundle) and Font Awesome 6.5.1 loaded from CDN; product/category data sourced from the remote REST API at `api.mmarket.ma`; state persisted in browser `localStorage`.

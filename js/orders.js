@@ -20,6 +20,7 @@ function renderOrders() {
         <span class="order-status">${status}</span>
       </div>
       <div class="small text-muted mb-2">${escapeHtml(names)}</div>
+      ${o.buyer && o.buyer.note ? `<div class="small text-muted mb-2"><i class="fa-regular fa-note-sticky me-1"></i>${escapeHtml(o.buyer.note)}</div>` : ''}
       <div class="d-flex justify-content-between"><strong>${formatPrice(o.total)}</strong><span class="small text-muted">${payLabel}</span></div>
     </div>`;
   }).join('');

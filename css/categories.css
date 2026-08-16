@@ -52,7 +52,7 @@
 }
 .filter-scroll .form-check-label {
   font-size: 0.84rem;
-  color: #4b5563;
+  color: var(--text-2);
   cursor: pointer;
 }
 .filters-panel .form-check-input {
@@ -91,13 +91,13 @@
 
 /* ========== SORT DROPDOWN ========== */
 #sortSelect {
-  border: 1.5px solid #e5e7eb;
+  border: 1.5px solid var(--border);
   border-radius: 10px;
   padding: 0.4rem 2rem 0.4rem 0.85rem;
   font-size: 0.84rem;
   font-weight: 500;
-  color: #374151;
-  background-color: #fff;
+  color: var(--text-2);
+  background-color: var(--card);
   cursor: pointer;
   min-width: 160px;
   transition: border-color 0.15s, box-shadow 0.15s;
@@ -107,7 +107,7 @@
   background-position: right 0.75rem center;
 }
 #sortSelect:hover {
-  border-color: #fdba74;
+  border-color: var(--orange);
 }
 #sortSelect:focus {
   border-color: var(--orange);
@@ -118,8 +118,8 @@
 /* Result count badge */
 #resultCount {
   font-size: 0.8rem;
-  color: #9ca3af;
-  background: #f3f4f6;
+  color: var(--muted);
+  background: var(--line);
   padding: 4px 10px;
   border-radius: 20px;
   font-weight: 500;

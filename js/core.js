@@ -191,6 +191,38 @@ function ensureCategories() {
 // ---------- Helpers ----------
 function $(id) { return document.getElementById(id); }
 
+// ---------- Theme (dark / light) ----------
+// The initial theme is applied before first paint by a tiny inline script in
+// each page <head>; these helpers keep it in sync when the user changes it.
+function getTheme() {
+  return localStorage.getItem('am_theme') === 'dark' ? 'dark' : 'light';
+}
+function setTheme(theme) {
+  const t = theme === 'dark' ? 'dark' : 'light';
+  localStorage.setItem('am_theme', t);
+  document.documentElement.setAttribute('data-theme', t);
+  document.documentElement.setAttribute('data-bs-theme', t); // Bootstrap dropdowns/toasts/inputs
+}
+
+// ---------- Saved preferences (used by settings + checkout) ----------
+function getUser() {
+  try { return JSON.parse(localStorage.getItem('am_user')); } catch { return null; }
+}
+
+function getDefaultPay() {
+  return localStorage.getItem('am_pay') === 'card' ? 'card' : 'cod';
+}
+function setDefaultPay(p) {
+  localStorage.setItem('am_pay', p === 'card' ? 'card' : 'cod');
+}
+
+function getDeliveryInfo() {
+  try { return JSON.parse(localStorage.getItem('am_delivery')) || {}; } catch { return {}; }
+}
+function saveDeliveryInfo(info) {
+  localStorage.setItem('am_delivery', JSON.stringify(info || {}));
+}
+
 function formatPrice(v) {
   const n = parseFloat(v);
   return isNaN(n) ? '—' : Math.round(n) + ' DH';
@@ -299,15 +331,50 @@ function renderAccountPanel() {
   const nameEl = $('apName');
   const link = $('apProfileLink');
   const row = $('logoutRow');
-  let u = null;
-  try { u = JSON.parse(localStorage.getItem('am_user')); } catch { u = null; }
+  const u = getUser();
   if (nameEl) nameEl.textContent = u && u.name ? u.name : t('guest');
+  // "View Profile" always opens the settings page (guest or logged in)
   if (link) {
-    if (u) { link.setAttribute('data-soon', '1'); link.removeAttribute('href'); }
-    else { link.setAttribute('href', 'login.html'); link.removeAttribute('data-soon'); }
+    link.setAttribute('href', 'settings.html');
+    link.removeAttribute('data-soon');
   }
   if (row) row.style.display = u ? '' : 'none';
 }
+
+// Header account dropdown + pill label reflect the logged-in state.
+// Guests keep full access to the shop; this only changes labels/links.
+function updateAccountUI() {
+  const u = getUser();
+  const label = $('accountLabel');
+  if (label) {
+    label.removeAttribute('data-i18n');
+    label.textContent = u && u.name ? u.name : t('my_account');
+  }
+  const userRow = $('ddUserRow');
+  if (userRow) {
+    userRow.style.display = u ? '' : 'none';
+    $('ddUserName').textContent = u ? (u.email || u.name || '') : '';
+  }
+  const loginRow = $('ddLoginRow');
+  if (loginRow) loginRow.style.display = u ? 'none' : '';
+  const logoutRow = $('ddLogoutRow');
+  const logoutItem = $('ddLogoutItem');
+  if (logoutRow) logoutRow.style.display = u ? '' : 'none';
+  if (logoutItem) logoutItem.style.display = u ? '' : 'none';
+}
+
+// Pages restored from the back/forward cache (e.g. going Back after signing
+// in on login.html) keep their old DOM — re-render state-dependent widgets
+// so a stale "Guest" or old badge counts never survive navigation.
+window.addEventListener('pageshow', e => {
+  if (e.persisted) {
+    loadState();
+    updateBadges();
+    renderNotifMenu();
+    renderAccountPanel();
+    updateAccountUI();
+  }
+});
 
 // ---------- Sidebar (home + categories pages) ----------
 let sidebarActiveCat = null;
@@ -345,7 +412,7 @@ function cardHTML(p) {
         ${disc > 0 ? `<span class="badge-disc">-${disc}%</span>` : (p.is_promo ? `<span class="badge-disc badge-promo">Promo 🔥</span>` : '')}
         <a class="product-img" href="${href}">
           <img src="${img}" alt="${escapeHtml(p.name)}" loading="lazy"
-               onerror="this.src='https://via.placeholder.com/300?text=No+Image'">
+               onerror="this.onerror=null;this.src='img/placeholder.svg'">
         </a>
         <div class="product-body">
           <a class="product-title" href="${href}">${escapeHtml(p.name)}</a>
@@ -430,14 +497,18 @@ const HEADER_HTML = `
         </div>
         <div class="dropdown">
           <button class="account-pill dropdown-toggle" data-bs-toggle="dropdown">
-            <i class="fa-regular fa-user"></i> <span class="d-none d-xl-inline" data-i18n="my_account">My Account</span> <i class="fa-solid fa-chevron-down hdr-chev"></i>
+            <i class="fa-regular fa-user"></i> <span class="d-none d-lg-inline" id="accountLabel" data-i18n="my_account">My Account</span> <i class="fa-solid fa-chevron-down hdr-chev"></i>
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
-            <li><a class="dropdown-item" href="login.html"><i class="fa-solid fa-right-to-bracket me-2"></i><span data-i18n="login_link">Login / Sign In</span></a></li>
+            <li id="ddUserRow" style="display:none"><span class="dropdown-item-text small fw-semibold" id="ddUserName"></span></li>
+            <li id="ddLoginRow"><a class="dropdown-item" href="login.html"><i class="fa-solid fa-right-to-bracket me-2"></i><span data-i18n="login_link">Login / Sign In</span></a></li>
             <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item" href="orders.html"><i class="fa-solid fa-box me-2"></i><span data-i18n="my_orders">My Orders</span></a></li>
             <li><a class="dropdown-item" href="wishlist.html"><i class="fa-regular fa-heart me-2"></i><span data-i18n="wish_title">Wishlist</span></a></li>
             <li><a class="dropdown-item" href="cart.html"><i class="fa-solid fa-cart-shopping me-2"></i><span data-i18n="cart_title">Cart</span></a></li>
+            <li><a class="dropdown-item" href="settings.html"><i class="fa-solid fa-gear me-2"></i><span data-i18n="settings">Settings</span></a></li>
+            <li id="ddLogoutRow" style="display:none"><hr class="dropdown-divider"></li>
+            <li id="ddLogoutItem" style="display:none"><a class="dropdown-item" href="#" id="ddLogoutLink"><i class="fa-solid fa-arrow-right-from-bracket me-2"></i><span data-i18n="logout">Logout</span></a></li>
           </ul>
         </div>
       </div>
@@ -458,6 +529,7 @@ const FOOTER_HTML = `
           </div>
           <p class="footer-desc" data-i18n="footer_desc">Votre marketplace marocaine pour tous les produits du quotidien.</p>
           <div class="footer-socials">
+            <a href="#" aria-label="WhatsApp"><i class="fa-brands fa-whatsapp"></i></a>
             <a href="#" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
             <a href="#" aria-label="Messenger"><i class="fa-brands fa-facebook-messenger"></i></a>
             <a href="#" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
@@ -579,7 +651,7 @@ function initHeaderSearch() {
 
 // Sync the mobile bottom toolbar active tab with the current page
 function initTabbar() {
-  const map = { home: 'home', categories: 'home', product: 'home', cart: 'cart', checkout: 'cart', wishlist: 'wishlist', orders: 'account' };
+  const map = { home: 'home', categories: 'home', product: 'home', cart: 'cart', checkout: 'cart', wishlist: 'wishlist', orders: 'account', settings: 'account' };
   const active = map[document.body.dataset.page] || '';
   document.querySelectorAll('.mobile-tabbar [data-tab]').forEach(el => {
     el.classList.toggle('active', el.dataset.tab === active);
@@ -605,23 +677,27 @@ function initBackToTop() {
   btt.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// "Coming soon" links + logout (account panel)
+// "Coming soon" links + logout (account panel, header dropdown, settings)
 document.addEventListener('click', e => {
   const soon = e.target.closest('[data-soon]');
   if (soon) { e.preventDefault(); toast(t('soon')); return; }
-  if (e.target.closest('#logoutLink')) {
+  const lo = e.target.closest('#logoutLink, #ddLogoutLink');
+  if (lo) {
     e.preventDefault();
     localStorage.removeItem('am_user');
     renderAccountPanel();
+    updateAccountUI();
     toast(t('logged_out'));
   }
 });
 
 (function coreInit() {
   loadState();
+  setTheme(getTheme()); // sync with the pre-paint inline script
   updateBadges();
   renderNotifMenu();
   renderAccountPanel();
+  updateAccountUI();
   initHeaderSearch();
   initTabbar();
   initBackToTop();
@@ -630,6 +706,7 @@ document.addEventListener('click', e => {
 // Re-render shared widgets when the language changes (pages handle their own content)
 window.addEventListener('am:langchange', () => {
   renderAccountPanel();
+  updateAccountUI();
   renderNotifMenu();
   if ($('categoryList') && categories.length) renderSidebar(sidebarActiveCat);
 });
