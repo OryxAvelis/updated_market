@@ -369,6 +369,39 @@
     </div>
   </footer>
 
+  <!-- MOBILE BOTTOM TOOLBAR -->
+  <nav class="mobile-tabbar" aria-label="Mobile navigation">
+    <button class="tab-item" data-tab="home">
+      <i class="fa-solid fa-house"></i>
+      <span data-i18n="tab_home">Home</span>
+      <em class="tab-dot"></em>
+    </button>
+    <button class="tab-item" data-tab="search">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <span data-i18n="tab_search">Search</span>
+      <em class="tab-dot"></em>
+    </button>
+    <button class="tab-item tab-center" data-tab="cart" data-i18n-title="cart_title">
+      <span class="tab-fab">
+        <i class="fa-solid fa-cart-shopping"></i>
+        <span class="fab-badge" id="mCartCount" data-n="0">0</span>
+      </span>
+      <span data-i18n="tab_cart">Cart</span>
+      <em class="tab-dot"></em>
+    </button>
+    <button class="tab-item" data-tab="wishlist">
+      <i class="fa-regular fa-heart"></i>
+      <span class="tab-badge" id="mWishCount" data-n="0">0</span>
+      <span data-i18n="tab_fav">Favorites</span>
+      <em class="tab-dot"></em>
+    </button>
+    <button class="tab-item" data-tab="account">
+      <i class="fa-regular fa-user"></i>
+      <span data-i18n="tab_account">Account</span>
+      <em class="tab-dot"></em>
+    </button>
+  </nav>
+
   <div class="toast-container position-fixed bottom-0 end-0 p-3">
     <div id="toast" class="toast align-items-center text-bg-dark border-0"><div class="d-flex"><div class="toast-body" id="toastMsg"></div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>
   </div>

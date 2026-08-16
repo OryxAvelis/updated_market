@@ -15,6 +15,11 @@ const I18N = {
     login_link: 'Login / Sign In',
     my_orders: 'My Orders',
     lang_switch: 'Français / English',
+    tab_home: 'Home',
+    tab_search: 'Search',
+    tab_cart: 'Cart',
+    tab_fav: 'Favorites',
+    tab_account: 'Account',
     // Sidebar / home
     all_categories: 'All Categories',
     loading: 'Loading...',
@@ -174,6 +179,11 @@ const I18N = {
     login_link: 'Connexion / Inscription',
     my_orders: 'Mes Commandes',
     lang_switch: 'English / Français',
+    tab_home: 'Accueil',
+    tab_search: 'Rechercher',
+    tab_cart: 'Panier',
+    tab_fav: 'Favoris',
+    tab_account: 'Compte',
     // Sidebar / accueil
     all_categories: 'Toutes les Catégories',
     loading: 'Chargement...',

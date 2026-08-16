@@ -162,10 +162,14 @@ function escapeHtml(t) {
 function updateBadges() {
   const cc = cart.reduce((s, i) => s + i.qty, 0);
   const wc = wishlist.length;
-  const cb = document.getElementById('cartCount');
-  const wb = document.getElementById('wishCount');
-  if (cb) { cb.textContent = cc; cb.dataset.n = cc; }
-  if (wb) { wb.textContent = wc; wb.dataset.n = wc; }
+  [['cartCount', cc], ['mCartCount', cc], ['wishCount', wc], ['mWishCount', wc]].forEach(([id, n]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (el.textContent !== String(n)) {
+      el.classList.remove('badge-pop'); void el.offsetWidth; el.classList.add('badge-pop');
+    }
+    el.textContent = n; el.dataset.n = n;
+  });
 }
 
 // ---------- Views ----------
@@ -185,7 +189,17 @@ function showView(name) {
   if (name === 'orders') renderOrders();
   if (name === 'wishlist') renderWishlist();
 
+  updateTabbar();
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Sync the mobile bottom toolbar active tab with the current view
+function updateTabbar() {
+  const map = { home: 'home', shop: 'home', detail: 'home', cart: 'cart', checkout: 'cart', wishlist: 'wishlist', orders: 'account' };
+  const active = map[currentViewName] || '';
+  document.querySelectorAll('.mobile-tabbar [data-tab]').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === active);
+  });
 }
 
 // ---------- Product card ----------
@@ -920,6 +934,22 @@ async function init() {
     if (!el) return;
     e.preventDefault();
     if (el.dataset.view) showView(el.dataset.view);
+  });
+
+  // Mobile bottom toolbar
+  document.querySelectorAll('.mobile-tabbar [data-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      if (tab === 'search') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setTimeout(() => document.getElementById('searchInput').focus({ preventScroll: true }), 350);
+      } else if (tab === 'account') {
+        if (localStorage.getItem('am_user')) showView('orders');
+        else window.location.href = 'login.html';
+      } else {
+        showView(tab); // home | cart | wishlist
+      }
+    });
   });
 
   // Search (uses real API search)
