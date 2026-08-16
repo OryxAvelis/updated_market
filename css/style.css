@@ -365,6 +365,13 @@ button { font-family: inherit; cursor: pointer; }
   line-height: 1.3;
 }
 
+/* ========== LANGUAGE TOGGLE ========== */
+.lang-btn span {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
 /* ========== PRODUCT CARDS ========== */
 .product-card {
   background: #fff;

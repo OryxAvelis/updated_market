@@ -12,7 +12,11 @@
 </head>
 <body>
 
-  <a href="index.html" class="back-home"><i class="fa-solid fa-arrow-left"></i> Back to Store</a>
+  <a href="index.html" class="back-home"><i class="fa-solid fa-arrow-left"></i> <span data-i18n="back_home">Back to Store</span></a>
+
+  <button class="lang-float" data-lang-toggle title="Français / English">
+    <i class="fa-solid fa-globe"></i> <span id="langLabel">EN</span>
+  </button>
 
   <div class="auth-card">
 
@@ -28,9 +32,9 @@
         <h1 id="brandTitle">Welcome back!</h1>
         <p id="brandText">Sign in to manage your orders, wishlist and get the best deals on everyday products.</p>
         <ul class="perks">
-          <li><i class="fa-solid fa-truck"></i> Free delivery over 200 DH</li>
-          <li><i class="fa-solid fa-rotate-left"></i> Easy returns within 7 days</li>
-          <li><i class="fa-solid fa-shield-halved"></i> 100% secure payment</li>
+          <li><i class="fa-solid fa-truck"></i> <span data-i18n="perk1">Free delivery over 200 DH</span></li>
+          <li><i class="fa-solid fa-rotate-left"></i> <span data-i18n="perk2">Easy returns within 7 days</span></li>
+          <li><i class="fa-solid fa-shield-halved"></i> <span data-i18n="perk3">100% secure payment</span></li>
         </ul>
       </div>
     </div>
@@ -40,56 +44,56 @@
 
       <!-- LOGIN -->
       <div class="form-box anim" id="loginBox">
-        <h2>Sign In</h2>
-        <p class="sub">Good to see you again 👋</p>
+        <h2 data-i18n="sign_in_h">Sign In</h2>
+        <p class="sub" data-i18n="login_sub">Good to see you again 👋</p>
         <form id="loginForm" novalidate>
           <div class="input-group-custom" id="loginEmailWrap">
             <i class="fa-regular fa-envelope"></i>
-            <input type="email" id="loginEmail" placeholder="Email address" autocomplete="email" />
+            <input type="email" id="loginEmail" placeholder="Email address" autocomplete="email" data-i18n-ph="email_ph" />
           </div>
           <div class="input-group-custom" id="loginPassWrap">
             <i class="fa-solid fa-lock"></i>
-            <input type="password" id="loginPass" placeholder="Password" autocomplete="current-password" />
-            <button type="button" class="eye" data-eye="loginPass" title="Show password"><i class="fa-regular fa-eye"></i></button>
+            <input type="password" id="loginPass" placeholder="Password" autocomplete="current-password" data-i18n-ph="password_ph" />
+            <button type="button" class="eye" data-eye="loginPass" title="Show password" data-i18n-title="show_pass"><i class="fa-regular fa-eye"></i></button>
           </div>
           <div class="row-between">
-            <label class="remember"><input type="checkbox" checked /> Remember me</label>
-            <a href="#" class="forgot">Forgot password?</a>
+            <label class="remember"><input type="checkbox" checked /> <span data-i18n="remember">Remember me</span></label>
+            <a href="#" class="forgot" data-i18n="forgot">Forgot password?</a>
           </div>
           <button class="btn-submit" type="submit" id="loginBtn">
-            <span>Sign In</span><i class="fa-solid fa-arrow-right"></i>
+            <span data-i18n="sign_in_btn">Sign In</span><i class="fa-solid fa-arrow-right"></i>
           </button>
         </form>
-        <div class="divider"><span>or continue with</span></div>
+        <div class="divider"><span data-i18n="or_continue">or continue with</span></div>
         <div class="socials">
           <button class="social-btn" type="button"><i class="fa-brands fa-google"></i> Google</button>
         </div>
-        <p class="switch-line">New to AM Market? <button class="link-btn" id="toSignup" type="button">Create an account</button></p>
+        <p class="switch-line"><span data-i18n="new_to">New to AM Market?</span> <button class="link-btn" id="toSignup" type="button"><span data-i18n="create_account_link">Create an account</span></button></p>
       </div>
 
       <!-- SIGN UP -->
       <div class="form-box hidden" id="signupBox">
-        <h2>Create Account</h2>
-        <p class="sub">Join AM Market in less than a minute 🚀</p>
+        <h2 data-i18n="create_h">Create Account</h2>
+        <p class="sub" data-i18n="signup_sub">Join AM Market in less than a minute 🚀</p>
         <form id="signupForm" novalidate>
           <div class="input-group-custom" id="suNameWrap">
             <i class="fa-regular fa-user"></i>
-            <input type="text" id="suName" placeholder="Full name" autocomplete="name" />
+            <input type="text" id="suName" placeholder="Full name" autocomplete="name" data-i18n-ph="full_name_ph" />
           </div>
           <div class="input-group-custom" id="suEmailWrap">
             <i class="fa-regular fa-envelope"></i>
-            <input type="email" id="suEmail" placeholder="Email address" autocomplete="email" />
+            <input type="email" id="suEmail" placeholder="Email address" autocomplete="email" data-i18n-ph="email_ph" />
           </div>
           <div class="input-group-custom" id="suPassWrap">
             <i class="fa-solid fa-lock"></i>
-            <input type="password" id="suPass" placeholder="Password (6+ characters)" autocomplete="new-password" />
-            <button type="button" class="eye" data-eye="suPass" title="Show password"><i class="fa-regular fa-eye"></i></button>
+            <input type="password" id="suPass" placeholder="Password (6+ characters)" autocomplete="new-password" data-i18n-ph="pass6_ph" />
+            <button type="button" class="eye" data-eye="suPass" title="Show password" data-i18n-title="show_pass"><i class="fa-regular fa-eye"></i></button>
           </div>
           <button class="btn-submit mt-3" type="submit" id="signupBtn">
-            <span>Create Account</span><i class="fa-solid fa-user-plus"></i>
+            <span data-i18n="create_btn">Create Account</span><i class="fa-solid fa-user-plus"></i>
           </button>
         </form>
-        <p class="switch-line">Already have an account? <button class="link-btn" id="toLogin" type="button">Sign in</button></p>
+        <p class="switch-line"><span data-i18n="have_account">Already have an account?</span> <button class="link-btn" id="toLogin" type="button"><span data-i18n="sign_in_link">Sign in</span></button></p>
       </div>
 
     </div>
@@ -105,6 +109,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+  <script src="js/i18n.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
 
@@ -114,27 +119,25 @@
     }
 
     // ---------- Switch login / signup ----------
-    const brandCopy = {
-      login: {
-        title: 'Welcome back!',
-        text: 'Sign in to manage your orders, wishlist and get the best deals on everyday products.'
-      },
-      signup: {
-        title: 'Welcome aboard!',
-        text: 'We’re glad you’re here — create your account in seconds and start enjoying the best deals on everyday products.'
-      }
-    };
+    let currentMode = 'login';
+    const brandCopy = () => ({
+      login:  { title: t('brand_login_title'),  text: t('brand_login_text') },
+      signup: { title: t('brand_signup_title'), text: t('brand_signup_text') }
+    });
 
     function setBrand(mode) {
-      const t = $('brandTitle'), p = $('brandText');
-      t.textContent = brandCopy[mode].title;
-      p.textContent = brandCopy[mode].text;
-      [t, p].forEach(el => {
+      currentMode = mode;
+      const copy = brandCopy()[mode];
+      const tEl = $('brandTitle'), p = $('brandText');
+      tEl.textContent = copy.title;
+      p.textContent = copy.text;
+      [tEl, p].forEach(el => {
         el.classList.remove('swap');
         void el.offsetWidth; // restart animation
         el.classList.add('swap');
       });
     }
+    window.addEventListener('am:langchange', () => setBrand(currentMode));
 
     function showBox(showId, hideId, back) {
       const show = $(showId), hide = $(hideId);
@@ -170,7 +173,7 @@
       btn.disabled = loading;
       if (loading) {
         btn.dataset.html = btn.innerHTML;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Please wait...';
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> ' + t('please_wait');
       } else if (btn.dataset.html) {
         btn.innerHTML = btn.dataset.html;
       }
@@ -180,7 +183,7 @@
       setLoading(btn, false);
       btn.innerHTML = '<i class="fa-solid fa-check"></i> ' + msg;
       localStorage.setItem('am_user', JSON.stringify({ email, name: name || email.split('@')[0] }));
-      toast('Welcome, ' + (name || email.split('@')[0]) + '!');
+      toast(t('welcome_user', { name: (name || email.split('@')[0]) }));
       setTimeout(() => { window.location.href = 'index.html'; }, 900);
     }
 
@@ -192,10 +195,10 @@
       let bad = false;
       bad = markError('loginEmailWrap', !validEmail(email)) || bad;
       bad = markError('loginPassWrap', pass.length < 6) || bad;
-      if (bad) { toast('Please check your email and password'); return; }
+      if (bad) { toast(t('check_creds')); return; }
 
       setLoading($('loginBtn'), true);
-      setTimeout(() => success($('loginBtn'), 'Signed in!', email), 900);
+      setTimeout(() => success($('loginBtn'), t('signed_in'), email), 900);
     };
 
     // ---------- Sign up ----------
@@ -208,16 +211,19 @@
       bad = markError('suNameWrap', name.length < 2) || bad;
       bad = markError('suEmailWrap', !validEmail(email)) || bad;
       bad = markError('suPassWrap', pass.length < 6) || bad;
-      if (bad) { toast('Please fill all fields correctly'); return; }
+      if (bad) { toast(t('fill_correct')); return; }
 
       setLoading($('signupBtn'), true);
-      setTimeout(() => success($('signupBtn'), 'Account created!', email, name), 900);
+      setTimeout(() => success($('signupBtn'), t('account_created'), email, name), 900);
     };
 
     // Clear error state while typing
     document.querySelectorAll('.input-group-custom input').forEach(inp => {
       inp.addEventListener('input', () => inp.closest('.input-group-custom').classList.remove('error'));
     });
+
+    // Sync brand panel with saved language on load
+    setBrand('login');
   </script>
 </body>
 </html>

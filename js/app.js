@@ -82,6 +82,8 @@ let onlyAvailable = true;
 let onlyPromo = false;
 let selectedBrand = null;
 let pageProducts = []; // current page products from API
+let currentViewName = 'home';
+let lastDetailId = null;
 
 // ---------- Storage ----------
 function loadLS() {
@@ -168,6 +170,7 @@ function updateBadges() {
 
 // ---------- Views ----------
 function showView(name) {
+  currentViewName = name;
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   const v = document.getElementById(name + 'View');
   if (v) v.classList.add('active');
@@ -210,10 +213,10 @@ function cardHTML(p) {
               ${hasOld ? `<span class="old">${formatPrice(oldPrice)}</span>` : ''}
             </div>
             <div class="card-actions">
-              <button class="wish-btn ${inWish ? 'active' : ''}" data-wish="${p.id}" title="Wishlist">
+              <button class="wish-btn ${inWish ? 'active' : ''}" data-wish="${p.id}" title="${t('wish_title')}">
                 <i class="fa-${inWish ? 'solid' : 'regular'} fa-heart"></i>
               </button>
-              <button class="add-btn" data-id="${p.id}" title="Add to Cart">
+              <button class="add-btn" data-id="${p.id}" title="${t('add_to_cart')}">
                 <i class="fa-solid fa-plus"></i>
               </button>
             </div>
@@ -292,7 +295,7 @@ async function renderHomeProducts() {
     box.innerHTML = products.slice(0, 12).map(cardHTML).join('');
     bindCards(box);
   } catch (e) {
-    box.innerHTML = `<div class="col-12 text-center text-danger py-4">Failed to load products</div>`;
+    box.innerHTML = `<div class="col-12 text-center text-danger py-4">${t('failed_load')}</div>`;
   }
 }
 
@@ -300,7 +303,7 @@ function renderSidebar() {
   const list = document.getElementById('categoryList');
   list.innerHTML = `
     <li class="list-group-item ${!currentCat ? 'active' : ''}" data-cat="">
-      🏪 All Categories
+      🏪 ${t('all_categories')}
     </li>
     ${categories.map(c => `
       <li class="list-group-item ${currentCat === c.id ? 'active' : ''}" data-cat="${c.id}">
@@ -349,7 +352,7 @@ function renderFilterPanel(list) {
     catBox.innerHTML = `
       <div class="form-check">
         <input class="form-check-input filter-cat" type="radio" name="fcat" id="fcat-all" value="" ${!currentCat ? 'checked' : ''}>
-        <label class="form-check-label small" for="fcat-all">All Categories</label>
+        <label class="form-check-label small" for="fcat-all">${t('all_categories')}</label>
       </div>
       ${categories.map(c => `
         <div class="form-check">
@@ -372,10 +375,10 @@ function renderFilterPanel(list) {
   if (brandBox) {
     const brands = [...new Set(list.map(p => p.brand_name).filter(Boolean))].sort();
     brandBox.innerHTML = brands.length === 0
-      ? `<span class="small text-muted">No brands</span>`
+      ? `<span class="small text-muted">${t('no_brands')}</span>`
       : `<div class="form-check">
           <input class="form-check-input filter-brand" type="radio" name="fbrand" id="fb-all" value="" ${!selectedBrand ? 'checked' : ''}>
-          <label class="form-check-label small" for="fb-all">All brands</label>
+          <label class="form-check-label small" for="fb-all">${t('all_brands')}</label>
         </div>` + brands.slice(0, 12).map(b => `
         <div class="form-check">
           <input class="form-check-input filter-brand" type="radio" name="fbrand" id="fb-${b.replace(/\s/g,'')}" value="${escapeHtml(b)}" ${selectedBrand === b ? 'checked' : ''}>
@@ -398,8 +401,8 @@ function renderPageProducts(suggestion = null) {
   const countEl = document.getElementById('resultCount');
   if (countEl) {
     countEl.textContent = totalCount
-      ? `${Math.min(list.length, 12)} shown · ${totalCount} total`
-      : list.length + ' products';
+      ? t('shown_total', { n: Math.min(list.length, 12), total: totalCount })
+      : t('n_products', { n: list.length });
   }
 
   if (list.length === 0) {
@@ -407,13 +410,13 @@ function renderPageProducts(suggestion = null) {
       <div class="col-12">
         <div class="empty-search text-center py-5">
           <div class="empty-icon mb-3">🔍</div>
-          <h5 class="fw-bold">No products found</h5>
-          <p class="text-muted mb-3">We couldn’t find anything for “${escapeHtml(searchQ || 'your search')}”</p>
+          <h5 class="fw-bold">${t('no_products')}</h5>
+          <p class="text-muted mb-3">${t('no_products_sub', { q: escapeHtml(searchQ || '…') })}</p>
           <div class="d-flex flex-wrap justify-content-center gap-2">
-            <button class="btn btn-outline-orange btn-sm" id="emptyClear">Clear search</button>
-            <button class="btn btn-orange btn-sm" data-view="shop" id="emptyBrowse">Browse all</button>
+            <button class="btn btn-outline-orange btn-sm" id="emptyClear">${t('clear_search')}</button>
+            <button class="btn btn-orange btn-sm" data-view="shop" id="emptyBrowse">${t('browse_all')}</button>
           </div>
-          <div class="mt-4 small text-muted">Try: <button class="btn btn-link btn-sm p-0 suggest-btn" data-q="reese">reese</button> ·
+          <div class="mt-4 small text-muted">${t('try')}: <button class="btn btn-link btn-sm p-0 suggest-btn" data-q="reese">reese</button> ·
             <button class="btn btn-link btn-sm p-0 suggest-btn" data-q="nutella">nutella</button> ·
             <button class="btn btn-link btn-sm p-0 suggest-btn" data-q="coca">coca</button> ·
             <button class="btn btn-link btn-sm p-0 suggest-btn" data-q="lait">lait</button>
@@ -446,8 +449,8 @@ function renderPageProducts(suggestion = null) {
   let html = '';
   if (suggestion) {
     html += `<div class="col-12"><div class="alert alert-light border small mb-2">
-      No exact match for “${escapeHtml(searchQ)}”. Showing results for <strong>“${escapeHtml(suggestion)}”</strong>
-      <button class="btn btn-link btn-sm p-0 ms-2" id="useSuggestion">Search “${escapeHtml(suggestion)}” only</button>
+      ${t('suggest_msg', { q: escapeHtml(searchQ), s: escapeHtml(suggestion) })}
+      <button class="btn btn-link btn-sm p-0 ms-2" id="useSuggestion">${t('search_only', { s: escapeHtml(suggestion) })}</button>
     </div></div>`;
   }
 
@@ -511,12 +514,16 @@ function renderPagination() {
   });
 }
 
-async function renderShop() {
+function updateShopTitle() {
   const cat = categories.find(c => c.id === currentCat);
-  let title = cat ? cat.name : 'All Categories';
-  if (searchQ) title = `Search: “${searchQ}”`;
+  let title = cat ? cat.name : t('all_categories');
+  if (searchQ) title = t('search_title', { q: searchQ });
   document.getElementById('shopTitle').textContent = title;
   document.getElementById('shopCrumb').textContent = title;
+}
+
+async function renderShop() {
+  updateShopTitle();
   renderSidebar();
   await loadShopPage(currentPage || 1);
 }
@@ -524,7 +531,7 @@ async function renderShop() {
 async function loadShopPage(page = 1) {
   const box = document.getElementById('shopProducts');
   currentPage = page;
-  box.innerHTML = `<div class="col-12 text-center py-5 text-muted"><div class="spinner-border spinner-border-sm text-warning" role="status"></div><div class="mt-2 small">Loading...</div></div>`;
+  box.innerHTML = `<div class="col-12 text-center py-5 text-muted"><div class="spinner-border spinner-border-sm text-warning" role="status"></div><div class="mt-2 small">${t('loading')}</div></div>`;
 
   try {
     let data = await fetchProducts(currentPage, currentCat, searchQ);
@@ -555,7 +562,7 @@ async function loadShopPage(page = 1) {
     renderPagination();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   } catch (e) {
-    box.innerHTML = `<div class="col-12 text-center text-danger py-4">Failed to load products</div>`;
+    box.innerHTML = `<div class="col-12 text-center text-danger py-4">${t('failed_load')}</div>`;
     const nav = document.getElementById('paginationNav');
     if (nav) nav.style.display = 'none';
   }
@@ -563,9 +570,10 @@ async function loadShopPage(page = 1) {
 
 // ---------- Detail ----------
 async function openDetail(id) {
+  lastDetailId = id;
   const box = document.getElementById('detailContent');
   const relatedBox = document.getElementById('relatedSection');
-  box.innerHTML = `<div class="col-12 text-center py-5 text-muted">Loading...</div>`;
+  box.innerHTML = `<div class="col-12 text-center py-5 text-muted">${t('loading')}</div>`;
   if (relatedBox) relatedBox.style.display = 'none';
   showView('detail');
 
@@ -591,19 +599,19 @@ async function openDetail(id) {
           <div class="d-flex flex-wrap gap-2 mb-3">
             ${p.category_name ? `<span class="badge bg-light text-dark border">${escapeHtml(p.category_name)}</span>` : ''}
             ${p.weight_volume ? `<span class="badge bg-light text-dark border">${escapeHtml(p.weight_volume)}</span>` : ''}
-            <span class="badge ${available ? 'bg-success' : 'bg-secondary'}">${available ? 'In Stock' : 'Out of Stock'}</span>
+            <span class="badge ${available ? 'bg-success' : 'bg-secondary'}">${available ? t('in_stock') : t('out_stock')}</span>
           </div>
 
           <div class="d-flex align-items-baseline gap-2 mb-3 flex-wrap">
             <span class="fs-2 fw-bold text-orange">${formatPrice(p.price)}</span>
             ${(parseFloat(p.original_price) > parseFloat(p.price)) ? `<span class="fs-5 text-muted text-decoration-line-through">${formatPrice(p.original_price)}</span>` : ''}
-            ${(parseInt(p.discount_percent) > 0) ? `<span class="badge bg-danger fs-6">${p.discount_percent}% OFF</span>` : ''}
+            ${(parseInt(p.discount_percent) > 0) ? `<span class="badge bg-danger fs-6">${t('off_badge', { n: p.discount_percent })}</span>` : ''}
           </div>
 
-          <p class="text-muted mb-4">${escapeHtml(p.description) || 'No description available for this product.'}</p>
+          <p class="text-muted mb-4">${escapeHtml(p.description) || t('no_desc')}</p>
 
           <div class="d-flex align-items-center gap-3 mb-4">
-            <span class="fw-semibold">Quantity</span>
+            <span class="fw-semibold">${t('quantity')}</span>
             <div class="qty-box">
               <button type="button" id="dMinus">−</button>
               <input type="number" id="dQty" value="1" min="1">
@@ -613,21 +621,21 @@ async function openDetail(id) {
 
           <div class="d-flex flex-wrap gap-2 mb-3">
             <button class="btn btn-orange btn-lg px-4" id="dAdd" ${!available ? 'disabled' : ''}>
-              <i class="fa-solid fa-cart-shopping me-2"></i> Add to Cart
+              <i class="fa-solid fa-cart-shopping me-2"></i> ${t('add_to_cart')}
             </button>
-            <button class="btn btn-outline-orange btn-lg" id="dBuy" ${!available ? 'disabled' : ''}>Buy Now</button>
+            <button class="btn btn-outline-orange btn-lg" id="dBuy" ${!available ? 'disabled' : ''}>${t('buy_now')}</button>
           </div>
 
           <button class="btn btn-link text-decoration-none p-0 ${inWish ? 'text-danger' : 'text-muted'}" id="dWish">
             <i class="fa-${inWish ? 'solid' : 'regular'} fa-heart me-1"></i>
-            ${inWish ? 'Remove from Wishlist' : 'Add to Wishlist'}
+            ${inWish ? t('remove_wish') : t('add_wish')}
           </button>
 
           <hr class="my-4">
           <div class="row g-2 small text-muted">
-            <div class="col-sm-4"><i class="fa-solid fa-truck text-orange me-1"></i> Free delivery over 200 DH</div>
-            <div class="col-sm-4"><i class="fa-solid fa-rotate-left text-orange me-1"></i> Easy returns</div>
-            <div class="col-sm-4"><i class="fa-solid fa-shield-halved text-orange me-1"></i> Secure payment</div>
+            <div class="col-sm-4"><i class="fa-solid fa-truck text-orange me-1"></i> ${t('free_del_over')}</div>
+            <div class="col-sm-4"><i class="fa-solid fa-rotate-left text-orange me-1"></i> ${t('easy_returns')}</div>
+            <div class="col-sm-4"><i class="fa-solid fa-shield-halved text-orange me-1"></i> ${t('secure_payment')}</div>
           </div>
         </div>
       </div>`;
@@ -642,7 +650,7 @@ async function openDetail(id) {
     // Related products (same category)
     loadRelated(p);
   } catch (e) {
-    box.innerHTML = `<div class="col-12 text-center text-danger py-5">Product not found</div>`;
+    box.innerHTML = `<div class="col-12 text-center text-danger py-5">${t('product_not_found')}</div>`;
   }
 }
 
@@ -682,7 +690,7 @@ function addToCart(id, qty = 1) {
   if (item) item.qty += qty;
   else cart.push({ id, qty });
   saveCart();
-  toast('Added to cart');
+  toast(t('added_cart'));
 }
 
 function updateQty(id, qty) {
@@ -700,7 +708,7 @@ function removeCart(id) {
   cart = cart.filter(i => i.id !== String(id));
   saveCart();
   renderCart();
-  toast('Removed');
+  toast(t('removed'));
 }
 
 function cartSubtotal() {
@@ -721,8 +729,7 @@ async function renderCart() {
   document.getElementById('cartLabel').textContent = `(${count})`;
 
   if (cart.length === 0) {
-    box.innerHTML = `<div class="text-center py-5"><i class="fa-solid fa-cart-shopping fa-3x text-muted mb-3"></i><h5>Your cart is empty</h5><button class="btn btn-orange mt-2" data-view="shop">Continue Shopping</button></div>`;
-    box.querySelector('[data-view]').onclick = () => showView('shop');
+    box.innerHTML = `<div class="text-center py-5"><i class="fa-solid fa-cart-shopping fa-3x text-muted mb-3"></i><h5>${t('cart_empty')}</h5><button class="btn btn-orange mt-2" data-view="shop">${t('continue_shopping')}</button></div>`;
     document.getElementById('goCheckout').disabled = true;
     updateSummary(0);
     return;
@@ -743,7 +750,7 @@ async function renderCart() {
       <img src="${p.image_url || ''}" alt="" onerror="this.src='https://via.placeholder.com/80'">
       <div class="flex-grow-1">
         <div class="fw-semibold mb-1">${escapeHtml(p.name)}</div>
-        <div class="text-muted small mb-2">${formatPrice(p.price)} each</div>
+        <div class="text-muted small mb-2">${t('each', { p: formatPrice(p.price) })}</div>
         <div class="d-flex align-items-center gap-3">
           <div class="qty-box">
             <button type="button" class="q-minus" data-id="${id}">−</button>
@@ -779,7 +786,7 @@ async function renderCart() {
 function updateSummary(sub) {
   const fee = deliveryFee(sub);
   document.getElementById('subTotal').textContent = formatPrice(sub);
-  document.getElementById('delivFee').textContent = fee === 0 ? 'Free' : formatPrice(fee);
+  document.getElementById('delivFee').textContent = fee === 0 ? t('free') : formatPrice(fee);
   document.getElementById('grandTotal').textContent = formatPrice(sub + fee);
 }
 
@@ -806,7 +813,7 @@ async function renderCheckout() {
   }).join('');
 
   document.getElementById('coSub').textContent = formatPrice(sub);
-  document.getElementById('coFee').textContent = fee === 0 ? 'Free' : formatPrice(fee);
+  document.getElementById('coFee').textContent = fee === 0 ? t('free') : formatPrice(fee);
   document.getElementById('coTotal').textContent = formatPrice(sub + fee);
 }
 
@@ -819,7 +826,7 @@ function placeOrder() {
   const payment = document.querySelector('input[name="pay"]:checked')?.value || 'Cash on Delivery';
 
   if (!name || !phone || !email || !address || !city) {
-    toast('Please fill all fields');
+    toast(t('fill_all'));
     return;
   }
 
@@ -846,7 +853,7 @@ function placeOrder() {
   saveOrders();
   cart = [];
   saveCart();
-  toast('Order placed successfully!');
+  toast(t('order_ok'));
   showView('orders');
 }
 
@@ -854,20 +861,21 @@ function placeOrder() {
 function renderOrders() {
   const box = document.getElementById('ordersList');
   if (orders.length === 0) {
-    box.innerHTML = `<div class="text-center py-5"><i class="fa-solid fa-box-open fa-3x text-muted mb-3"></i><h5>No orders yet</h5><button class="btn btn-orange mt-2" data-view="shop">Start Shopping</button></div>`;
-    box.querySelector('[data-view]').onclick = () => showView('shop');
+    box.innerHTML = `<div class="text-center py-5"><i class="fa-solid fa-box-open fa-3x text-muted mb-3"></i><h5>${t('no_orders')}</h5><button class="btn btn-orange mt-2" data-view="shop">${t('start_shopping')}</button></div>`;
     return;
   }
   box.innerHTML = orders.map(o => {
-    const date = new Date(o.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    const date = new Date(o.date).toLocaleDateString(getLang() === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
     const names = o.items.map(i => `${i.name} × ${i.qty}`).join(', ');
+    const status = (I18N[getLang()] || {})['status_' + String(o.status).toLowerCase()] || o.status;
+    const payLabel = o.payment === 'Cash on Delivery' ? t('cod') : t('card_label');
     return `<div class="order-card">
       <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
-        <div><strong>Order #${o.id}</strong><div class="small text-muted">${date}</div></div>
-        <span class="order-status">${o.status}</span>
+        <div><strong>${t('order_no', { id: o.id })}</strong><div class="small text-muted">${date}</div></div>
+        <span class="order-status">${status}</span>
       </div>
       <div class="small text-muted mb-2">${escapeHtml(names)}</div>
-      <div class="d-flex justify-content-between"><strong>${formatPrice(o.total)}</strong><span class="small text-muted">${o.payment}</span></div>
+      <div class="d-flex justify-content-between"><strong>${formatPrice(o.total)}</strong><span class="small text-muted">${payLabel}</span></div>
     </div>`;
   }).join('');
 }
@@ -876,8 +884,8 @@ function renderOrders() {
 function toggleWish(id) {
   id = String(id);
   const idx = wishlist.indexOf(id);
-  if (idx >= 0) { wishlist.splice(idx, 1); toast('Removed from wishlist'); }
-  else { wishlist.push(id); toast('Added to wishlist'); }
+  if (idx >= 0) { wishlist.splice(idx, 1); toast(t('removed_wish')); }
+  else { wishlist.push(id); toast(t('added_wish')); }
   saveWish();
 }
 
@@ -886,19 +894,18 @@ async function renderWishlist() {
   const box = document.getElementById('wishItems');
 
   if (wishlist.length === 0) {
-    box.innerHTML = `<div class="col-12 text-center py-5"><i class="fa-regular fa-heart fa-3x text-muted mb-3"></i><h5>Wishlist is empty</h5><button class="btn btn-orange mt-2" data-view="shop">Browse Products</button></div>`;
-    box.querySelector('[data-view]').onclick = () => showView('shop');
+    box.innerHTML = `<div class="col-12 text-center py-5"><i class="fa-regular fa-heart fa-3x text-muted mb-3"></i><h5>${t('wish_empty')}</h5><button class="btn btn-orange mt-2" data-view="shop">${t('browse_products')}</button></div>`;
     return;
   }
 
-  box.innerHTML = `<div class="col-12 text-center py-4 text-muted">Loading...</div>`;
+  box.innerHTML = `<div class="col-12 text-center py-4 text-muted">${t('loading')}</div>`;
   const items = [];
   for (const id of wishlist) {
     let p = productCache[id] || products.find(x => String(x.id) === id);
     if (!p) { try { p = await fetchProduct(id); } catch { continue; } }
     items.push(p);
   }
-  box.innerHTML = items.map(cardHTML).join('') || `<div class="col-12 text-center py-4 text-muted">No items</div>`;
+  box.innerHTML = items.map(cardHTML).join('') || `<div class="col-12 text-center py-4 text-muted">${t('no_items')}</div>`;
   bindCards(box);
 }
 
@@ -907,13 +914,12 @@ async function init() {
   loadLS();
   updateBadges();
 
-  // Navigation
-  document.querySelectorAll('[data-view]').forEach(el => {
-    el.addEventListener('click', e => {
-      e.preventDefault();
-      const v = el.dataset.view;
-      if (v) showView(v);
-    });
+  // Navigation (delegated so dynamically rendered [data-view] buttons work too)
+  document.addEventListener('click', e => {
+    const el = e.target.closest('[data-view]');
+    if (!el) return;
+    e.preventDefault();
+    if (el.dataset.view) showView(el.dataset.view);
   });
 
   // Search (uses real API search)
@@ -977,7 +983,7 @@ async function init() {
   } catch (e) {
     console.error(e);
     document.getElementById('homeProducts').innerHTML =
-      `<div class="col-12 text-center text-danger py-5">Could not load data from API. Check your connection.</div>`;
+      `<div class="col-12 text-center text-danger py-5">${t('api_error')}</div>`;
   }
 
   // Back to top
@@ -991,5 +997,21 @@ async function init() {
 
   showView('home');
 }
+
+// ---------- Language ----------
+window.addEventListener('am:langchange', () => {
+  if (currentViewName === 'home') renderHome();
+  else if (currentViewName === 'shop') {
+    updateShopTitle();
+    renderSidebar();
+    renderFilterPanel(pageProducts);
+    renderPageProducts();
+  }
+  else if (currentViewName === 'detail' && lastDetailId) openDetail(lastDetailId);
+  else if (currentViewName === 'cart') renderCart();
+  else if (currentViewName === 'checkout') renderCheckout();
+  else if (currentViewName === 'orders') renderOrders();
+  else if (currentViewName === 'wishlist') renderWishlist();
+});
 
 document.addEventListener('DOMContentLoaded', init);

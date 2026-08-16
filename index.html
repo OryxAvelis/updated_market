@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -22,30 +22,33 @@
 
         <div class="search-box flex-grow-1">
           <div class="input-group">
-            <input type="text" class="form-control" id="searchInput" placeholder="Search for products, brands and more..." />
+            <input type="text" class="form-control" id="searchInput" placeholder="Search for products, brands and more..." data-i18n-ph="search_ph" />
             <button class="btn btn-orange" id="searchBtn"><i class="fa-solid fa-magnifying-glass"></i></button>
           </div>
         </div>
 
         <div class="d-flex align-items-center gap-2 header-actions">
-          <button class="btn-icon" data-view="wishlist" title="Wishlist">
+          <button class="btn-icon lang-btn" data-lang-toggle title="Français / English">
+            <i class="fa-solid fa-globe"></i> <span class="d-none d-md-inline" id="langLabel">EN</span>
+          </button>
+          <button class="btn-icon" data-view="wishlist" title="Wishlist" data-i18n-title="wish_title">
             <i class="fa-regular fa-heart"></i>
             <span class="badge-count" id="wishCount">0</span>
           </button>
-          <button class="btn-icon" data-view="cart" title="Cart">
+          <button class="btn-icon" data-view="cart" title="Cart" data-i18n-title="cart_title">
             <i class="fa-solid fa-cart-shopping"></i>
             <span class="badge-count" id="cartCount">0</span>
           </button>
           <div class="dropdown">
             <button class="btn-icon dropdown-toggle" data-bs-toggle="dropdown">
-              <i class="fa-regular fa-user"></i> <span class="d-none d-md-inline">My Account</span>
+              <i class="fa-regular fa-user"></i> <span class="d-none d-md-inline" data-i18n="my_account">My Account</span>
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
-              <li><a class="dropdown-item" href="login.html"><i class="fa-solid fa-right-to-bracket me-2"></i>Login / Sign In</a></li>
+              <li><a class="dropdown-item" href="login.html"><i class="fa-solid fa-right-to-bracket me-2"></i><span data-i18n="login_link">Login / Sign In</span></a></li>
               <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item" href="#" data-view="orders"><i class="fa-solid fa-box me-2"></i>My Orders</a></li>
-              <li><a class="dropdown-item" href="#" data-view="wishlist"><i class="fa-regular fa-heart me-2"></i>Wishlist</a></li>
-              <li><a class="dropdown-item" href="#" data-view="cart"><i class="fa-solid fa-cart-shopping me-2"></i>Cart</a></li>
+              <li><a class="dropdown-item" href="#" data-view="orders"><i class="fa-solid fa-box me-2"></i><span data-i18n="my_orders">My Orders</span></a></li>
+              <li><a class="dropdown-item" href="#" data-view="wishlist"><i class="fa-regular fa-heart me-2"></i><span data-i18n="wish_title">Wishlist</span></a></li>
+              <li><a class="dropdown-item" href="#" data-view="cart"><i class="fa-solid fa-cart-shopping me-2"></i><span data-i18n="cart_title">Cart</span></a></li>
             </ul>
           </div>
         </div>
@@ -60,10 +63,10 @@
       <aside class="col-lg-2 d-none d-lg-block" id="sidebar">
         <div class="card border-0 shadow-sm">
           <div class="card-header bg-orange text-white fw-semibold py-2">
-            <i class="fa-solid fa-bars me-2"></i> All Categories
+            <i class="fa-solid fa-bars me-2"></i> <span data-i18n="all_categories">All Categories</span>
           </div>
           <ul class="list-group list-group-flush" id="categoryList">
-            <li class="list-group-item text-center text-muted small py-3">Loading...</li>
+            <li class="list-group-item text-center text-muted small py-3" data-i18n="loading">Loading...</li>
           </ul>
         </div>
       </aside>
@@ -78,51 +81,51 @@
               <span></span><span></span><span></span><span></span><span></span>
             </div>
             <div class="hero-text">
-              <h1>Big Deals<br>For Your Home!</h1>
-              <p>Up to 50% OFF on selected items</p>
-              <button class="btn btn-light fw-semibold px-4" data-view="shop">Shop Now</button>
+              <h1 data-i18n-html="hero_title">Big Deals<br>For Your Home!</h1>
+              <p data-i18n="hero_sub">Up to 50% OFF on selected items</p>
+              <button class="btn btn-light fw-semibold px-4" data-view="shop" data-i18n="shop_now">Shop Now</button>
             </div>
           </div>
 
           <div class="row g-2 mb-4">
             <div class="col-6 col-md-3">
-              <div class="trust-box"><i class="fa-solid fa-truck"></i><div><strong>Free Delivery</strong><small>On orders over 200 DH</small></div></div>
+              <div class="trust-box"><i class="fa-solid fa-truck"></i><div><strong data-i18n="trust1_t">Free Delivery</strong><small data-i18n="trust1_s">On orders over 200 DH</small></div></div>
             </div>
             <div class="col-6 col-md-3">
-              <div class="trust-box"><i class="fa-solid fa-tags"></i><div><strong>Best Price</strong><small>Guarantee</small></div></div>
+              <div class="trust-box"><i class="fa-solid fa-tags"></i><div><strong data-i18n="trust2_t">Best Price</strong><small data-i18n="trust2_s">Guarantee</small></div></div>
             </div>
             <div class="col-6 col-md-3">
-              <div class="trust-box"><i class="fa-solid fa-rotate-left"></i><div><strong>Easy Returns</strong><small>Within 7 days</small></div></div>
+              <div class="trust-box"><i class="fa-solid fa-rotate-left"></i><div><strong data-i18n="trust3_t">Easy Returns</strong><small data-i18n="trust3_s">Within 7 days</small></div></div>
             </div>
             <div class="col-6 col-md-3">
-              <div class="trust-box"><i class="fa-solid fa-shield-halved"></i><div><strong>Secure Payment</strong><small>100% protected</small></div></div>
+              <div class="trust-box"><i class="fa-solid fa-shield-halved"></i><div><strong data-i18n="trust4_t">Secure Payment</strong><small data-i18n="trust4_s">100% protected</small></div></div>
             </div>
           </div>
 
           <div class="d-flex justify-content-between align-items-center mb-3">
-            <h4 class="fw-bold mb-0">Shop by Categories</h4>
-            <a href="#" class="text-orange small fw-semibold" data-view="shop">View all</a>
+            <h4 class="fw-bold mb-0" data-i18n="shop_by_cats">Shop by Categories</h4>
+            <a href="#" class="text-orange small fw-semibold" data-view="shop" data-i18n="view_all">View all</a>
           </div>
           <div class="categories-grid mb-4" id="homeCategories"></div>
 
           <div id="recentSection" style="display:none">
             <div class="d-flex justify-content-between align-items-center mb-3">
-              <h4 class="fw-bold mb-0">Recently Viewed</h4>
+              <h4 class="fw-bold mb-0" data-i18n="recently_viewed">Recently Viewed</h4>
             </div>
             <div class="row g-3 mb-4" id="recentProducts"></div>
           </div>
 
           <div class="d-flex justify-content-between align-items-center mb-3">
-            <h4 class="fw-bold mb-0">Products</h4>
-            <a href="#" class="text-orange small fw-semibold" data-view="shop">View all</a>
+            <h4 class="fw-bold mb-0" data-i18n="products">Products</h4>
+            <a href="#" class="text-orange small fw-semibold" data-view="shop" data-i18n="view_all">View all</a>
           </div>
           <div class="row g-3" id="homeProducts">
-            <div class="col-12 text-center py-5 text-muted">Loading products...</div>
+            <div class="col-12 text-center py-5 text-muted" data-i18n="loading_products">Loading products...</div>
           </div>
         </section>
 
         <!-- Back to top -->
-        <button id="backToTop" class="back-to-top" title="Back to top">
+        <button id="backToTop" class="back-to-top" title="Back to top" data-i18n-title="back_top">
           <i class="fa-solid fa-arrow-up"></i>
         </button>
 
@@ -130,7 +133,7 @@
         <section id="shopView" class="view">
           <nav class="mb-3">
             <ol class="breadcrumb mb-0">
-              <li class="breadcrumb-item"><a href="#" data-view="home">Home</a></li>
+              <li class="breadcrumb-item"><a href="#" data-view="home" data-i18n="home">Home</a></li>
               <li class="breadcrumb-item active" id="shopCrumb">All Categories</li>
             </ol>
           </nav>
@@ -141,14 +144,14 @@
               <div class="card border-0 shadow-sm filters-panel sticky-top" style="top:90px">
                 <div class="card-body">
                   <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h6 class="fw-bold mb-0">Filters</h6>
-                    <button class="btn btn-link btn-sm text-orange p-0" id="clearFilters">Clear</button>
+                    <h6 class="fw-bold mb-0" data-i18n="filters">Filters</h6>
+                    <button class="btn btn-link btn-sm text-orange p-0" id="clearFilters" data-i18n="clear">Clear</button>
                   </div>
 
-                  <h6 class="fw-semibold small text-muted mb-2">Category</h6>
+                  <h6 class="fw-semibold small text-muted mb-2" data-i18n="category">Category</h6>
                   <div id="filterCategories" class="mb-3 filter-scroll"></div>
 
-                  <h6 class="fw-semibold small text-muted mb-2">Price (DH)</h6>
+                  <h6 class="fw-semibold small text-muted mb-2" data-i18n="price_dh">Price (DH)</h6>
                   <div class="mb-3">
                     <input type="range" class="form-range" id="priceRange" min="0" max="1000" step="10" value="1000">
                     <div class="d-flex justify-content-between small text-muted">
@@ -157,17 +160,17 @@
                     </div>
                   </div>
 
-                  <h6 class="fw-semibold small text-muted mb-2">Availability</h6>
+                  <h6 class="fw-semibold small text-muted mb-2" data-i18n="availability">Availability</h6>
                   <div class="form-check mb-2">
                     <input class="form-check-input" type="checkbox" id="filterAvailable" checked>
-                    <label class="form-check-label small" for="filterAvailable">In stock only</label>
+                    <label class="form-check-label small" for="filterAvailable" data-i18n="in_stock_only">In stock only</label>
                   </div>
                   <div class="form-check mb-3">
                     <input class="form-check-input" type="checkbox" id="filterPromo">
-                    <label class="form-check-label small" for="filterPromo">On promotion</label>
+                    <label class="form-check-label small" for="filterPromo" data-i18n="on_promo">On promotion</label>
                   </div>
 
-                  <h6 class="fw-semibold small text-muted mb-2">Brand</h6>
+                  <h6 class="fw-semibold small text-muted mb-2" data-i18n="brand">Brand</h6>
                   <div id="filterBrands" class="filter-scroll mb-2"></div>
                 </div>
               </div>
@@ -180,10 +183,10 @@
                 <div class="d-flex align-items-center gap-2">
                   <span class="small text-muted" id="resultCount"></span>
                   <select class="form-select form-select-sm w-auto" id="sortSelect">
-                    <option value="default">Default</option>
-                    <option value="price-asc">Price: Low to High</option>
-                    <option value="price-desc">Price: High to Low</option>
-                    <option value="name">Name A–Z</option>
+                    <option value="default" data-i18n="sort_default">Default</option>
+                    <option value="price-asc" data-i18n="sort_asc">Price: Low to High</option>
+                    <option value="price-desc" data-i18n="sort_desc">Price: High to Low</option>
+                    <option value="name" data-i18n="sort_name">Name A–Z</option>
                   </select>
                 </div>
               </div>
@@ -199,32 +202,32 @@
         <section id="detailView" class="view">
           <nav class="mb-3">
             <ol class="breadcrumb mb-0">
-              <li class="breadcrumb-item"><a href="#" data-view="home">Home</a></li>
-              <li class="breadcrumb-item"><a href="#" data-view="shop">Products</a></li>
-              <li class="breadcrumb-item active" id="detailCrumb">Product</li>
+              <li class="breadcrumb-item"><a href="#" data-view="home" data-i18n="home">Home</a></li>
+              <li class="breadcrumb-item"><a href="#" data-view="shop" data-i18n="products">Products</a></li>
+              <li class="breadcrumb-item active" id="detailCrumb" data-i18n="product_crumb">Product</li>
             </ol>
           </nav>
           <div class="row g-4" id="detailContent"></div>
           <div class="mt-5" id="relatedSection" style="display:none">
-            <h4 class="fw-bold mb-3">Related Products</h4>
+            <h4 class="fw-bold mb-3" data-i18n="related">Related Products</h4>
             <div class="row g-3" id="relatedProducts"></div>
           </div>
         </section>
 
         <!-- CART -->
         <section id="cartView" class="view">
-          <h4 class="fw-bold mb-4">Your Cart <span class="text-muted fs-6" id="cartLabel">(0)</span></h4>
+          <h4 class="fw-bold mb-4"><span data-i18n="your_cart">Your Cart</span> <span class="text-muted fs-6" id="cartLabel">(0)</span></h4>
           <div class="row g-4">
             <div class="col-lg-8" id="cartItems"></div>
             <div class="col-lg-4">
               <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                  <h6 class="fw-bold mb-3">Order Summary</h6>
-                  <div class="d-flex justify-content-between mb-2"><span class="text-muted">Subtotal</span><span id="subTotal">0 DH</span></div>
-                  <div class="d-flex justify-content-between mb-2"><span class="text-muted">Delivery</span><span id="delivFee">0 DH</span></div>
+                  <h6 class="fw-bold mb-3" data-i18n="order_summary">Order Summary</h6>
+                  <div class="d-flex justify-content-between mb-2"><span class="text-muted" data-i18n="subtotal">Subtotal</span><span id="subTotal">0 DH</span></div>
+                  <div class="d-flex justify-content-between mb-2"><span class="text-muted" data-i18n="delivery">Delivery</span><span id="delivFee">0 DH</span></div>
                   <hr>
-                  <div class="d-flex justify-content-between fw-bold fs-5 mb-3"><span>Total</span><span class="text-orange" id="grandTotal">0 DH</span></div>
-                  <button class="btn btn-orange w-100 btn-lg" id="goCheckout" disabled>Proceed to Checkout</button>
+                  <div class="d-flex justify-content-between fw-bold fs-5 mb-3"><span data-i18n="total">Total</span><span class="text-orange" id="grandTotal">0 DH</span></div>
+                  <button class="btn btn-orange w-100 btn-lg" id="goCheckout" disabled data-i18n="proceed">Proceed to Checkout</button>
                 </div>
               </div>
             </div>
@@ -233,39 +236,39 @@
 
         <!-- CHECKOUT -->
         <section id="checkoutView" class="view">
-          <h4 class="fw-bold mb-4">Checkout</h4>
+          <h4 class="fw-bold mb-4" data-i18n="checkout">Checkout</h4>
           <div class="row g-4">
             <div class="col-lg-7">
               <div class="card border-0 shadow-sm mb-3">
                 <div class="card-body">
-                  <h6 class="fw-bold mb-3">Delivery Information</h6>
+                  <h6 class="fw-bold mb-3" data-i18n="delivery_info">Delivery Information</h6>
                   <div class="row g-3">
-                    <div class="col-md-6"><label class="form-label">Full Name *</label><input type="text" class="form-control" id="cName" required></div>
-                    <div class="col-md-6"><label class="form-label">Phone *</label><input type="tel" class="form-control" id="cPhone" required></div>
-                    <div class="col-12"><label class="form-label">Email *</label><input type="email" class="form-control" id="cEmail" required></div>
-                    <div class="col-12"><label class="form-label">Address *</label><textarea class="form-control" id="cAddress" rows="2" required></textarea></div>
-                    <div class="col-md-6"><label class="form-label">City *</label><input type="text" class="form-control" id="cCity" required></div>
+                    <div class="col-md-6"><label class="form-label" data-i18n="full_name">Full Name *</label><input type="text" class="form-control" id="cName" required></div>
+                    <div class="col-md-6"><label class="form-label" data-i18n="phone">Phone *</label><input type="tel" class="form-control" id="cPhone" required></div>
+                    <div class="col-12"><label class="form-label" data-i18n="email_label">Email *</label><input type="email" class="form-control" id="cEmail" required></div>
+                    <div class="col-12"><label class="form-label" data-i18n="address">Address *</label><textarea class="form-control" id="cAddress" rows="2" required></textarea></div>
+                    <div class="col-md-6"><label class="form-label" data-i18n="city">City *</label><input type="text" class="form-control" id="cCity" required></div>
                   </div>
                 </div>
               </div>
               <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                  <h6 class="fw-bold mb-3">Payment Method</h6>
-                  <div class="form-check mb-2"><input class="form-check-input" type="radio" name="pay" id="pay1" value="Cash on Delivery" checked><label class="form-check-label" for="pay1">Cash on Delivery</label></div>
-                  <div class="form-check mb-2"><input class="form-check-input" type="radio" name="pay" id="pay2" value="Card"><label class="form-check-label" for="pay2">Credit / Debit Card</label></div>
+                  <h6 class="fw-bold mb-3" data-i18n="payment_method">Payment Method</h6>
+                  <div class="form-check mb-2"><input class="form-check-input" type="radio" name="pay" id="pay1" value="Cash on Delivery" checked><label class="form-check-label" for="pay1" data-i18n="cod">Cash on Delivery</label></div>
+                  <div class="form-check mb-2"><input class="form-check-input" type="radio" name="pay" id="pay2" value="Card"><label class="form-check-label" for="pay2" data-i18n="card_label">Credit / Debit Card</label></div>
                 </div>
               </div>
             </div>
             <div class="col-lg-5">
               <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                  <h6 class="fw-bold mb-3">Order Summary</h6>
+                  <h6 class="fw-bold mb-3" data-i18n="order_summary">Order Summary</h6>
                   <div id="coItems"></div>
                   <hr>
-                  <div class="d-flex justify-content-between mb-1"><span class="text-muted">Subtotal</span><span id="coSub">0 DH</span></div>
-                  <div class="d-flex justify-content-between mb-1"><span class="text-muted">Delivery</span><span id="coFee">0 DH</span></div>
-                  <div class="d-flex justify-content-between fw-bold fs-5 mt-2"><span>Total</span><span class="text-orange" id="coTotal">0 DH</span></div>
-                  <button class="btn btn-orange w-100 btn-lg mt-3" id="placeOrder">Place Order</button>
+                  <div class="d-flex justify-content-between mb-1"><span class="text-muted" data-i18n="subtotal">Subtotal</span><span id="coSub">0 DH</span></div>
+                  <div class="d-flex justify-content-between mb-1"><span class="text-muted" data-i18n="delivery">Delivery</span><span id="coFee">0 DH</span></div>
+                  <div class="d-flex justify-content-between fw-bold fs-5 mt-2"><span data-i18n="total">Total</span><span class="text-orange" id="coTotal">0 DH</span></div>
+                  <button class="btn btn-orange w-100 btn-lg mt-3" id="placeOrder" data-i18n="place_order">Place Order</button>
                 </div>
               </div>
             </div>
@@ -274,13 +277,13 @@
 
         <!-- ORDERS -->
         <section id="ordersView" class="view">
-          <h4 class="fw-bold mb-4">My Orders</h4>
+          <h4 class="fw-bold mb-4" data-i18n="my_orders">My Orders</h4>
           <div id="ordersList"></div>
         </section>
 
         <!-- WISHLIST -->
         <section id="wishlistView" class="view">
-          <h4 class="fw-bold mb-4">My Wishlist <span class="text-muted fs-6" id="wishLabel">(0)</span></h4>
+          <h4 class="fw-bold mb-4"><span data-i18n="my_wishlist">My Wishlist</span> <span class="text-muted fs-6" id="wishLabel">(0)</span></h4>
           <div class="row g-3" id="wishItems"></div>
         </section>
 
@@ -299,7 +302,7 @@
             <div class="footer-brand mb-3">
               <img src="img/logo.png" alt="AM MARKET" class="footer-logo-img">
             </div>
-            <p class="footer-desc">Votre marketplace marocaine pour tous les produits du quotidien.</p>
+            <p class="footer-desc" data-i18n="footer_desc">Votre marketplace marocaine pour tous les produits du quotidien.</p>
             <div class="footer-socials">
               <a href="#" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
               <a href="#" aria-label="Messenger"><i class="fa-brands fa-facebook-messenger"></i></a>
@@ -309,36 +312,36 @@
 
           <!-- Categories -->
           <div class="col-lg-3 col-md-6">
-            <h6 class="footer-heading">Catégories</h6>
+            <h6 class="footer-heading" data-i18n="footer_cats">Catégories</h6>
             <ul class="footer-nav-list" id="footerCategories">
-              <li><a href="#"><i class="fa-solid fa-basket-shopping"></i> Alimentation</a></li>
-              <li><a href="#"><i class="fa-solid fa-bottle-water"></i> Boissons</a></li>
-              <li><a href="#"><i class="fa-solid fa-soap"></i> Hygiène</a></li>
-              <li><a href="#"><i class="fa-solid fa-house"></i> Maison</a></li>
+              <li><a href="#"><i class="fa-solid fa-basket-shopping"></i> <span data-i18n="fcat_food">Alimentation</span></a></li>
+              <li><a href="#"><i class="fa-solid fa-bottle-water"></i> <span data-i18n="fcat_drinks">Boissons</span></a></li>
+              <li><a href="#"><i class="fa-solid fa-soap"></i> <span data-i18n="fcat_hygiene">Hygiène</span></a></li>
+              <li><a href="#"><i class="fa-solid fa-house"></i> <span data-i18n="fcat_home">Maison</span></a></li>
             </ul>
           </div>
 
           <!-- Help -->
           <div class="col-lg-3 col-md-6">
-            <h6 class="footer-heading">Aide</h6>
+            <h6 class="footer-heading" data-i18n="footer_help">Aide</h6>
             <ul class="footer-nav-list">
-              <li><a href="#"><i class="fa-solid fa-circle-info"></i> À propos</a></li>
-              <li><a href="#"><i class="fa-solid fa-phone"></i> Contact</a></li>
-              <li><a href="#"><i class="fa-regular fa-circle-question"></i> FAQs</a></li>
-              <li><a href="#"><i class="fa-solid fa-truck"></i> Livraison</a></li>
+              <li><a href="#"><i class="fa-solid fa-circle-info"></i> <span data-i18n="about">À propos</span></a></li>
+              <li><a href="#"><i class="fa-solid fa-phone"></i> <span data-i18n="contact">Contact</span></a></li>
+              <li><a href="#"><i class="fa-regular fa-circle-question"></i> <span data-i18n="faqs">FAQs</span></a></li>
+              <li><a href="#"><i class="fa-solid fa-truck"></i> <span data-i18n="delivery_link">Livraison</span></a></li>
             </ul>
           </div>
 
           <!-- Newsletter -->
           <div class="col-lg-3 col-md-6">
-            <h6 class="footer-heading">Newsletter</h6>
-            <p class="footer-desc mb-3">Get updates on latest products.</p>
+            <h6 class="footer-heading" data-i18n="newsletter">Newsletter</h6>
+            <p class="footer-desc mb-3" data-i18n="newsletter_sub">Get updates on latest products.</p>
             <form class="footer-newsletter" onsubmit="return false;">
               <div class="newsletter-input-wrap">
                 <i class="fa-regular fa-envelope"></i>
                 <input type="email" placeholder="Email" aria-label="Email" />
               </div>
-              <button type="submit" class="btn btn-blue">Go</button>
+              <button type="submit" class="btn btn-blue" data-i18n="go">Go</button>
             </form>
           </div>
 
@@ -349,7 +352,7 @@
     <!-- Footer Bottom -->
     <div class="footer-bottom">
       <div class="container d-flex flex-wrap align-items-center justify-content-between gap-3">
-        <p class="mb-0 small">© 2026 <a href="#" data-view="home" class="text-blue fw-semibold">AM MARKET</a>. Tous droits réservés.</p>
+        <p class="mb-0 small" data-i18n-html="rights">© 2026 <a href="#" data-view="home" class="text-blue fw-semibold">AM MARKET</a>. Tous droits réservés.</p>
         <div class="footer-payments">
           <!-- Visa -->
           <svg height="22" viewBox="0 0 1000 324" xmlns="http://www.w3.org/2000/svg" aria-label="Visa"><path d="M651.19 0C576.34 0 509.94 38.13 509.94 108.56c0 81.06 116.93 86.61 116.93 127.3 0 17.16-19.68 32.4-53.35 32.4-47.74 0-83.44-21.53-83.44-21.53l-15.32 71.97s40.43 17.9 95.97 17.9c82.16 0 151.16-40.87 151.16-112.73 0-85.63-117.47-90.99-117.47-129.26 0-13.42 16.25-28.1 49.8-28.1 38.03 0 69.01 15.77 69.01 15.77L736.8 14.27S702.73 0 651.19 0zM3.75 5.04L0 25.76s32.35 5.88 61.49 17.63c37.48 13.52 40.14 21.41 46.45 45.66l68.84 264.95h92.96L415.3 5.04h-92.59L243.47 221.1 210.38 32.12c-3.01-17.18-16.05-27.08-32.16-27.08H3.75zm411.93 0L339.47 354h88.38l76.16-349h-88.33zm451.32 0c-16.06 0-24.72 8.61-31.03 23.42L709.32 354h92.87l18.02-51.47h113.3L944.23 354H1000L945.35 5.04h-78.35zm12.16 84.4l27.3 120.56h-73.4l46.1-120.56z" fill="#1434CB"/></svg>
@@ -371,6 +374,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+  <script src="js/i18n.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
