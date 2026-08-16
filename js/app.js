@@ -255,7 +255,7 @@ function renderHome() {
   grid.innerHTML = categories.slice(0, 12).map(c => `
     <div class="cat-card" data-cat="${c.id}">
       <div class="icon">${getCatIcon(c)}</div>
-      <span>${escapeHtml(c.name)}</span>
+      <span>${escapeHtml(catName(c.name))}</span>
     </div>
   `).join('');
   grid.querySelectorAll('.cat-card').forEach(el => {
@@ -307,7 +307,7 @@ function renderSidebar() {
     </li>
     ${categories.map(c => `
       <li class="list-group-item ${currentCat === c.id ? 'active' : ''}" data-cat="${c.id}">
-        ${getCatIcon(c)} ${escapeHtml(c.name)}
+        ${getCatIcon(c)} ${escapeHtml(catName(c.name))}
         <small class="text-muted ms-auto">${c.product_count || ''}</small>
       </li>
     `).join('')}`;
@@ -357,7 +357,7 @@ function renderFilterPanel(list) {
       ${categories.map(c => `
         <div class="form-check">
           <input class="form-check-input filter-cat" type="radio" name="fcat" id="fcat-${c.id}" value="${c.id}" ${currentCat === c.id ? 'checked' : ''}>
-          <label class="form-check-label small" for="fcat-${c.id}">${escapeHtml(c.name)}</label>
+          <label class="form-check-label small" for="fcat-${c.id}">${escapeHtml(catName(c.name))}</label>
         </div>
       `).join('')}`;
 
@@ -516,7 +516,7 @@ function renderPagination() {
 
 function updateShopTitle() {
   const cat = categories.find(c => c.id === currentCat);
-  let title = cat ? cat.name : t('all_categories');
+  let title = cat ? catName(cat.name) : t('all_categories');
   if (searchQ) title = t('search_title', { q: searchQ });
   document.getElementById('shopTitle').textContent = title;
   document.getElementById('shopCrumb').textContent = title;
@@ -597,7 +597,7 @@ async function openDetail(id) {
           <h3 class="fw-bold mb-2">${escapeHtml(p.name)}</h3>
 
           <div class="d-flex flex-wrap gap-2 mb-3">
-            ${p.category_name ? `<span class="badge bg-light text-dark border">${escapeHtml(p.category_name)}</span>` : ''}
+            ${p.category_name ? `<span class="badge bg-light text-dark border">${escapeHtml(catName(p.category_name))}</span>` : ''}
             ${p.weight_volume ? `<span class="badge bg-light text-dark border">${escapeHtml(p.weight_volume)}</span>` : ''}
             <span class="badge ${available ? 'bg-success' : 'bg-secondary'}">${available ? t('in_stock') : t('out_stock')}</span>
           </div>

@@ -328,6 +328,41 @@ const I18N = {
 // Keys allowed to render markup via data-i18n-html (static constants only)
 const I18N_HTML_KEYS = { hero_title: 1, rights: 1 };
 
+// Category names as returned by the API (French) -> English display names
+const CAT_EN = {
+  'boissons': 'Beverages',
+  'hygiene': 'Hygiene',
+  'produits laitiers': 'Dairy Products',
+  'glaces': 'Ice Cream',
+  'epicerie': 'Groceries',
+  'fruits sec': 'Dried Fruits',
+  'friandise': 'Candies',
+  'maison cuisine': 'Home & Kitchen',
+  'univers bebe': 'Baby & Kids',
+  'snacks sucres': 'Sweet Snacks',
+  'animaux': 'Pet Supplies',
+  'snacks sales': 'Salty Snacks',
+  'boulangerie patisserie': 'Bakery & Pastry',
+  'nettoyage': 'Cleaning',
+  'cadeaux fetes': 'Gifts & Parties',
+  'fournitures bureau': 'Office Supplies',
+  'divertissement': 'Entertainment',
+  'frais': 'Fresh Food',
+  'petit dejeuner': 'Breakfast',
+  'asiatique': 'Asian Food',
+  'accessoire telephone': 'Phone Accessories',
+  'accessoire téléphone': 'Phone Accessories',
+  'congele': 'Frozen',
+  'eau': 'Water'
+};
+
+// Translate an API category name for the current language (FR shows it as-is)
+function catName(name) {
+  if (!name) return name || '';
+  if (getLang() === 'fr') return name;
+  return CAT_EN[String(name).toLowerCase().trim()] || name;
+}
+
 function getLang() {
   const l = localStorage.getItem('am_lang');
   return (l === 'fr' || l === 'en') ? l : 'en';
