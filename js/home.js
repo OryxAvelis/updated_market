@@ -12,6 +12,8 @@ function initHeroCarousel() {
   const slides = [...document.querySelectorAll('.hero-slide')];
   const dotsBox = $('heroDots');
   if (!slides.length || !dotsBox) return;
+  // mark slides that lack an image for CSS fallback centering
+  slides.forEach(s => { if (!s.querySelector('.hero-img')) s.classList.add('no-img'); else s.classList.remove('no-img'); });
   dotsBox.innerHTML = slides.map((_, i) =>
     `<button class="hero-dot${i === 0 ? ' active' : ''}" data-i="${i}" aria-label="Slide ${i + 1}"></button>`).join('');
   let cur = 0;

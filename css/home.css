@@ -5,9 +5,9 @@
 
 /* ========== HERO ========== */
 .hero-banner {
-  --hero-height: var(--hero-height, 380px);
+  /* prefer global --hero-height token; explicit height keeps slides consistent */
+  height: var(--hero-height);
   min-height: var(--hero-height);
-  height: 100%;
   position: relative;
   overflow: hidden;
   border-radius: 16px;
@@ -71,10 +71,11 @@
 }
 .hero-text h1 {
   font-weight: 800;
-  font-size: clamp(1.8rem, 3vw, 3.2rem);
-  line-height: 1.03;
+  /* reduced max size and smoother scaling across breakpoints */
+  font-size: clamp(1.25rem, 1rem + 2.2vw, 2.6rem);
+  line-height: 1.06;
   margin-bottom: 0.6rem;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
 }
 .hero-text p {
   opacity: 0.92;
@@ -292,12 +293,32 @@
 }
 
 /* ========== RESPONSIVE ========== */
-@media (max-width: 991.98px) {
-  .hero-banner { min-height: 200px; padding: 1.75rem; }
-  .hero-text h1 { font-size: 1.7rem; }
+/* responsive hero heights tuned per breakpoint — uses --hero-height token */
+@media (max-width: 374.98px) {
+  .hero-banner { --hero-height: 220px; padding: 1rem; }
+  .hero-text h1 { font-size: clamp(1.1rem, 1rem + 1.5vw, 1.5rem); }
 }
+@media (min-width: 375px) and (max-width: 767.98px) {
+  .hero-banner { --hero-height: 300px; padding: 1.25rem; }
+  .hero-text h1 { font-size: clamp(1.25rem, 1rem + 1.8vw, 1.9rem); }
+}
+@media (min-width: 768px) and (max-width: 991.98px) {
+  .hero-banner { --hero-height: 340px; padding: 1.75rem; }
+  .hero-text h1 { font-size: clamp(1.5rem, 1rem + 2.2vw, 2.2rem); }
+}
+@media (min-width: 992px) and (max-width: 1365.98px) {
+  .hero-banner { --hero-height: 380px; padding: 2rem; }
+  .hero-text h1 { font-size: clamp(1.6rem, 1rem + 2.6vw, 2.6rem); }
+}
+@media (min-width: 1366px) {
+  .hero-banner { --hero-height: 420px; padding: 2rem; }
+  .hero-text h1 { font-size: clamp(1.8rem, 1rem + 3vw, 2.6rem); }
+}
+/* fallback/compat: center slides that have no image — also add .no-img class from JS */
+.hero-slide.no-img { justify-content: center; }
+.hero-slide.no-img .hero-text { margin-left: auto; margin-right: auto; }
+/* small adjustments retained for categories grid */
 @media (max-width: 575.98px) {
-  .hero-text h1 { font-size: 1.45rem; }
   .categories-grid {
     grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
     gap: 8px;
