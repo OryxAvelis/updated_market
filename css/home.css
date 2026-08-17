@@ -5,7 +5,8 @@
 
 /* ========== HERO ========== */
 .hero-banner {
-  min-height: 340px;
+  --hero-height: var(--hero-height, 380px);
+  min-height: var(--hero-height);
   height: 100%;
   position: relative;
   overflow: hidden;
@@ -18,9 +19,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  min-height: 340px;
+  min-height: var(--hero-height);
   height: 100%;
-  padding: 2.25rem 2.75rem;
+  padding: 2rem 2rem;
   position: relative;
   z-index: 2;
 }
@@ -37,7 +38,7 @@
   width: min(46%, 430px);
   aspect-ratio: 1;
   object-fit: cover;
-  border-radius: 18px;
+  border-radius: var(--radius-sm);
   mask-image: radial-gradient(ellipse at 60% 50%, #000 52%, transparent 76%);
   -webkit-mask-image: radial-gradient(ellipse at 60% 50%, #000 52%, transparent 76%);
   animation: heroFloat 6s ease-in-out infinite;
@@ -70,15 +71,15 @@
 }
 .hero-text h1 {
   font-weight: 800;
-  font-size: 2.15rem;
-  line-height: 1.15;
-  margin-bottom: 0.5rem;
-  letter-spacing: -0.5px;
+  font-size: clamp(1.8rem, 3vw, 3.2rem);
+  line-height: 1.03;
+  margin-bottom: 0.6rem;
+  letter-spacing: -0.03em;
 }
 .hero-text p {
   opacity: 0.92;
-  margin-bottom: 1.25rem;
-  font-size: 1.05rem;
+  margin-bottom: 1.05rem;
+  font-size: clamp(0.95rem, 1.2vw, 1.15rem);
 }
 .hero-cta {
   font-weight: 700;

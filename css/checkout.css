@@ -1,8 +1,7 @@
 /* ==========================================================
    AM MARKET — checkout.css (checkout.html)
-   Checkout steps bar, payment option cards, pill action
-   buttons and trust strip, following the design mockup:
-   white cards on #f8f9fb with vivid blue accents.
+   Checkout steps bar, organized delivery form, payment cards,
+   micro-interactions and trust strip.
    ========================================================== */
 
 :root {
@@ -10,12 +9,14 @@
   --co-soft: #f5f8ff;
   --co-border: #e8ecf3;
   --co-dot: #eef1f6;
+  --co-input-bg: #f8fafc;
 }
 [data-theme="dark"] {
   --co-accent: #5b9cff;
   --co-soft: #1d2b47;
   --co-border: #2b3448;
   --co-dot: #232c40;
+  --co-input-bg: #121820;
 }
 
 /* ========== STEPS BAR ========== */
@@ -51,13 +52,14 @@
   justify-content: center;
   font-size: 0.78rem;
   flex-shrink: 0;
-  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  transition: background 0.25s, color 0.25s, box-shadow 0.25s, transform 0.2s;
 }
 .co-step.active { color: var(--co-accent); }
 .co-step.active .step-dot {
   background: var(--co-accent);
   color: #fff;
   box-shadow: 0 4px 12px rgba(6,89,234,0.35);
+  transform: scale(1.06);
 }
 .co-step-line {
   flex: 1;
@@ -69,8 +71,9 @@
 
 /* ========== CARDS ========== */
 .co-card {
-  border-radius: 16px !important;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.06) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.06) !important;
+  overflow: hidden;
 }
 .co-card h6.fw-bold {
   font-size: 1rem;
@@ -78,7 +81,156 @@
 }
 .co-divider {
   border-top: 1px solid var(--co-dot);
-  margin: 1.4rem 0;
+  margin: 1.6rem 0 1.4rem;
+}
+
+/* ========== SECTION HEADS ========== */
+.co-section-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 1.25rem;
+}
+.co-section-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--co-soft);
+  color: var(--co-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05rem;
+  flex-shrink: 0;
+  transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1);
+}
+.co-section-icon.pay {
+  background: linear-gradient(135deg, #eef4ff, #e0ebff);
+}
+[data-theme="dark"] .co-section-icon.pay {
+  background: linear-gradient(135deg, #1d2b47, #243556);
+}
+.co-section-head:hover .co-section-icon {
+  transform: scale(1.08) rotate(-4deg);
+}
+
+/* ========== FIELD GROUPS ========== */
+.co-field-group {
+  background: var(--co-input-bg);
+  border: 1px solid var(--co-border);
+  border-radius: 14px;
+  padding: 16px 16px 18px;
+  margin-bottom: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.co-field-group:focus-within {
+  border-color: rgba(6,89,234,0.35);
+  box-shadow: 0 0 0 3px rgba(6,89,234,0.08);
+}
+.co-group-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--co-accent);
+  margin-bottom: 12px;
+  opacity: 0.9;
+}
+.co-group-label i {
+  font-size: 0.7rem;
+}
+
+/* ========== INPUTS ========== */
+.co-input-wrap {
+  position: relative;
+}
+.co-input-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 0.88rem;
+  pointer-events: none;
+  transition: color 0.2s;
+  z-index: 2;
+}
+/* Textareas: pin icon to the top instead of vertical center */
+.co-input-wrap:has(textarea) .co-input-icon {
+  top: 16px;
+  transform: none;
+}
+.co-input-wrap .form-control.co-input {
+  padding-left: 42px;
+}
+.co-input-wrap:focus-within .co-input-icon {
+  color: var(--co-accent);
+}
+
+.form-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-2);
+  margin-bottom: 6px;
+}
+
+.form-control.co-input,
+.co-phone-group .form-control {
+  border-radius: 11px !important;
+  border: 1.5px solid var(--co-border) !important;
+  background: var(--card) !important;
+  font-size: 0.92rem;
+  padding: 0.7rem 0.95rem;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  color: var(--text);
+}
+.form-control.co-input:focus,
+.co-phone-group .form-control:focus {
+  border-color: var(--co-accent) !important;
+  box-shadow: 0 0 0 3.5px rgba(6,89,234,0.14) !important;
+  background: var(--card) !important;
+  outline: none;
+}
+.form-control.co-input::placeholder {
+  color: var(--muted);
+  opacity: 0.75;
+}
+
+/* Phone group */
+.co-phone-group {
+  border-radius: 11px;
+  overflow: hidden;
+  border: 1.5px solid var(--co-border);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background: var(--card);
+}
+.co-phone-group:focus-within {
+  border-color: var(--co-accent);
+  box-shadow: 0 0 0 3.5px rgba(6,89,234,0.14);
+}
+.co-phone-group .input-group-text {
+  background: var(--co-soft);
+  border: none;
+  color: var(--text-2);
+  font-size: 0.85rem;
+  padding: 0.7rem 0.85rem;
+}
+.co-phone-group .form-control {
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+.co-phone-group .form-control:focus {
+  box-shadow: none !important;
+}
+
+/* Textareas */
+textarea.form-control.co-input {
+  min-height: 72px;
+  resize: vertical;
 }
 
 /* ========== PAYMENT OPTIONS ========== */
@@ -94,10 +246,12 @@
   gap: 12px;
   border: 2px solid var(--co-border);
   border-radius: 14px;
-  padding: 12px 14px;
+  padding: 14px 16px;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-  min-height: 70px;
+  transition: border-color 0.22s, background 0.22s, box-shadow 0.22s, transform 0.18s;
+  min-height: 76px;
+  background: var(--card);
+  user-select: none;
 }
 .pay-opt input {
   position: absolute;
@@ -105,23 +259,24 @@
   pointer-events: none;
 }
 .pay-opt .pay-icon {
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   border-radius: 12px;
   background: var(--co-soft);
   color: var(--co-accent);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.05rem;
+  font-size: 1.1rem;
   flex-shrink: 0;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.22s, color 0.22s, transform 0.25s cubic-bezier(0.34,1.56,0.64,1);
 }
 .pay-opt .pay-text { min-width: 0; }
 .pay-opt .pay-text strong {
   display: block;
-  font-size: 0.84rem;
+  font-size: 0.86rem;
   line-height: 1.25;
+  transition: color 0.2s;
 }
 .pay-opt .pay-text small {
   color: var(--muted);
@@ -129,37 +284,55 @@
 }
 .pay-opt .pay-check {
   margin-left: auto;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   border: 2px solid var(--co-border);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.6rem;
+  font-size: 0.62rem;
   color: transparent;
   flex-shrink: 0;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.25s cubic-bezier(0.34,1.56,0.64,1);
 }
-.pay-opt:hover { border-color: var(--orange-soft); }
+
+/* Hover */
+.pay-opt:hover {
+  border-color: rgba(6,89,234,0.45);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(6,89,234,0.1);
+}
+.pay-opt:hover .pay-icon {
+  transform: scale(1.08);
+}
+
+/* Selected */
 .pay-opt.selected,
 .pay-opt:has(input:checked) {
   border-color: var(--co-accent);
   background: var(--co-soft);
+  box-shadow: 0 6px 18px rgba(6,89,234,0.15);
 }
 .pay-opt.selected .pay-icon,
 .pay-opt:has(input:checked) .pay-icon {
   background: var(--co-accent);
   color: #fff;
+  transform: scale(1.05);
 }
 .pay-opt.selected .pay-check,
 .pay-opt:has(input:checked) .pay-check {
   background: var(--co-accent);
   border-color: var(--co-accent);
   color: #fff;
+  transform: scale(1.1);
+}
+.pay-opt.selected .pay-text strong,
+.pay-opt:has(input:checked) .pay-text strong {
+  color: var(--co-accent);
 }
 
-/* ========== ACTION BUTTONS (pill) ========== */
+/* ========== ACTION BUTTONS ========== */
 .co-btn {
   display: flex;
   align-items: center;
@@ -171,18 +344,34 @@
   font-size: 0.95rem;
   border: none;
   border-radius: 999px;
-  padding: 0.8rem 1.5rem;
+  padding: 0.85rem 1.5rem;
   width: 100%;
   cursor: pointer;
-  transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
-  box-shadow: 0 6px 16px rgba(6,89,234,0.28);
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  box-shadow: 0 6px 18px rgba(6,89,234,0.3);
 }
 .co-btn:hover, .co-btn:focus {
   background: #0547b8;
   color: #fff;
-  box-shadow: 0 8px 20px rgba(6,89,234,0.35);
+  box-shadow: 0 10px 24px rgba(6,89,234,0.38);
+  transform: translateY(-1px);
 }
 .co-btn:active { transform: scale(0.98); }
+
+.co-btn-outline {
+  background: transparent;
+  color: var(--co-accent);
+  border: 1.5px solid var(--co-border);
+  box-shadow: none;
+  margin-top: 4px;
+}
+.co-btn-outline:hover, .co-btn-outline:focus {
+  background: var(--co-soft);
+  border-color: var(--co-accent);
+  color: var(--co-accent);
+  box-shadow: 0 4px 14px rgba(6,89,234,0.12);
+  transform: translateY(-1px);
+}
 
 .co-secure {
   text-align: right;
@@ -190,6 +379,7 @@
   font-weight: 600;
   color: var(--co-accent);
   margin: 14px 0 10px;
+  opacity: 0.9;
 }
 
 /* ========== TRUST STRIP ========== */
@@ -206,11 +396,21 @@
   align-items: center;
   gap: 12px;
   min-width: 0;
+  padding: 8px 6px;
+  border-radius: 12px;
+  transition: background 0.2s;
+}
+.co-trust .t-item:hover {
+  background: var(--co-soft);
 }
 .co-trust .t-item i {
-  font-size: 1.35rem;
+  font-size: 1.3rem;
   color: var(--co-accent);
   flex-shrink: 0;
+  transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1);
+}
+.co-trust .t-item:hover i {
+  transform: scale(1.12);
 }
 .co-trust .t-item strong {
   display: block;
@@ -233,4 +433,5 @@
 @media (max-width: 767.98px) {
   .pay-options { grid-template-columns: 1fr; }
   .co-trust { grid-template-columns: 1fr 1fr; }
+  .co-field-group { padding: 14px 12px 16px; }
 }

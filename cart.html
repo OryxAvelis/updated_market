@@ -22,19 +22,33 @@
 <body data-page="cart">
 
   <main class="container-fluid px-3 px-lg-4 py-3">
-    <h4 class="fw-bold mb-4"><span data-i18n="your_cart">Your Cart</span> <span class="text-muted fs-6" id="cartLabel">(0)</span></h4>
+    <h4 class="fw-bold mb-4">
+      <span data-i18n="your_cart">Your Cart</span>
+      <span class="text-muted fs-6" id="cartLabel">(0)</span>
+    </h4>
+
     <div class="row g-4">
       <div class="col-lg-8" id="cartItems"></div>
+
       <div class="col-lg-4" id="summaryCol" style="display:none">
-        <div class="card border-0 shadow-sm">
-          <div class="card-body">
-            <h6 class="fw-bold mb-3" data-i18n="order_summary">Order Summary</h6>
-            <div class="d-flex justify-content-between mb-2"><span class="text-muted" data-i18n="subtotal">Subtotal</span><span id="subTotal">0 DH</span></div>
-            <div class="d-flex justify-content-between mb-2"><span class="text-muted" data-i18n="delivery">Delivery</span><span id="delivFee">0 DH</span></div>
-            <hr>
-            <div class="d-flex justify-content-between fw-bold fs-5 mb-3"><span data-i18n="total">Total</span><span class="text-orange" id="grandTotal">0 DH</span></div>
-            <button class="btn btn-orange w-100 btn-lg" id="goCheckout" disabled data-i18n="proceed">Proceed to Checkout</button>
+        <div class="cart-summary">
+          <h6 data-i18n="order_summary">Order Summary</h6>
+          <div class="sum-row">
+            <span data-i18n="subtotal">Subtotal</span>
+            <span id="subTotal">0 DH</span>
           </div>
+          <div class="sum-row">
+            <span data-i18n="delivery">Delivery</span>
+            <span id="delivFee">0 DH</span>
+          </div>
+          <div class="sum-total">
+            <span data-i18n="total">Total</span>
+            <span class="text-orange" id="grandTotal">0 DH</span>
+          </div>
+          <button class="btn-checkout" id="goCheckout" disabled>
+            <i class="fa-solid fa-bag-shopping me-2"></i>
+            <span data-i18n="proceed">Proceed to Checkout</span>
+          </button>
         </div>
       </div>
     </div>
