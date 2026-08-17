@@ -22,7 +22,7 @@
 /* ========== STEPS BAR ========== */
 .co-steps {
   background: var(--card);
-  border-radius: 16px;
+  border-radius: var(--radius);
   box-shadow: var(--shadow);
   border: 1px solid rgba(0,0,0,0.03);
   display: flex;
@@ -71,7 +71,7 @@
 
 /* ========== CARDS ========== */
 .co-card {
-  border-radius: 18px !important;
+  border-radius: var(--radius) !important;
   box-shadow: 0 4px 24px rgba(0,0,0,0.06) !important;
   overflow: hidden;
 }
@@ -94,7 +94,7 @@
 .co-section-icon {
   width: 42px;
   height: 42px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   background: var(--co-soft);
   color: var(--co-accent);
   display: flex;
@@ -118,7 +118,7 @@
 .co-field-group {
   background: var(--co-input-bg);
   border: 1px solid var(--co-border);
-  border-radius: 14px;
+  border-radius: var(--radius);
   padding: 16px 16px 18px;
   margin-bottom: 14px;
   transition: border-color 0.2s, box-shadow 0.2s;
@@ -179,7 +179,7 @@
 
 .form-control.co-input,
 .co-phone-group .form-control {
-  border-radius: 11px !important;
+  border-radius: var(--radius-sm) !important;
   border: 1.5px solid var(--co-border) !important;
   background: var(--card) !important;
   font-size: 0.92rem;
@@ -435,3 +435,13 @@ textarea.form-control.co-input {
   .co-trust { grid-template-columns: 1fr 1fr; }
   .co-field-group { padding: 14px 12px 16px; }
 }
+
+.pay-opt.is-disabled,
+.set-opt.is-disabled {
+  opacity: .58;
+  cursor: not-allowed;
+  filter: grayscale(.2);
+}
+.pay-opt.is-disabled:hover,
+.set-opt.is-disabled:hover { border-color: var(--co-border); box-shadow: none; transform: none; }
+.co-input.is-invalid { border-color: #dc2626 !important; box-shadow: 0 0 0 3px rgba(220,38,38,.10) !important; }

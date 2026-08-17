@@ -7,7 +7,7 @@
 /* ========== FILTERS PANEL ========== */
 .filters-panel {
   border: none !important;
-  border-radius: 16px !important;
+  border-radius: var(--radius) !important;
   box-shadow: 0 4px 20px rgba(0,0,0,0.06) !important;
   overflow: hidden;
 }
@@ -121,14 +121,14 @@
   color: var(--muted);
   background: var(--line);
   padding: 4px 10px;
-  border-radius: 20px;
+  border-radius: var(--radius);
   font-weight: 500;
 }
 
 /* ========== PAGINATION ========== */
 .pagination .page-link {
   color: var(--text);
-  border-radius: 8px !important;
+  border-radius: var(--radius-sm) !important;
   margin: 0 3px;
   border: 1px solid var(--border);
   min-width: 36px;
@@ -156,4 +156,62 @@
 /* ========== RESPONSIVE ========== */
 @media (max-width: 767.98px) {
   .filters-panel.sticky-top { position: static !important; }
+}
+
+.filter-toggle,
+.filter-close { display: none; }
+
+@media (max-width: 767.98px) {
+  body.filters-open { overflow: hidden; }
+  .filters-col { display: contents; }
+  .filter-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid #cfe1f7;
+    background: var(--card);
+    color: var(--orange);
+    border-radius: 10px;
+    padding: .42rem .7rem;
+    font-size: .8rem;
+    font-weight: 750;
+  }
+  .filters-panel {
+    display: none;
+    position: fixed !important;
+    z-index: 1070;
+    top: 12px !important;
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+    overflow: auto;
+    border: 1px solid rgba(23,105,224,.15) !important;
+    box-shadow: 0 24px 60px rgba(4,24,58,.26) !important;
+  }
+  .filters-panel.is-open { display: block; animation: filterIn .22s ease both; }
+  .filter-close {
+    display: inline-grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--orange-light);
+    color: var(--orange);
+  }
+  .filter-backdrop {
+    position: fixed;
+    z-index: 1060;
+    inset: 0;
+    display: none;
+    background: rgba(4,15,35,.45);
+    backdrop-filter: blur(2px);
+  }
+  .filter-backdrop.is-open { display: block; }
+  .filter-scroll { max-height: 205px; }
+}
+
+@keyframes filterIn {
+  from { opacity: 0; transform: translateY(12px) scale(.98); }
+  to { opacity: 1; transform: none; }
 }

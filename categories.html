@@ -31,12 +31,15 @@
 
         <div class="row g-3">
           <!-- FILTERS -->
-          <div class="col-md-3">
-            <div class="card border-0 shadow-sm filters-panel sticky-top" style="top:90px">
+          <div class="col-md-3 filters-col">
+            <div class="card border-0 shadow-sm filters-panel sticky-top" id="filtersPanel" style="top:90px">
               <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                   <h6 class="fw-bold mb-0" data-i18n="filters">Filters</h6>
-                  <button class="btn btn-link btn-sm text-orange p-0" id="clearFilters" data-i18n="clear">Clear</button>
+                  <div class="d-flex align-items-center gap-3">
+                    <button class="btn btn-link btn-sm text-orange p-0" id="clearFilters" data-i18n="clear">Clear</button>
+                    <button class="filter-close" id="filterClose" type="button"><i class="fa-solid fa-xmark" aria-hidden="true"></i><span class="visually-hidden" data-i18n="close">Close</span></button>
+                  </div>
                 </div>
 
                 <h6 class="fw-semibold small text-muted mb-2" data-i18n="category">Category</h6>
@@ -72,6 +75,7 @@
             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
               <h4 class="fw-bold mb-0" id="shopTitle">All Categories</h4>
               <div class="d-flex align-items-center gap-2">
+                <button class="filter-toggle" id="filterToggle" type="button"><i class="fa-solid fa-sliders"></i> <span data-i18n="show_filters">Filters</span></button>
                 <span class="small text-muted" id="resultCount"></span>
                 <select class="form-select form-select-sm w-auto" id="sortSelect">
                   <option value="default" data-i18n="sort_default">Default</option>
@@ -88,13 +92,13 @@
           </div>
         </div>
       </div>
-
-    </div>
   </main>
 
+  <div class="filter-backdrop" id="filterBackdrop"></div>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-  <script src="js/i18n.js"></script>
-  <script src="js/core.js"></script>
-  <script src="js/categories.js"></script>
+  <script src="js/i18n.js?v=20260817"></script>
+  <script src="js/core.js?v=20260817"></script>
+  <script src="js/categories.js?v=20260817"></script>
 </body>
 </html>

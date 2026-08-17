@@ -32,8 +32,16 @@ function placeOrder() {
   const note = $('cNote')?.value.trim() || '';
   const payment = document.querySelector('input[name="pay"]:checked')?.value || 'Cash on Delivery';
 
-  if (!name || !phone || !email || !address || !city) {
+  const requiredFields = [$('cName'), $('cPhone'), $('cEmail'), $('cAddress'), $('cCity')];
+  const invalid = requiredFields.filter(field => !field.checkValidity());
+  requiredFields.forEach(field => {
+    field.classList.toggle('is-invalid', invalid.includes(field));
+    field.setAttribute('aria-invalid', invalid.includes(field) ? 'true' : 'false');
+  });
+  if (invalid.length) {
     toast(t('fill_all'));
+    invalid[0].focus();
+    invalid[0].reportValidity();
     return;
   }
 
@@ -95,10 +103,17 @@ function prefillCheckout() {
   fill('cCity', d.city || '');
 
   // Default payment method from settings
-  const pay = getDefaultPay();
-  const radio = pay === 'card' ? $('pay2') : $('pay1');
-  if (radio) radio.checked = true;
+  // Card checkout needs a real payment provider; keep the static demo honest.
+  if ($('pay1')) $('pay1').checked = true;
 }
+
+document.addEventListener('input', e => {
+  if (!e.target.matches('#cName, #cPhone, #cEmail, #cAddress, #cCity')) return;
+  if (e.target.checkValidity()) {
+    e.target.classList.remove('is-invalid');
+    e.target.setAttribute('aria-invalid', 'false');
+  }
+});
 
 // Re-render the summary only (never touches the form fields being filled in)
 window.addEventListener('am:langchange', renderCheckout);

@@ -326,3 +326,77 @@
   .cat-card { padding: 12px 6px; }
   .cat-card .icon { width: 42px; height: 42px; font-size: 1.15rem; }
 }
+
+/* ========== BLUE CAMPAIGN SYSTEM ========== */
+.hero-banner { border-radius: var(--radius); box-shadow: 0 18px 38px rgba(10, 55, 126, .24); }
+.hero-slide.s1 { background: linear-gradient(128deg, #071a3a 0%, #0c3f92 50%, #1677e8 100%); }
+.hero-slide.s2 { background: linear-gradient(128deg, #061d40 0%, #0756be 52%, #1c93f5 100%); }
+.hero-slide.s3 { background: linear-gradient(128deg, #0b1220 0%, #173e8c 52%, #287ee0 100%); }
+.hero-slide.s4 { background: linear-gradient(128deg, #0a2455 0%, #175fc4 52%, #54b8ff 100%); }
+.hero-cta { color: #0b4aa5; border-radius: 10px; }
+.hero-bubbles span { background: rgba(172, 218, 255, .14); }
+.trust-bar { border-radius: var(--radius); border-color: rgba(23,105,224,.08); box-shadow: 0 10px 26px rgba(17,55,109,.07); }
+.trust-item i { color: var(--orange); }
+.cat-card { border-color: rgba(23,105,224,.07); }
+.cat-card .icon { background: linear-gradient(145deg, #eff7ff, #dbeeff); border-radius: var(--radius-sm); }
+.cat-card:hover { border-color: rgba(23,105,224,.38); }
+.cat-card span { color: var(--text-2); }
+
+/* The home side panel is an intentional ad placement, not a duplicate profile. */
+.home-ad {
+  height: var(--hero-height);
+  min-height: var(--hero-height);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 28px;
+  border: 1px solid rgba(69,157,255,.55);
+  border-radius: var(--radius);
+  color: #fff;
+  background: radial-gradient(circle at 89% 8%, rgba(115,202,255,.52), transparent 26%), linear-gradient(145deg, #07152d 4%, #0a3d8d 58%, #1769e0 100%);
+  box-shadow: 0 18px 38px rgba(10,55,126,.22);
+  animation: panelIn .65s .1s ease both;
+}
+.home-ad::before,
+.home-ad::after {
+  content: '';
+  position: absolute;
+  border: 1px solid rgba(210,235,255,.28);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.home-ad::before { width: 300px; height: 300px; right: -164px; bottom: -145px; }
+.home-ad::after { width: 180px; height: 180px; right: -75px; bottom: -60px; border-color: rgba(210,235,255,.36); }
+.ad-grid {
+  position: absolute;
+  inset: 0;
+  opacity: .22;
+  background-image: linear-gradient(rgba(255,255,255,.12) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.12) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(135deg, #000, transparent 66%);
+}
+.ad-label,
+.ad-eyebrow,
+.ad-copy,
+.ad-link,
+.ad-foot,
+.ad-icon,
+.home-ad h2 { position: relative; z-index: 1; }
+.ad-label { display: inline-flex; padding: 5px 9px; border: 1px solid rgba(255,255,255,.28); border-radius: 999px; font-size: .62rem; font-weight: 800; letter-spacing: .12em; background: rgba(255,255,255,.1); }
+.ad-icon { width: 50px; height: 50px; margin: 24px 0 18px; display: grid; place-items: center; border-radius: 14px; background: #fff; color: var(--orange); box-shadow: 0 10px 22px rgba(4,19,49,.22); font-size: 1.25rem; animation: adFloat 4s ease-in-out infinite; }
+.ad-eyebrow { margin: 0 0 7px; color: #b9ddff; font-weight: 800; font-size: .68rem; letter-spacing: .1em; }
+.home-ad h2 { margin: 0; max-width: 260px; font-size: clamp(1.45rem, 1.75vw, 2rem); font-weight: 800; line-height: 1.08; letter-spacing: -.035em; }
+.ad-copy { margin: 13px 0 18px; max-width: 250px; color: rgba(255,255,255,.82); font-size: .86rem; line-height: 1.55; }
+.ad-link { display: inline-flex; position: relative; z-index: 1; align-items: center; gap: 9px; padding: 10px 13px; border-radius: 10px; background: #fff; color: #0b4aa5; font-size: .82rem; font-weight: 800; transition: transform .2s ease, box-shadow .2s ease; }
+.ad-link:hover { color: #0b4aa5; transform: translateY(-2px); box-shadow: 0 9px 22px rgba(4,19,49,.23); }
+.ad-link i { transition: transform .2s ease; }
+.ad-link:hover i { transform: translateX(3px); }
+.ad-foot { position: absolute; z-index: 1; left: 28px; bottom: 22px; display: flex; align-items: center; gap: 8px; color: #cce7ff; font-size: .72rem; font-weight: 650; }
+.ad-foot i { color: #fff; }
+.ad-orbit { position: absolute; z-index: 0; border-radius: 50%; border: 1px solid rgba(209,236,255,.38); }
+.ad-orbit-one { width: 96px; height: 96px; top: 36px; right: 22px; animation: adOrbit 8s linear infinite; }
+.ad-orbit-two { width: 35px; height: 35px; top: 99px; right: 100px; background: rgba(188,226,255,.25); animation: adFloat 5s 1s ease-in-out infinite; }
+@keyframes adFloat { 50% { transform: translateY(-9px); } }
+@keyframes adOrbit { to { transform: rotate(360deg); } }
+
+[data-theme="dark"] .cat-card .icon { background: #1b3152; }

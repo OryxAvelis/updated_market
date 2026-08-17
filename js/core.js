@@ -210,10 +210,10 @@ function getUser() {
 }
 
 function getDefaultPay() {
-  return localStorage.getItem('am_pay') === 'card' ? 'card' : 'cod';
+  return 'cod';
 }
 function setDefaultPay(p) {
-  localStorage.setItem('am_pay', p === 'card' ? 'card' : 'cod');
+  localStorage.setItem('am_pay', 'cod');
 }
 
 function getDeliveryInfo() {
@@ -423,10 +423,10 @@ function cardHTML(p) {
               ${hasOld ? `<span class="old">${formatPrice(oldPrice)}</span>` : ''}
             </div>
             <div class="card-actions">
-              <button class="wish-btn ${inWish ? 'active' : ''}" data-wish="${p.id}" title="${t('wish_title')}">
+              <button class="wish-btn ${inWish ? 'active' : ''}" data-wish="${p.id}" title="${t('wish_title')}" aria-label="${t('wish_title')}">
                 <i class="fa-${inWish ? 'solid' : 'regular'} fa-heart"></i>
               </button>
-              <button class="add-btn" data-id="${p.id}" title="${t('add_to_cart')}">
+              <button class="add-btn" data-id="${p.id}" title="${t('add_to_cart')}" aria-label="${t('add_to_cart')}">
                 <i class="fa-solid fa-plus"></i>
               </button>
             </div>
@@ -464,6 +464,11 @@ const HEADER_HTML = `
           <small data-i18n="tagline">SHOP MORE, LIVE BETTER</small>
         </span>
       </a>
+
+      <nav class="desktop-shop-nav" aria-label="Primary navigation">
+        <a href="index.html" data-nav="home"><i class="fa-solid fa-house"></i><span data-i18n="nav_home">Home</span></a>
+        <a href="categories.html" data-nav="shop"><i class="fa-solid fa-grid-2"></i><span data-i18n="nav_shop">Shop</span></a>
+      </nav>
 
       <div class="search-box flex-grow-1">
         <div class="input-group">
@@ -529,10 +534,10 @@ const FOOTER_HTML = `
           </div>
           <p class="footer-desc" data-i18n="footer_desc">Votre marketplace marocaine pour tous les produits du quotidien.</p>
           <div class="footer-socials">
-            <a href="#" aria-label="WhatsApp"><i class="fa-brands fa-whatsapp"></i></a>
-            <a href="#" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
-            <a href="#" aria-label="Messenger"><i class="fa-brands fa-facebook-messenger"></i></a>
-            <a href="#" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+            <a href="#" aria-label="WhatsApp" data-soon><i class="fa-brands fa-whatsapp"></i></a>
+            <a href="#" aria-label="Facebook" data-soon><i class="fa-brands fa-facebook-f"></i></a>
+            <a href="#" aria-label="Messenger" data-soon><i class="fa-brands fa-facebook-messenger"></i></a>
+            <a href="#" aria-label="Instagram" data-soon><i class="fa-brands fa-instagram"></i></a>
           </div>
         </div>
 
@@ -551,10 +556,10 @@ const FOOTER_HTML = `
         <div class="col-lg-3 col-md-6">
           <h6 class="footer-heading" data-i18n="footer_help">Aide</h6>
           <ul class="footer-nav-list">
-            <li><a href="#"><i class="fa-solid fa-circle-info"></i> <span data-i18n="about">À propos</span></a></li>
-            <li><a href="#"><i class="fa-solid fa-phone"></i> <span data-i18n="contact">Contact</span></a></li>
-            <li><a href="#"><i class="fa-regular fa-circle-question"></i> <span data-i18n="faqs">FAQs</span></a></li>
-            <li><a href="#"><i class="fa-solid fa-truck"></i> <span data-i18n="delivery_link">Livraison</span></a></li>
+            <li><a href="#" data-soon><i class="fa-solid fa-circle-info"></i> <span data-i18n="about">À propos</span></a></li>
+            <li><a href="#" data-soon><i class="fa-solid fa-phone"></i> <span data-i18n="contact">Contact</span></a></li>
+            <li><a href="#" data-soon><i class="fa-regular fa-circle-question"></i> <span data-i18n="faqs">FAQs</span></a></li>
+            <li><a href="#" data-soon><i class="fa-solid fa-truck"></i> <span data-i18n="delivery_link">Livraison</span></a></li>
           </ul>
         </div>
 
@@ -562,10 +567,10 @@ const FOOTER_HTML = `
         <div class="col-lg-3 col-md-6">
           <h6 class="footer-heading" data-i18n="newsletter">Newsletter</h6>
           <p class="footer-desc mb-3" data-i18n="newsletter_sub">Get updates on latest products.</p>
-          <form class="footer-newsletter" onsubmit="return false;">
+          <form class="footer-newsletter" id="footerNewsletter">
             <div class="newsletter-input-wrap">
               <i class="fa-regular fa-envelope"></i>
-              <input type="email" placeholder="Email" aria-label="Email" />
+              <input type="email" id="newsletterEmail" placeholder="Email" aria-label="Email" required />
             </div>
             <button type="submit" class="btn btn-blue" data-i18n="go">Go</button>
           </form>
@@ -649,6 +654,25 @@ function initHeaderSearch() {
   if (input) input.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
 }
 
+function initHeaderNav() {
+  const page = document.body.dataset.page;
+  const active = ['categories', 'product'].includes(page) ? 'shop' : 'home';
+  document.querySelectorAll('.desktop-shop-nav [data-nav]').forEach(link => {
+    link.classList.toggle('active', link.dataset.nav === active);
+  });
+}
+
+function initFooterNewsletter() {
+  const form = $('footerNewsletter');
+  const input = $('newsletterEmail');
+  if (!form || !input) return;
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    if (!input.checkValidity()) { input.reportValidity(); return; }
+    toast(t('newsletter_pending'));
+  });
+}
+
 // Sync the mobile bottom toolbar active tab with the current page
 function initTabbar() {
   const map = { home: 'home', categories: 'home', product: 'home', cart: 'cart', checkout: 'cart', wishlist: 'wishlist', orders: 'account', settings: 'account' };
@@ -699,6 +723,8 @@ document.addEventListener('click', e => {
   renderAccountPanel();
   updateAccountUI();
   initHeaderSearch();
+  initHeaderNav();
+  initFooterNewsletter();
   initTabbar();
   initBackToTop();
 })();

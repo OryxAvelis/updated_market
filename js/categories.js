@@ -20,6 +20,13 @@ let onlyAvailable = true;
 let onlyPromo = false;
 let selectedBrand = null;
 
+function setFiltersOpen(open) {
+  $('filtersPanel')?.classList.toggle('is-open', open);
+  $('filterBackdrop')?.classList.toggle('is-open', open);
+  document.body.classList.toggle('filters-open', open);
+  if (open) $('filterClose')?.focus();
+}
+
 // ---------- URL helpers ----------
 function shopURL({ page = currentPage, cat = currentCat, q = searchQ } = {}) {
   const sp = new URLSearchParams();
@@ -85,6 +92,7 @@ function renderFilterPanel(list) {
         renderSidebar(currentCat);
         updateShopTitle();
         loadShopPage(1);
+        setFiltersOpen(false);
       };
     });
   }
@@ -108,6 +116,7 @@ function renderFilterPanel(list) {
       r.onchange = () => {
         selectedBrand = r.value || null;
         renderPageProducts();
+        setFiltersOpen(false);
       };
     });
   }
@@ -293,6 +302,11 @@ async function initCategories() {
     renderPageProducts();
   });
 
+  $('filterToggle')?.addEventListener('click', () => setFiltersOpen(true));
+  $('filterClose')?.addEventListener('click', () => setFiltersOpen(false));
+  $('filterBackdrop')?.addEventListener('click', () => setFiltersOpen(false));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') setFiltersOpen(false); });
+
   $('priceRange')?.addEventListener('input', e => {
     maxPrice = +e.target.value;
     $('priceLabel').textContent = maxPrice + ' DH';
@@ -331,6 +345,7 @@ async function initCategories() {
     renderSidebar(null);
     updateShopTitle();
     loadShopPage(1);
+    setFiltersOpen(false);
   });
 
   await loadShopPage(currentPage);
