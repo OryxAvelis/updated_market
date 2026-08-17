@@ -6,13 +6,13 @@
    ========================================================== */
 
 :root {
-  --orange: #1a6fd4;
-  --orange-dark: #155bb5;
+ --orange: #0d4ea1;
+ --orange-dark: #083a82;
   --orange-light: #eaf2ff;
   --orange-soft: #d0e6ff;
   --text: #1c1c1c;
   --text-2: #374151;
-  --muted: #6b7280;
+ --muted: #69707d;
   --brand-c: #808a9c;
   --border: #eef0f3;
   --bg: #f5f6f8;
@@ -33,9 +33,10 @@
   --shadow: 0 2px 10px rgba(0,0,0,0.05);
   --shadow-md: 0 6px 20px rgba(0,0,0,0.07);
   --shadow-lg: 0 12px 32px rgba(0,0,0,0.1);
-  /* hero & mobile toolbar sizing */
-  --hero-height: 380px;
-  --tabbar-height: 72px;
+ /* focus & hero sizing */
+ --focus-ring: 3px solid rgba(13,78,161,0.18);
+ --hero-height: 380px;
+ --tabbar-height: 72px;
 }
 
 /* Dark theme — toggled by [data-theme="dark"] on <html> (set before first
@@ -78,6 +79,19 @@ body {
   min-height: 100vh;
 }
 
+/* Accessible focus outlines */
+:focus {
+  outline: none;
+}
+:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
 img { max-width: 100%; display: block; }
 a { text-decoration: none; color: inherit; }
 button { font-family: inherit; cursor: pointer; }
@@ -98,10 +112,10 @@ main { animation: fadeUp 0.28s ease; }
 }
 .header-card {
   background: var(--card);
-  border-radius: 18px;
+ border-radius: var(--radius);
   box-shadow: var(--shadow-md);
   border: 1px solid rgba(0,0,0,0.03);
-  padding: 10px 18px;
+ padding: 12px 16px;
 }
 
 .logo {
