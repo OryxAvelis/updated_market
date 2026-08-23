@@ -5,6 +5,7 @@
  */
 
 let homeProducts = [];
+let recommendedProducts = [];
 
 // ---------- Hero carousel ----------
 let heroTimer = null;
@@ -158,6 +159,36 @@ function renderRecent() {
   bindCards(box);
 }
 
+async function renderRecommendations() {
+  const section = $('recommendSection');
+  const box = $('recommendProducts');
+  const heading = $('recommendHeading');
+  if (!section || !box || !heading) return;
+  heading.textContent = getLang() === 'fr' ? 'Recommandés pour vous' : 'Recommended for you';
+  if (!getUser() || currentPreferences?.personalizationEnabled === false) {
+    section.style.display = 'none';
+    return;
+  }
+  box.setAttribute('aria-busy', 'true');
+  try {
+    const payload = await StoreAPI.recommendations.list({ limit: 4 });
+    recommendedProducts = payload.products || [];
+    if (!recommendedProducts.length) {
+      section.style.display = 'none';
+      return;
+    }
+    recommendedProducts.forEach(product => { productCache[product.id] = product; });
+    box.innerHTML = recommendedProducts.map(cardHTML).join('');
+    bindCards(box, renderRecommendations);
+    section.style.display = 'block';
+  } catch (error) {
+    console.error(error);
+    section.style.display = 'none';
+  } finally {
+    box.removeAttribute('aria-busy');
+  }
+}
+
 // ---------- Init ----------
 async function initHome() {
   initHeroCarousel();
@@ -175,22 +206,24 @@ async function initHome() {
     $('homeProducts').innerHTML =
       `<div class="col-12 text-center py-5">
         <p class="text-danger mb-2">${t('api_error')}</p>
-        <button type="button" class="btn btn-outline-orange btn-sm state-action" onclick="location.reload()">${t('retry')}</button>
+        <button type="button" class="btn btn-outline-orange btn-sm state-action" id="retryHomeLoad">${t('retry')}</button>
       </div>`;
     if (seasonBox) seasonBox.innerHTML = '';
+    $('retryHomeLoad')?.addEventListener('click', () => location.reload());
     return;
   }
 
   renderRecent();
-  await Promise.all([renderSeasonProducts(), renderHomeProducts()]);
+  await Promise.all([renderSeasonProducts(), renderHomeProducts(), renderRecommendations()]);
 }
 
-document.addEventListener('DOMContentLoaded', initHome);
+document.addEventListener('DOMContentLoaded', () => whenStoreReady(initHome));
 
 window.addEventListener('am:langchange', () => {
   refreshHeroControls();
   renderHomeCategories();
   renderRecent();
+  renderRecommendations();
   renderSeasonProducts();
   renderHomeProducts();
 });

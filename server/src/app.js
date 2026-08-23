@@ -1,0 +1,177 @@
+import { randomUUID } from 'node:crypto';
+import path from 'node:path';
+import cookieParser from 'cookie-parser';
+import cors from 'cors';
+import express from 'express';
+import helmet from 'helmet';
+import pinoHttp from 'pino-http';
+import { createAccountRouter } from './account/routes.js';
+import { createAuthRouter } from './auth/routes.js';
+import { loadSession } from './auth/session.js';
+import { createCatalogRouter } from './catalog/routes.js';
+import { createCatalogService } from './catalog/service.js';
+import { createCartRouter } from './commerce/cart-routes.js';
+import { createWishlistRouter } from './commerce/wishlist-routes.js';
+import { config, storefrontRoot } from './config.js';
+import {
+  createHistoryRouter,
+  createMeReviewsRouter,
+  createNotificationsRouter,
+  createProductReviewsRouter,
+  createRecommendationsRouter,
+  createReviewsRouter,
+  createSearchSuggestionsRouter
+} from './engagement/routes.js';
+import { createLowStockSubscriptionsRouter } from './engagement/low-stock.js';
+import { createHealthRouter } from './health/routes.js';
+import { errorHandler, notFoundHandler } from './http/error-handler.js';
+import { forbidden } from './http/errors.js';
+import { createFulfillmentRouter } from './integrations/fulfillment-routes.js';
+import { logger } from './logger.js';
+import { createOrdersRouter, createReturnsRouter } from './orders/routes.js';
+import { requireCsrf } from './security/csrf.js';
+import { requireTrustedOrigin } from './security/origin.js';
+
+const userPages = new Set([
+  'index.html', 'all-categories.html', 'categories.html', 'product.html',
+  'cart.html', 'checkout.html', 'wishlist.html', 'orders.html',
+  'settings.html', 'help.html', 'login.html', 'reset-password.html'
+]);
+
+function securityHeaders() {
+  return helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        baseUri: ["'self'"],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com', 'https://cdnjs.cloudflare.com', 'data:'],
+        formAction: ["'self'"],
+        frameAncestors: ["'none'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        objectSrc: ["'none'"],
+        scriptSrc: ["'self'", 'https://cdn.jsdelivr.net'],
+        scriptSrcAttr: ["'none'"],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com', 'https://fonts.googleapis.com'],
+        upgradeInsecureRequests: config.isProduction ? [] : null
+      }
+    },
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: 'same-site' },
+    // The public TLS edge owns HSTS when TLS is proxy-terminated so only one
+    // policy reaches the browser. Direct production HTTPS remains protected
+    // here by the application server.
+    hsts: config.isProduction && !config.tlsTerminatedByProxy
+      ? { maxAge: 31536000, includeSubDomains: true, preload: false }
+      : false,
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    xFrameOptions: { action: 'deny' }
+  });
+}
+
+function exactCors(req, callback) {
+  const origin = req.get('origin');
+  if (!origin) return callback(null, { origin: false });
+  if (!config.allowedOrigins.has(origin)) return callback(null, { origin: false });
+  return callback(null, {
+    origin,
+    credentials: true,
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'X-CSRF-Token', 'Idempotency-Key'],
+    exposedHeaders: ['X-Request-Id', 'RateLimit', 'RateLimit-Policy', 'Retry-After'],
+    maxAge: 600
+  });
+}
+
+function requireJsonForBody(req, _res, next) {
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) &&
+      Number(req.get('content-length') || 0) > 0 && !req.is('application/json')) {
+    return next(forbidden('CONTENT_TYPE_REJECTED', 'Requests with a body must use application/json.'));
+  }
+  return next();
+}
+
+function enforceProxyHttps(req, res, next) {
+  if (!config.isProduction || !config.tlsTerminatedByProxy || req.secure) return next();
+  return res.redirect(308, new URL(req.originalUrl, config.appOrigin).toString());
+}
+
+function staticAssets(app) {
+  const options = {
+    dotfiles: 'deny',
+    fallthrough: false,
+    immutable: config.isProduction,
+    maxAge: config.isProduction ? '1d' : 0,
+    index: false
+  };
+  app.use('/css', express.static(path.join(storefrontRoot, 'css'), options));
+  app.use('/js', express.static(path.join(storefrontRoot, 'js'), options));
+  app.use('/img', express.static(path.join(storefrontRoot, 'img'), { ...options, maxAge: config.isProduction ? '7d' : 0 }));
+  app.get('/', (_req, res) => res.set('Cache-Control', 'no-cache').sendFile(path.join(storefrontRoot, 'index.html')));
+  app.get('/:page', (req, res, next) => {
+    if (!userPages.has(req.params.page)) return next();
+    if (req.params.page === 'reset-password.html') res.set('Referrer-Policy', 'no-referrer');
+    return res.set('Cache-Control', 'no-cache').sendFile(path.join(storefrontRoot, req.params.page));
+  });
+}
+
+export function createApp({
+  database,
+  catalog = createCatalogService(),
+  mailService,
+  fulfillmentWebhookSecret = config.readFulfillmentWebhookSecret()
+} = {}) {
+  if (!database) throw new Error('createApp requires a database pool.');
+  const app = express();
+  app.disable('x-powered-by');
+  app.set('trust proxy', config.trustProxy);
+  app.locals.db = database;
+  app.locals.catalog = catalog;
+
+  app.use(pinoHttp({
+    logger,
+    genReqId(req, res) {
+      const existing = req.headers['x-request-id'];
+      const id = typeof existing === 'string' && /^[A-Za-z0-9._-]{8,100}$/.test(existing) ? existing : randomUUID();
+      res.setHeader('X-Request-Id', id);
+      return id;
+    },
+    redact: ['req.headers.cookie', 'req.headers.authorization', 'req.headers.x-csrf-token', 'req.headers.idempotency-key', 'req.headers.x-am-fulfillment-signature', 'res.headers.set-cookie', 'req.body.password', 'req.body.currentPassword', 'req.body.newPassword', 'req.body.token']
+  }));
+  app.use(securityHeaders());
+  app.use(enforceProxyHttps);
+  app.use(cors(exactCors));
+  // This server-to-server route verifies the exact raw body with HMAC. It is
+  // intentionally mounted before browser session/origin/CSRF middleware.
+  app.use('/api/v1/integrations/fulfillment', createFulfillmentRouter({
+    secret: fulfillmentWebhookSecret,
+    toleranceMs: config.fulfillment.toleranceMs
+  }));
+  app.use(cookieParser());
+  app.use(express.json({ limit: '32kb', strict: true }));
+  app.use(requireJsonForBody);
+  app.use('/api/v1', requireTrustedOrigin, loadSession, requireCsrf);
+
+  app.use('/api/v1/health', createHealthRouter());
+  app.use('/api/v1/auth', createAuthRouter({ mailService }));
+  app.use('/api/v1/me', createAccountRouter());
+  app.use('/api/v1/me/low-stock-subscriptions', createLowStockSubscriptionsRouter(catalog));
+  app.use('/api/v1/cart', createCartRouter(catalog));
+  app.use('/api/v1/wishlist', createWishlistRouter(catalog));
+  app.use('/api/v1/orders', createOrdersRouter(catalog));
+  app.use('/api/v1/returns', createReturnsRouter());
+  app.use('/api/v1/catalog/products/:productId/reviews', createProductReviewsRouter(catalog));
+  app.use('/api/v1/reviews', createReviewsRouter());
+  app.use('/api/v1/me/reviews', createMeReviewsRouter());
+  app.use('/api/v1/me', createHistoryRouter(catalog));
+  app.use('/api/v1/catalog/search/suggestions', createSearchSuggestionsRouter(catalog));
+  app.use('/api/v1/notifications', createNotificationsRouter());
+  app.use('/api/v1/me/recommendations', createRecommendationsRouter(catalog));
+  app.use('/api/v1/catalog', createCatalogRouter(catalog));
+
+  staticAssets(app);
+  app.use('/api', notFoundHandler);
+  app.use((_req, res) => res.status(404).type('text/plain').send('Not found'));
+  app.use(errorHandler);
+  return app;
+}

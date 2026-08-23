@@ -11,7 +11,7 @@
   <meta property="og:description" content="Product details, prices and availability at AM MARKET — your Moroccan online supermarket." />
   <meta property="og:image" content="https://raw.githubusercontent.com/OryxAvelis/updated_market/main/img/logo-round.png" />
   <meta name="twitter:card" content="summary" />
-  <script>(function(){var t=localStorage.getItem('am_theme')==='dark'?'dark':'light';document.documentElement.setAttribute('data-theme',t);document.documentElement.setAttribute('data-bs-theme',t);})();</script>
+  <script src="js/theme-init.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -30,6 +30,16 @@
       </ol>
     </nav>
     <div class="row g-4" id="detailContent"></div>
+    <section class="product-reviews mt-5" id="reviewsSection" aria-labelledby="reviewsHeading">
+      <div class="reviews-heading-row">
+        <div>
+          <h2 class="h4 fw-bold mb-1" id="reviewsHeading">Customer reviews</h2>
+          <p class="text-muted mb-0" id="reviewsSummary" aria-live="polite">Loading reviews…</p>
+        </div>
+      </div>
+      <div id="reviewComposer"></div>
+      <div id="reviewsList" aria-live="polite"></div>
+    </section>
     <div class="mt-5" id="relatedSection" style="display:none">
       <h2 class="h4 fw-bold mb-3" data-i18n="related">Related Products</h2>
       <div class="row g-3" id="relatedProducts"></div>
@@ -38,6 +48,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
   <script src="js/i18n.js"></script>
+  <script src="js/store-api.js"></script>
   <script src="js/core.js"></script>
   <script src="js/product.js"></script>
 </body>

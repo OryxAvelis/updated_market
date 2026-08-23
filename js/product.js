@@ -7,6 +7,8 @@
 const productId = new URLSearchParams(location.search).get('id');
 if (!productId) location.replace('index.html');
 let productQuantity = 1;
+let currentProductReview = null;
+const productCopy = (en, fr) => getLang() === 'fr' ? fr : en;
 
 function extractPackSize(product) {
   const explicit = product.package_size || product.pack_size || product.size || product.weight || product.volume;
@@ -61,8 +63,7 @@ async function renderDetail(id) {
     box.innerHTML = `
       <div class="col-lg-5">
         <div class="detail-img">
-          <img src="${p.image_url || ''}" alt="${escapeHtml(p.name)}"
-               onerror="this.onerror=null;this.src='img/placeholder.svg'">
+          <img src="${p.image_url || 'img/placeholder.svg'}" alt="${escapeHtml(p.name)}" data-image-fallback="img/placeholder.svg">
         </div>
       </div>
       <div class="col-lg-7">
@@ -130,7 +131,12 @@ async function renderDetail(id) {
     $('dPlus').onclick = () => { qty.value = Math.min(99, normalizeQty() + 1); };
     const doAdd = () => addToCart(p.id, normalizeQty(), p);
     $('dAdd').onclick = doAdd;
-    $('dBuy').onclick = () => { doAdd(); location.href = 'checkout.html'; };
+    $('dBuy').onclick = async () => {
+      if (!doAdd()) return;
+      $('dBuy').disabled = true;
+      await waitForStoreMutations();
+      location.href = 'checkout.html';
+    };
     $('dWish').onclick = async () => {
       const id = String(p.id);
       const wasSaved = wishlist.includes(id);
@@ -177,6 +183,7 @@ async function renderDetail(id) {
     stickyAtcObserver.observe($('dAdd'));
 
     loadRelated(p);
+    loadReviews(p.id);
   } catch (e) {
     box.innerHTML = `<div class="col-12 text-center py-5">
       <p class="text-danger mb-3">${t('product_not_found')}</p>
@@ -188,6 +195,129 @@ async function renderDetail(id) {
     $('retryProduct')?.addEventListener('click', () => renderDetail(id));
   } finally {
     box.removeAttribute('aria-busy');
+  }
+}
+
+function reviewStars(rating) {
+  const value = Math.max(0, Math.min(5, Number(rating) || 0));
+  const label = productCopy(`${value} out of 5 stars`, `${value} étoiles sur 5`);
+  return `<span class="review-stars" aria-label="${escapeHtml(label)}">${Array.from({ length: 5 }, (_, index) => `<i class="fa-${index < Math.round(value) ? 'solid' : 'regular'} fa-star" aria-hidden="true"></i>`).join('')}</span>`;
+}
+
+function reviewComposerHTML() {
+  if (!getUser()) {
+    const next = `product.html?id=${encodeURIComponent(productId)}`;
+    return `<div class="review-signin"><i class="fa-solid fa-lock" aria-hidden="true"></i><span>${productCopy('Sign in to rate and review this product.', 'Connectez-vous pour noter et commenter ce produit.')}</span><a class="btn btn-outline-orange btn-sm" href="login.html?next=${encodeURIComponent(next)}">${productCopy('Sign in', 'Se connecter')}</a></div>`;
+  }
+  const review = currentProductReview;
+  return `<details class="review-composer" ${review ? '' : 'open'}>
+    <summary>${review ? productCopy('Edit your review', 'Modifier votre avis') : productCopy('Write a review', 'Écrire un avis')}</summary>
+    <form id="reviewForm" class="review-form">
+      <label class="form-label" for="reviewRating">${productCopy('Rating', 'Note')}</label>
+      <select class="form-select" id="reviewRating" required>
+        ${[5, 4, 3, 2, 1].map(value => `<option value="${value}" ${Number(review?.rating || 5) === value ? 'selected' : ''}>${value} / 5</option>`).join('')}
+      </select>
+      <label class="form-label" for="reviewTitle">${productCopy('Title (optional)', 'Titre (facultatif)')}</label>
+      <input class="form-control" id="reviewTitle" maxlength="120" value="${escapeHtml(review?.title || '')}">
+      <label class="form-label" for="reviewBody">${productCopy('Review (optional)', 'Avis (facultatif)')}</label>
+      <textarea class="form-control" id="reviewBody" maxlength="2000" rows="4">${escapeHtml(review?.body || '')}</textarea>
+      <div class="review-form-actions">
+        <button type="submit" class="btn btn-orange" id="reviewSubmit">${review ? productCopy('Save changes', 'Enregistrer') : productCopy('Publish review', 'Publier l’avis')}</button>
+        ${review ? `<button type="button" class="btn btn-outline-danger" id="reviewDelete">${productCopy('Delete', 'Supprimer')}</button>` : ''}
+      </div>
+      <div class="alert alert-danger small" id="reviewError" role="alert" hidden></div>
+    </form>
+  </details>`;
+}
+
+function renderReviews(payload) {
+  const summary = $('reviewsSummary');
+  const composer = $('reviewComposer');
+  const list = $('reviewsList');
+  if (!summary || !composer || !list) return;
+  const count = Number(payload.summary?.count || 0);
+  const average = Number(payload.summary?.average || 0);
+  summary.innerHTML = count
+    ? `${reviewStars(average)} <strong>${average.toFixed(1)}</strong> · ${count} ${productCopy(count === 1 ? 'review' : 'reviews', 'avis')}`
+    : productCopy('No reviews yet. Be the first to share your experience.', 'Aucun avis pour le moment. Soyez le premier à partager votre expérience.');
+  composer.innerHTML = reviewComposerHTML();
+  const reviews = payload.reviews || [];
+  list.innerHTML = reviews.length ? reviews.map(review => `<article class="review-card">
+    <div class="review-card-head"><div>${reviewStars(review.rating)}<strong>${escapeHtml(review.title || '')}</strong></div><time datetime="${escapeHtml(review.createdAt)}">${new Date(review.createdAt).toLocaleDateString(getLang() === 'fr' ? 'fr-FR' : 'en-GB')}</time></div>
+    <div class="review-author">${escapeHtml(review.author)}${review.verifiedPurchase ? `<span><i class="fa-solid fa-circle-check" aria-hidden="true"></i> ${productCopy('Verified purchase', 'Achat vérifié')}</span>` : ''}</div>
+    ${review.body ? `<p>${escapeHtml(review.body)}</p>` : ''}
+  </article>`).join('') : '';
+  bindReviewComposer();
+}
+
+function setReviewPending(pending) {
+  const form = $('reviewForm');
+  if (!form) return;
+  form.toggleAttribute('aria-busy', pending);
+  [...form.elements].forEach(control => { control.disabled = pending; });
+}
+
+function showReviewError(message = '') {
+  const box = $('reviewError');
+  if (!box) return;
+  box.textContent = message;
+  box.hidden = !message;
+}
+
+function bindReviewComposer() {
+  $('reviewForm')?.addEventListener('submit', async event => {
+    event.preventDefault();
+    showReviewError();
+    setReviewPending(true);
+    const input = {
+      rating: Number($('reviewRating').value),
+      title: $('reviewTitle').value.trim() || null,
+      body: $('reviewBody').value.trim() || null
+    };
+    try {
+      if (currentProductReview) await StoreAPI.reviews.update(currentProductReview.id, input);
+      else await StoreAPI.reviews.createForProduct(productId, input);
+      toast(productCopy('Your review was saved.', 'Votre avis a été enregistré.'));
+      await loadReviews(productId);
+    } catch (error) {
+      showReviewError(error.message || t('api_error'));
+      setReviewPending(false);
+    }
+  });
+  $('reviewDelete')?.addEventListener('click', async () => {
+    if (!currentProductReview || !window.confirm(productCopy('Delete your review?', 'Supprimer votre avis ?'))) return;
+    setReviewPending(true);
+    try {
+      await StoreAPI.reviews.remove(currentProductReview.id);
+      currentProductReview = null;
+      toast(productCopy('Your review was deleted.', 'Votre avis a été supprimé.'));
+      await loadReviews(productId);
+    } catch (error) {
+      showReviewError(error.message || t('api_error'));
+      setReviewPending(false);
+    }
+  });
+}
+
+async function loadReviews(id) {
+  const section = $('reviewsSection');
+  const summary = $('reviewsSummary');
+  if (!section || !summary) return;
+  const heading = $('reviewsHeading');
+  if (heading) heading.textContent = productCopy('Customer reviews', 'Avis des clients');
+  section.setAttribute('aria-busy', 'true');
+  try {
+    const publicRequest = StoreAPI.reviews.listForProduct(id, { page: 1, limit: 20 });
+    const mineRequest = getUser() ? StoreAPI.reviews.listMine({ page: 1, limit: 50 }) : Promise.resolve({ reviews: [] });
+    const [payload, mine] = await Promise.all([publicRequest, mineRequest]);
+    currentProductReview = (mine.reviews || []).find(review => String(review.productId) === String(id)) || null;
+    renderReviews(payload);
+  } catch (error) {
+    summary.textContent = error.message || t('api_error');
+    $('reviewComposer').innerHTML = '';
+    $('reviewsList').innerHTML = '';
+  } finally {
+    section.removeAttribute('aria-busy');
   }
 }
 
@@ -220,7 +350,7 @@ async function loadRelated(product) {
   }
 }
 
-if (productId) document.addEventListener('DOMContentLoaded', () => renderDetail(productId));
+if (productId) document.addEventListener('DOMContentLoaded', () => whenStoreReady(() => renderDetail(productId)));
 
 window.addEventListener('am:langchange', () => {
   if (productId) renderDetail(productId);

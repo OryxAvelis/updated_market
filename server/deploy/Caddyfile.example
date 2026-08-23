@@ -1,0 +1,28 @@
+{
+	email ops@example.com
+}
+
+# Keep this explicit port-80 site so every ordinary request is redirected.
+# Caddy still intercepts ACME HTTP-01 challenges before normal route handling.
+http://market.example.com {
+	redir https://market.example.com{uri} permanent
+}
+
+market.example.com {
+	# A public ACME issuer obtains and renews the production certificate.
+	# Never replace this with the development mkcert certificate.
+	tls ops@example.com
+
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:3000
+
+	header {
+		-Server
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		# Begin with a short value. Increase it only after the HTTPS rollout is proven.
+		Strict-Transport-Security "max-age=300"
+	}
+
+	log
+}

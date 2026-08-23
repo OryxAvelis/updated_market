@@ -1,9 +1,8 @@
 /**
  * AM MARKET — core.js (shared infrastructure, loaded on every page after i18n.js)
  *
- *  - API client for api.mmarket.ma with automatic CORS-proxy fallback (file:// safe)
- *  - Cart / wishlist / orders / recently-viewed state, persisted in localStorage
- *    and therefore shared across all pages
+ *  - Storefront catalog access through the same-origin backend
+ *  - Guest cart/wishlist state locally; authenticated state in MySQL via StoreAPI
  *  - Header, footer and mobile tabbar injection (each page only carries its own
  *    <main> content; everything else is rendered here)
  *  - Product card rendering + helpers (toast, badges, price formatting, sidebar)
@@ -11,7 +10,8 @@
  * Page scripts (js/<page>.js) are loaded after this file and add their own logic.
  */
 
-const API = 'https://api.mmarket.ma/api';
+const STORE_FRONTEND_CONTEXT = document.body?.dataset.admin !== 'true';
+const API = STORE_FRONTEND_CONTEXT ? '/api/v1/catalog' : 'https://api.mmarket.ma/api';
 const EXCLUDE_CAT = 1811; // Fumoir (smoking) — excluded
 
 // Fallback icons for categories that don't have one from the API
@@ -72,10 +72,21 @@ const LS = {
   recent: 'am_recent'
 };
 
-// ---------- State (localStorage — shared across pages) ----------
+// ---------- State ----------
 let cart = [];
 let wishlist = [];
 let orders = [];
+let accountNotifications = [];
+let accountUnreadCount = 0;
+let currentUser = null;
+let currentPreferences = null;
+let savedAddresses = [];
+let authenticatedRecent = [];
+let authenticatedSearches = [];
+let sessionKnown = !STORE_FRONTEND_CONTEXT;
+let cartSyncPromise = Promise.resolve();
+let wishlistSyncPromise = Promise.resolve();
+let storeReady = Promise.resolve();
 
 function normalizeCart(value) {
   if (!Array.isArray(value)) return [];
@@ -89,16 +100,108 @@ function loadState() {
     cart = normalizeCart(JSON.parse(localStorage.getItem(LS.cart)));
     const savedWish = JSON.parse(localStorage.getItem(LS.wish));
     wishlist = Array.isArray(savedWish) ? [...new Set(savedWish.filter(id => id != null).map(String))] : [];
-    const savedOrders = JSON.parse(localStorage.getItem(LS.orders));
-    orders = Array.isArray(savedOrders) ? savedOrders.filter(order => order && order.id != null && Array.isArray(order.items) && order.items.length > 0) : [];
+    if (STORE_FRONTEND_CONTEXT) orders = [];
+    else {
+      const savedOrders = JSON.parse(localStorage.getItem(LS.orders));
+      orders = Array.isArray(savedOrders) ? savedOrders.filter(order => order && order.id != null && Array.isArray(order.items)) : [];
+    }
   } catch { cart = []; wishlist = []; orders = []; }
 }
-function saveCart() { localStorage.setItem(LS.cart, JSON.stringify(cart)); updateBadges(); }
-function saveWish() { localStorage.setItem(LS.wish, JSON.stringify(wishlist)); updateBadges(); }
-function saveOrders() { localStorage.setItem(LS.orders, JSON.stringify(orders)); updateBadges(); renderNotifMenu(); }
+
+function cartFromApi(payload) {
+  return normalizeCart((payload?.cart?.items || []).map(item => ({
+    id: item.productId,
+    qty: item.quantity,
+    name: item.name,
+    price: item.unitPrice,
+    image_url: item.imageUrl,
+    brand_name: item.brand || '',
+    is_available: item.isAvailable,
+    stock_quantity: item.stockQuantity,
+    quantity_available: item.quantityAvailable,
+    load_failed: item.verified === false
+  })));
+}
+
+function wishlistFromApi(payload) {
+  return (payload?.items || []).map(item => String(item.productId));
+}
+
+async function syncCartToServer(snapshot) {
+  const remotePayload = await StoreAPI.cart.get();
+  const remote = new Map((remotePayload.cart?.items || []).map(item => [String(item.productId), Number(item.quantity)]));
+  const desired = new Map(snapshot.map(item => [String(item.id), Number(item.qty)]));
+  if (desired.size === 0) {
+    if (remote.size) await StoreAPI.cart.clear();
+    cart = [];
+    updateBadges();
+    return;
+  }
+  for (const id of remote.keys()) {
+    if (!desired.has(id)) await StoreAPI.cart.removeItem(id);
+  }
+  for (const [id, quantity] of desired) {
+    if (!remote.has(id)) await StoreAPI.cart.addItem({ productId: id, quantity });
+    else if (remote.get(id) !== quantity) await StoreAPI.cart.updateItem(id, { quantity });
+  }
+  cart = cartFromApi(await StoreAPI.cart.get());
+  updateBadges();
+}
+
+function saveCart() {
+  updateBadges();
+  if (!currentUser) {
+    localStorage.setItem(LS.cart, JSON.stringify(cart));
+    return Promise.resolve();
+  }
+  const snapshot = cart.map(item => ({ id: String(item.id), qty: item.qty }));
+  cartSyncPromise = cartSyncPromise.catch(() => {}).then(() => syncCartToServer(snapshot)).catch(async error => {
+    console.error(error);
+    toast(error.message || t('api_error'));
+    try { cart = cartFromApi(await StoreAPI.cart.get()); updateBadges(); } catch { /* keep the optimistic UI */ }
+    return null;
+  });
+  return cartSyncPromise;
+}
+
+async function syncWishlistToServer(snapshot) {
+  const remotePayload = await StoreAPI.wishlist.get();
+  const remote = new Set((remotePayload.items || []).map(item => String(item.productId)));
+  const desired = new Set(snapshot.map(String));
+  for (const id of remote) if (!desired.has(id)) await StoreAPI.wishlist.removeItem(id);
+  for (const id of desired) if (!remote.has(id)) await StoreAPI.wishlist.addItem({ productId: id });
+  wishlist = wishlistFromApi(await StoreAPI.wishlist.get());
+  updateBadges();
+}
+
+function saveWish() {
+  updateBadges();
+  if (!currentUser) {
+    localStorage.setItem(LS.wish, JSON.stringify(wishlist));
+    return Promise.resolve();
+  }
+  const snapshot = [...wishlist];
+  wishlistSyncPromise = wishlistSyncPromise.catch(() => {}).then(() => syncWishlistToServer(snapshot)).catch(async error => {
+    console.error(error);
+    toast(error.message || t('api_error'));
+    try { wishlist = wishlistFromApi(await StoreAPI.wishlist.get()); updateBadges(); } catch { /* keep the optimistic UI */ }
+    return null;
+  });
+  return wishlistSyncPromise;
+}
+
+function saveOrders() {
+  if (!STORE_FRONTEND_CONTEXT) localStorage.setItem(LS.orders, JSON.stringify(orders));
+  updateBadges();
+  renderNotifMenu();
+  return Promise.resolve();
+}
+function waitForStoreMutations() { return Promise.allSettled([cartSyncPromise, wishlistSyncPromise]); }
+function whenStoreReady(callback) { return storeReady.then(callback); }
 
 // Recently viewed (product snapshots, newest first, max 8)
 function getRecent() {
+  if (currentUser) return authenticatedRecent;
   try {
     const value = JSON.parse(localStorage.getItem(LS.recent));
     return Array.isArray(value) ? value.filter(p => p && p.id != null) : [];
@@ -115,12 +218,17 @@ function addRecent(product) {
     is_available: product.is_available !== false
   });
   list = list.slice(0, 8);
-  localStorage.setItem(LS.recent, JSON.stringify(list));
+  if (currentUser) {
+    authenticatedRecent = list;
+    StoreAPI.recent.record({ productId: String(product.id) }).catch(error => console.error(error));
+  } else {
+    localStorage.setItem(LS.recent, JSON.stringify(list));
+  }
 }
 
 // ---------- API ----------
-// CORS proxies used as automatic fallback when a direct fetch is blocked or
-// hangs (happens on file:// where the page origin is the opaque "null").
+// Admin keeps its legacy catalog fallback. The storefront uses only the
+// allowlisted same-origin backend and never sends customer traffic to proxies.
 const API_HOST = 'https://api.mmarket.ma';
 const PROXIES = [
   { json: true, bin: true, url: u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u) },
@@ -148,6 +256,7 @@ async function apiJSON(url) {
     return await res.json();
   } catch (e) {
     if (e?.status >= 400 && e.status < 500) throw e;
+    if (STORE_FRONTEND_CONTEXT) throw e;
     for (const px of PROXIES) {
       try {
         const res = await fetchWithTimeout(px.url(url), 6000);
@@ -216,47 +325,79 @@ function ensureCategories() {
 function $(id) { return document.getElementById(id); }
 
 // ---------- Theme (dark / light) ----------
-// The initial theme is applied before first paint by a tiny inline script in
-// each page <head>; these helpers keep it in sync when the user changes it.
+// The initial theme is applied by theme-init.js before first paint.
 function getTheme() {
+  if (currentPreferences?.theme) return currentPreferences.theme;
   return localStorage.getItem('am_theme') === 'dark' ? 'dark' : 'light';
 }
 function setTheme(theme) {
   const t = theme === 'dark' ? 'dark' : 'light';
   localStorage.setItem('am_theme', t);
-  document.documentElement.setAttribute('data-theme', t);
-  document.documentElement.setAttribute('data-bs-theme', t); // Bootstrap dropdowns/toasts/inputs
+  if (currentUser) {
+    currentPreferences = { ...(currentPreferences || {}), theme: t };
+    StoreAPI.preferences.update({ theme: t }).catch(error => console.error(error));
+  }
+  applyTheme(t);
+}
+
+function applyTheme(theme) {
+  const value = theme === 'dark' ? 'dark' : 'light';
+  localStorage.setItem('am_theme', value);
+  document.documentElement.setAttribute('data-theme', value);
+  document.documentElement.setAttribute('data-bs-theme', value); // Bootstrap dropdowns/toasts/inputs
 }
 
 // ---------- Saved preferences (used by settings + checkout) ----------
 function getUser() {
+  if (STORE_FRONTEND_CONTEXT) return currentUser;
   try { return JSON.parse(localStorage.getItem('am_user') || sessionStorage.getItem('am_user')); } catch { return null; }
 }
 
 function getProfile() {
   const user = getUser();
   if (user) return user;
+  if (STORE_FRONTEND_CONTEXT && sessionKnown) return {};
   try { return JSON.parse(localStorage.getItem('am_profile')) || {}; } catch { return {}; }
 }
 
 function getDefaultPay() {
+  if (currentPreferences?.defaultPayment) return currentPreferences.defaultPayment;
   const saved = localStorage.getItem('am_pay');
   return ['cod', 'card', 'wafacash', 'cashplus'].includes(saved) ? saved : 'cod';
 }
 function setDefaultPay(p) {
-  localStorage.setItem('am_pay', ['cod', 'card', 'wafacash', 'cashplus'].includes(p) ? p : 'cod');
+  const payment = ['cod', 'card', 'wafacash', 'cashplus'].includes(p) ? p : 'cod';
+  localStorage.setItem('am_pay', payment);
+  if (currentUser) {
+    currentPreferences = { ...(currentPreferences || {}), defaultPayment: payment };
+    StoreAPI.preferences.update({ defaultPayment: payment }).catch(error => console.error(error));
+  }
 }
 
 function getDeliveryInfo() {
+  if (currentUser) {
+    const address = savedAddresses.find(item => item.isDefault) || savedAddresses[0];
+    if (!address) return { name: currentUser.displayName, email: currentUser.email, phone: currentUser.phone || '' };
+    return {
+      id: address.id, name: address.recipientName, phone: address.phone, email: address.email || currentUser.email,
+      address: address.addressLine1, addressLine2: address.addressLine2, city: address.city,
+      quartier: address.district, postalCode: address.postalCode, instructions: address.deliveryInstructions
+    };
+  }
   try { return JSON.parse(localStorage.getItem('am_delivery')) || {}; } catch { return {}; }
 }
 function saveDeliveryInfo(info) {
+  if (currentUser) return;
   localStorage.setItem('am_delivery', JSON.stringify(info || {}));
 }
 
 function formatPrice(v) {
   const n = parseFloat(v);
-  return isNaN(n) ? '—' : Math.round(n) + ' DH';
+  if (!Number.isFinite(n)) return '—';
+  return `${new Intl.NumberFormat(getLang() === 'fr' ? 'fr-FR' : 'en-US', {
+    minimumFractionDigits: Number.isInteger(n) ? 0 : 2,
+    maximumFractionDigits: 2
+  }).format(n)} DH`;
 }
 
 function normalizeMoroccanPhone(value) {
@@ -384,7 +525,7 @@ async function getCartItems() {
     }
     items.push({ id: String(c.id), qty: c.qty, product: p });
   }
-  if (changed) localStorage.setItem(LS.cart, JSON.stringify(cart));
+  if (changed && !currentUser) localStorage.setItem(LS.cart, JSON.stringify(cart));
   return items;
 }
 
@@ -396,7 +537,7 @@ function itemsSubtotal(items) {
 function updateBadges() {
   const cc = cart.reduce((s, i) => s + i.qty, 0);
   const wc = wishlist.length;
-  const nc = orders.length;
+  const nc = currentUser ? accountUnreadCount : 0;
   [['cartCount', cc], ['mCartCount', cc], ['wishCount', wc], ['mWishCount', wc], ['notifCount', nc]].forEach(([id, n]) => {
     const el = $(id);
     if (!el) return;
@@ -410,15 +551,38 @@ function updateBadges() {
 function renderNotifMenu() {
   const menu = $('notifMenu');
   if (!menu) return;
-  if (!orders.length) {
+  if (!accountNotifications.length) {
     menu.innerHTML = `<li class="notif-empty">${t('notif_empty')}</li>`;
     return;
   }
-  menu.innerHTML = orders.slice(0, 5).map(o => `
-    <li><a class="dropdown-item notif-item" href="orders.html">
-      <i class="fa-solid fa-bag-shopping"></i>
-      <span>${t('notif_order', { id: escapeHtml(o.id) })}<br><small class="text-muted">${t('status_processing')}</small></span>
+  menu.innerHTML = accountNotifications.slice(0, 5).map(notification => `
+    <li><a class="dropdown-item notif-item" href="${notification.orderId
+      ? `orders.html?order=${encodeURIComponent(notification.orderId)}`
+      : notification.productId
+        ? `product.html?id=${encodeURIComponent(notification.productId)}`
+        : 'settings.html'}" data-notification-id="${escapeHtml(notification.id)}">
+      <i class="fa-solid ${notification.productId ? 'fa-box-open' : 'fa-bag-shopping'}"></i>
+      <span>${escapeHtml(notification.payload?.message || notification.type.replaceAll('_', ' '))}<br><small class="text-muted">${new Date(notification.createdAt).toLocaleDateString()}</small></span>
     </a></li>`).join('');
+  menu.querySelectorAll('[data-notification-id]').forEach(link => {
+    link.addEventListener('click', async event => {
+      event.preventDefault();
+      const destination = link.getAttribute('href');
+      const notification = accountNotifications.find(item => item.id === link.dataset.notificationId);
+      try {
+        await StoreAPI.notifications.markRead(link.dataset.notificationId);
+        if (notification && !notification.readAt) {
+          notification.readAt = new Date().toISOString();
+          accountUnreadCount = Math.max(0, accountUnreadCount - 1);
+          updateBadges();
+        }
+      } catch (error) {
+        console.error(error);
+      } finally {
+        location.href = destination;
+      }
+    });
+  });
 }
 
 function renderAccountPanel() {
@@ -426,7 +590,7 @@ function renderAccountPanel() {
   const link = $('apProfileLink');
   const row = $('logoutRow');
   const u = getUser();
-  if (nameEl) nameEl.textContent = u && u.name ? u.name : t('guest');
+  if (nameEl) nameEl.textContent = u && (u.displayName || u.name) ? (u.displayName || u.name) : t('guest');
   // "View Profile" always opens the settings page (guest or logged in)
   if (link) {
     link.setAttribute('href', 'settings.html');
@@ -442,12 +606,12 @@ function updateAccountUI() {
   const label = $('accountLabel');
   if (label) {
     label.removeAttribute('data-i18n');
-    label.textContent = u && u.name ? u.name : t('my_account');
+    label.textContent = u && (u.displayName || u.name) ? (u.displayName || u.name) : t('my_account');
   }
   const userRow = $('ddUserRow');
   if (userRow) {
     userRow.style.display = u ? '' : 'none';
-    $('ddUserName').textContent = u ? (u.email || u.name || '') : '';
+    $('ddUserName').textContent = u ? (u.email || u.displayName || u.name || '') : '';
   }
   const loginRow = $('ddLoginRow');
   if (loginRow) loginRow.style.display = u ? 'none' : '';
@@ -512,9 +676,8 @@ function cardHTML(p) {
       <div class="product-card ${available ? '' : 'is-unavailable'}">
         ${disc > 0 ? `<span class="badge-disc">-${disc}%</span>` : (p.is_promo ? `<span class="badge-disc badge-promo">${t('promo')}</span>` : '')}
         <a class="product-img" href="${href}">
-          <img src="${img}" alt="${escapeHtml(p.name)}" loading="lazy" decoding="async"
-               onload="this.parentElement.classList.add('is-loaded')"
-               onerror="this.onerror=null;this.src='img/placeholder.svg'">
+          <img src="${img || 'img/placeholder.svg'}" alt="${escapeHtml(p.name)}" loading="lazy" decoding="async"
+               data-product-image data-image-fallback="img/placeholder.svg">
         </a>
         <div class="product-body">
           <a class="product-title" href="${href}">${escapeHtml(p.name)}</a>
@@ -810,6 +973,16 @@ function initHeaderSearch() {
 
   const go = (value = input.value) => {
     const q = value.trim();
+    if (q && currentUser) {
+      const known = cache.get(q.toLowerCase());
+      const resultsCount = Array.isArray(known) ? known.length : undefined;
+      StoreAPI.search.record({ query: q, ...(resultsCount === undefined ? {} : { resultsCount }) })
+        .catch(error => console.error(error));
+      authenticatedSearches = [
+        { query: q, resultsCount, lastSearchedAt: new Date().toISOString() },
+        ...authenticatedSearches.filter(item => item.query.toLowerCase() !== q.toLowerCase())
+      ].slice(0, 10);
+    }
     location.href = 'categories.html' + (q ? '?q=' + encodeURIComponent(q) : '');
   };
 
@@ -839,7 +1012,7 @@ function initHeaderSearch() {
     list.forEach(p => { productCache[p.id] = p; });
     open(`<div class="search-suggestion-label">${t(labelKey)}</div>${list.slice(0, 5).map((p, i) => `
       <a class="search-suggestion" id="searchOption${i}" role="option" href="product.html?id=${encodeURIComponent(p.id)}">
-        <img src="${p.image_url || 'img/placeholder.svg'}" alt="" loading="eager" onerror="this.onerror=null;this.src='img/placeholder.svg'">
+        <img src="${p.image_url || 'img/placeholder.svg'}" alt="" loading="eager" data-image-fallback="img/placeholder.svg">
         <span class="search-suggestion-copy">
           <strong>${escapeHtml(p.name)}</strong>
           <small>${escapeHtml(p.brand_name || 'AM Market')}</small>
@@ -852,8 +1025,17 @@ function initHeaderSearch() {
   };
 
   const showRecent = () => {
+    if (currentUser && authenticatedSearches.length) {
+      open(`<div class="search-suggestion-label">${getLang() === 'fr' ? 'Recherches récentes' : 'Recent searches'}</div>${authenticatedSearches.slice(0, 5).map((item, i) => `
+        <a class="search-suggestion search-history-item" id="searchOption${i}" role="option" href="categories.html?q=${encodeURIComponent(item.query)}" data-search-query="${escapeHtml(item.query)}">
+          <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>
+          <span class="search-suggestion-copy"><strong>${escapeHtml(item.query)}</strong></span>
+        </a>`).join('')}`);
+      return;
+    }
     const recent = getRecent().slice(0, 4);
     if (recent.length) renderProducts(recent, '', 'recently_viewed');
+    else close();
   };
 
   const requestSuggestions = async query => {
@@ -864,8 +1046,8 @@ function initHeaderSearch() {
     try {
       let list = cache.get(q.toLowerCase());
       if (!list) {
-        const data = await fetchProducts(1, null, q);
-        list = data.results || [];
+        const data = await StoreAPI.search.suggestions(q);
+        list = data.products || [];
         cache.set(q.toLowerCase(), list);
       }
       if (seq !== requestSeq || input.value.trim() !== q) return;
@@ -898,9 +1080,22 @@ function initHeaderSearch() {
     }
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (activeIndex >= 0 && options[activeIndex]) location.href = options[activeIndex].href;
+      if (activeIndex >= 0 && options[activeIndex]) {
+        const selectedQuery = options[activeIndex].dataset.searchQuery;
+        if (selectedQuery) go(selectedQuery);
+        else {
+          if (input.value.trim() && currentUser) StoreAPI.search.record({ query: input.value.trim() }).catch(error => console.error(error));
+          location.href = options[activeIndex].href;
+        }
+      }
       else go();
     }
+  });
+  box.addEventListener('click', event => {
+    const link = event.target.closest('.search-suggestion, .search-suggestion-all');
+    if (!link || !currentUser) return;
+    const query = link.dataset.searchQuery || input.value.trim();
+    if (query) StoreAPI.search.record({ query }).catch(error => console.error(error));
   });
   document.addEventListener('click', e => {
     if (!e.target.closest('.search-box')) close();
@@ -938,6 +1133,19 @@ function initBackToTop() {
   btt.onclick = () => window.scrollTo({ top: 0, behavior: motionBehavior() });
 }
 
+function initSafeImageFallbacks() {
+  document.addEventListener('load', event => {
+    const image = event.target.closest?.('img[data-product-image]');
+    image?.parentElement?.classList.add('is-loaded');
+  }, true);
+  document.addEventListener('error', event => {
+    const image = event.target.closest?.('img[data-image-fallback]');
+    if (!image || image.dataset.fallbackApplied === 'true') return;
+    image.dataset.fallbackApplied = 'true';
+    image.src = image.dataset.imageFallback;
+  }, true);
+}
+
 // "Coming soon" links + logout (account panel, header dropdown, settings)
 document.addEventListener('click', e => {
   const soon = e.target.closest('[data-soon]');
@@ -945,17 +1153,108 @@ document.addEventListener('click', e => {
   const lo = e.target.closest('#logoutLink, #ddLogoutLink');
   if (lo) {
     e.preventDefault();
-    localStorage.removeItem('am_user');
-    sessionStorage.removeItem('am_user');
-    renderAccountPanel();
-    updateAccountUI();
-    toast(t('logged_out'));
+    if (STORE_FRONTEND_CONTEXT) {
+      StoreAPI.auth.logout().then(() => {
+        currentUser = null;
+        currentPreferences = null;
+        savedAddresses = [];
+        cart = [];
+        wishlist = [];
+        orders = [];
+        accountNotifications = [];
+        accountUnreadCount = 0;
+        authenticatedRecent = [];
+        authenticatedSearches = [];
+        updateBadges();
+        renderNotifMenu();
+        renderAccountPanel();
+        updateAccountUI();
+        location.replace('index.html');
+      }).catch(error => toast(error.message || t('api_error')));
+    } else {
+      localStorage.removeItem('am_user');
+      sessionStorage.removeItem('am_user');
+      renderAccountPanel();
+      updateAccountUI();
+      toast(t('logged_out'));
+    }
   }
 });
 
+async function loadAuthenticatedState() {
+  localStorage.removeItem('am_user');
+  sessionStorage.removeItem('am_user');
+  const session = await StoreAPI.bootstrap();
+  sessionKnown = true;
+  if (!session.authenticated) {
+    currentUser = null;
+    return;
+  }
+  currentUser = { ...session.user, name: session.user.displayName };
+  currentPreferences = session.user.preferences || null;
+  cart = [];
+  wishlist = [];
+  accountNotifications = [];
+  authenticatedRecent = [];
+  authenticatedSearches = [];
+  savedAddresses = [];
+  const resources = await Promise.allSettled([
+    StoreAPI.cart.get(),
+    StoreAPI.wishlist.get(),
+    StoreAPI.notifications.list({ limit: 20 }),
+    StoreAPI.recent.list({ limit: 8 }),
+    StoreAPI.addresses.list(),
+    StoreAPI.search.history({ limit: 10 })
+  ]);
+  const valueAt = index => resources[index].status === 'fulfilled' ? resources[index].value : null;
+  const cartPayload = valueAt(0);
+  const wishPayload = valueAt(1);
+  const notificationPayload = valueAt(2);
+  const recentPayload = valueAt(3);
+  const addressPayload = valueAt(4);
+  const searchPayload = valueAt(5);
+  if (cartPayload) cart = cartFromApi(cartPayload);
+  if (wishPayload) wishlist = wishlistFromApi(wishPayload);
+  accountNotifications = notificationPayload?.notifications || [];
+  accountUnreadCount = Number.isFinite(Number(notificationPayload?.unreadCount))
+    ? Number(notificationPayload.unreadCount)
+    : accountNotifications.filter(item => !item.readAt).length;
+  savedAddresses = addressPayload?.addresses || [];
+  authenticatedSearches = searchPayload?.searches || [];
+  authenticatedRecent = (recentPayload?.products || []).map(product => ({
+    id: product.id,
+    name: product.name,
+    price: product.price,
+    image_url: product.imageUrl,
+    brand_name: product.brand || '',
+    is_available: product.isAvailable
+  }));
+  if (currentPreferences?.theme) applyTheme(currentPreferences.theme);
+  if (currentPreferences?.language && typeof setLang === 'function' && getLang() !== currentPreferences.language) {
+    setLang(currentPreferences.language, { persist: false });
+  }
+}
+
+async function initializeStorefrontState() {
+  if (!STORE_FRONTEND_CONTEXT || !window.StoreAPI) return;
+  try {
+    await loadAuthenticatedState();
+  } catch (error) {
+    sessionKnown = true;
+    currentUser = null;
+    console.error('Store session bootstrap failed', error);
+  } finally {
+    updateBadges();
+    renderNotifMenu();
+    renderAccountPanel();
+    updateAccountUI();
+    window.dispatchEvent(new CustomEvent('am:store-ready'));
+  }
+}
+
 (function coreInit() {
   loadState();
-  setTheme(getTheme()); // sync with the pre-paint inline script
+  applyTheme(getTheme()); // sync with the pre-paint theme script without a preference write
   updateBadges();
   renderNotifMenu();
   renderAccountPanel();
@@ -963,6 +1262,8 @@ document.addEventListener('click', e => {
   initHeaderSearch();
   initTabbar();
   initBackToTop();
+  initSafeImageFallbacks();
+  storeReady = initializeStorefrontState();
 })();
 
 // Re-render shared widgets when the language changes (pages handle their own content)

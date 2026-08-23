@@ -1,62 +1,98 @@
-# AM MARKET — Shop More, Live Better
+# AM MARKET
 
-E-commerce storefront front-end for **AM MARKET**, a Moroccan online supermarket. It is fully static — no build step, no framework — and loads its real product catalog from [api.mmarket.ma](https://api.mmarket.ma), with automatic public CORS-proxy fallbacks so pages keep working even when opened straight from disk (`file://`).
+AM MARKET is a customer-facing e-commerce storefront backed by a secure Node.js API and MySQL 8. The existing HTML/CSS/JavaScript experience is preserved, while authenticated customer data is stored server-side and the external AM MARKET catalog remains the source of truth for products, availability, and checkout prices.
 
-![AM MARKET](market-top-1.png)
+## Customer features
 
-## Pages
+- Real registration, login, logout, current-session, password change, and one-time password reset.
+- Secure `HttpOnly`, `Secure`, `SameSite=Lax` session cookies with rotation, expiration, CSRF protection, and exact-origin checks.
+- Customer profiles, synchronized language/theme/notification preferences, and multiple owned delivery addresses.
+- Persistent authenticated carts and wishlists, with safe guest-cart/wishlist merge after sign-in.
+- Server-priced, transactional, idempotent checkout with immutable order/address/product snapshots.
+- Order history, cancellation, tracking events, return requests, and customer notifications.
+- Product ratings and reviews with ownership enforcement and verified-purchase markers.
+- Autocomplete, recent searches, recently viewed products, and personalized recommendations.
+- Low-stock subscriptions and transition alerts when the upstream catalog supplies numeric stock quantities.
+- Trusted local HTTPS, automatic HTTP-to-HTTPS redirection, production ACME guidance, strict security headers, HSTS in production, and TLS-verified MySQL connections.
 
-| Page | Purpose | Own assets |
-|---|---|---|
-| `index.html` | Home — hero carousel, categories, recently viewed, products | `js/home.js`, `css/home.css` |
-| `all-categories.html` | Category directory | `js/all-categories.js`, `css/all-categories.css` |
-| `categories.html` | Catalog — filters, sorting, pagination (`?cat=`, `?q=`, `?page=`) | `js/categories.js`, `css/categories.css` |
-| `product.html` | Product detail (`?id=`) + related products | `js/product.js`, `css/product.css` |
-| `cart.html` | Cart with quantity management and order summary | `js/cart.js`, `css/cart.css` |
-| `checkout.html` | Delivery form + order placement | `js/checkout.js`, `css/checkout.css` |
-| `orders.html` | Order history | `js/orders.js`, `css/orders.css` |
-| `wishlist.html` | Saved products | `js/wishlist.js`, `css/wishlist.css` |
-| `settings.html` | Profile, dark mode, language, payment & delivery preferences | `js/settings.js`, `css/settings.css` |
-| `help.html` | Help center — delivery, payment, returns and order guidance | `css/help.css` |
-| `login.html` | Sign in / create account (demo) | `css/login.css` |
+## Architecture
 
-Shared infrastructure lives in **`js/core.js`** (API client, localStorage state, header/footer/mobile-toolbar injection, product-card rendering) and **`css/common.css`**. Translations (EN/FR) live in **`js/i18n.js`**.
+The browser calls only the same-origin `/api/v1` service. Authentication credentials never enter Web Storage; only guest cart/wishlist product IDs and non-sensitive display preferences may be cached locally. The backend validates every customer input and derives ownership from the authenticated session.
 
-## Frontend admin prototype
+The MySQL schema and migrations are in `server/src/db/migrations/`. It covers users, preferences, addresses, sessions, password resets, cart, wishlist, orders, tracking, cancellations, returns, reviews, activity history, notifications, low-stock subscriptions, recommendations, and outbox events.
 
-The separate admin experience starts at **`admin/login.html`**. Its dashboard, products, categories, orders, customers, inventory, promotions, delivery, analytics, and settings sections are plain HTML/CSS/JS and reuse the storefront design tokens, theme, language, and read-only catalog utilities.
+## Local prerequisites
 
-Demo credential and session handling is isolated in **`admin/js/admin-auth.js`**. This is a frontend UX prototype, not secure authentication: there is no backend, API write, database, role enforcement, or server persistence.
+- Node.js 22 or newer
+- MySQL 8.0 or newer
+- A database server certificate trusted through an explicit CA file
+- `mkcert` for the locally trusted browser certificate
 
-All admin mutations are deliberately browser-local. Product/category edits are local overlays, order statuses modify the existing `am_orders` browser data, customers and analytics are derived from local orders, and inventory/promotions/delivery/store settings use separate `am_admin_*_v1` localStorage records. These mutations do not publish to or alter the storefront catalog.
+Install the backend dependencies:
 
-## Running locally
-
-Just double-click `index.html` — the site works straight from disk (`file://`). Blocked API calls and product images automatically fall back to public CORS proxies, so no server is needed.
-
-Optionally, a local server gives slightly faster first loads (no proxy hop):
-
-```bash
-npx serve .
-# or
-python -m http.server 8000
+```powershell
+Set-Location .\server
+npm ci
+Set-Location ..
 ```
 
-## Features
+Create an external credential file outside the repository. `run-local.ps1` expects the application account keys below; `run-migrations.ps1` additionally expects a separate DDL-capable migration account:
 
-- Real catalog: categories, products, search with smart suggestions, pagination
-- Cart, wishlist and order history persisted in `localStorage` (keys `am_cart`, `am_wish`, `am_orders`), shared across all pages
-- Catalog state lives in the URL — results are bookmarkable and shareable
-- Bilingual English / French, language choice persisted
-- Dark / light theme, persisted and applied before first paint (no flash)
-- Guest-friendly: browsing, cart and checkout all work without an account;
-  a saved profile (name, delivery details, default payment) pre-fills checkout
-- Mobile-first: bottom toolbar navigation, single-line responsive header
-- Plain HTML/CSS/JS + Bootstrap 5 and Font Awesome via CDN
+```dotenv
+MYSQL_HOST=127.0.0.1
+MYSQL_PORT=3306
+MYSQL_DATABASE=am_market
+MYSQL_USER=am_market_app
+MYSQL_PASSWORD=replace-with-a-long-random-password
+MYSQL_MIGRATION_USER=am_market_migrator
+MYSQL_MIGRATION_PASSWORD=replace-with-a-different-long-random-password
+MYSQL_SSL_CA=C:\path\outside\the\repository\mysql-ca.pem
+```
 
-## Notes & limitations
+Do not put real passwords, `.env` files, private keys, CA private material, or generated certificates in Git.
 
-- Authentication and orders are client-side demos — nothing is written back to the API.
-- The admin area is also a frontend-only prototype; every write is local to the current browser origin.
-- Delivery is free over 200 DH, otherwise 20 DH.
-- The smoking category is excluded on purpose (`EXCLUDE_CAT` in `js/core.js`).
+Generate and trust the local HTTPS certificate, apply migrations, and start the storefront:
+
+```powershell
+& .\server\scripts\setup-local-https.ps1
+& .\server\scripts\run-migrations.ps1 -CredentialsPath 'C:\path\outside\the\repository\mysql-credentials.env'
+& .\server\scripts\run-local.ps1 -CredentialsPath 'C:\path\outside\the\repository\mysql-credentials.env'
+```
+
+Open [https://localhost:3443](https://localhost:3443). Requests to `http://localhost:3000` are redirected with HTTP 308. The backend intentionally serves only the allowlisted customer pages and static asset directories.
+
+## Password-reset email
+
+Set the `SMTP_*` variables described in `server/.env.example` through the deployment secret manager. A reset request always returns the same generic response. Tokens are random, short-lived, stored only as digests, usable once, and revoked if delivery fails. Without SMTP credentials the reset route remains safe, but no email can be delivered.
+
+## Tests
+
+From `server/`:
+
+```powershell
+npm run check
+npm test
+```
+
+The real-MySQL integration suite is opt-in and must use a dedicated disposable test database:
+
+```powershell
+$env:TEST_USE_DATABASE = 'true'
+$env:NODE_ENV = 'test'
+npm run test:integration
+```
+
+Set the documented `DB_*`, TLS, `APP_ORIGIN`, and `ALLOWED_ORIGINS` variables first. The suite applies migrations and removes only its randomized test fixtures; never point it at production or a shared database.
+
+## Production deployment
+
+Use `server/deploy/Caddyfile.example` as the TLS edge template and follow `server/docs/https.md`. Store all credentials in the host secret manager, run migrations with the migration account, run the app with the least-privilege account, bind Node to loopback behind Caddy, validate certificate renewal, and stage HSTS carefully.
+
+Database details and invariants are documented in `server/docs/database.md`.
+
+## External-service boundaries
+
+- Card entry is disabled until a PCI-compliant payment provider is connected; the application never collects card details itself.
+- Password-reset delivery requires production SMTP credentials.
+- Low-stock evaluation is exact only when the upstream product payload includes `stock_quantity`.
+- Carrier-specific tracking locations and delivery progress require the configured fulfillment integration to send authenticated status updates.

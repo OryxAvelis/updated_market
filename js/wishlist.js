@@ -49,6 +49,6 @@ async function renderWishlist(focusContext = null) {
   });
 }
 
-document.addEventListener('DOMContentLoaded', renderWishlist);
+document.addEventListener('DOMContentLoaded', () => whenStoreReady(renderWishlist));
 
 window.addEventListener('am:langchange', renderWishlist);

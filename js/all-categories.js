@@ -37,5 +37,5 @@ async function renderAllCategories() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', renderAllCategories);
+document.addEventListener('DOMContentLoaded', () => whenStoreReady(renderAllCategories));
 window.addEventListener('am:langchange', renderAllCategories);

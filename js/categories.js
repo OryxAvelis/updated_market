@@ -462,7 +462,7 @@ async function initCategories() {
   await loadShopPage(currentPage);
 }
 
-document.addEventListener('DOMContentLoaded', initCategories);
+document.addEventListener('DOMContentLoaded', () => whenStoreReady(initCategories));
 
 window.addEventListener('am:langchange', () => {
   updateShopTitle();

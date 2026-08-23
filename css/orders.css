@@ -32,6 +32,10 @@
   color: #166534;
   font-weight: 650;
 }
+
+.order-confirmation > div { display: grid; gap: .15rem; }
+.order-confirmation span { font-size: .9rem; }
+.order-card-highlight { outline: 3px solid color-mix(in srgb, var(--orange) 35%, transparent); outline-offset: 3px; }
 [data-theme="dark"] .order-confirmation {
   background: #14301f;
   color: #86efac;

@@ -1,9 +1,14 @@
 /**
  * AM MARKET — cart.js (cart.html)
- * Renders cart from localStorage, quantity controls, remove, order summary.
+ * Renders the guest or authenticated cart, quantity controls, remove, and summary.
  */
 
 let cartRenderSequence = 0;
+
+function cartProductAvailable(product, quantity) {
+  if (product.is_available === false || product.load_failed) return false;
+  return !Number.isInteger(product.stock_quantity) || quantity <= product.stock_quantity;
+}
 
 async function renderCart(focusTarget = null) {
   const renderSequence = ++cartRenderSequence;
@@ -47,9 +52,9 @@ async function renderCart(focusTarget = null) {
   const items = await getCartItems();
   if (renderSequence !== cartRenderSequence) return;
   box.removeAttribute('aria-busy');
-  const unavailableItems = items.filter(({ product }) => product.is_available === false);
+  const unavailableItems = items.filter(({ product, qty }) => !cartProductAvailable(product, qty));
   const unverifiedItems = unavailableItems.filter(({ product }) => product.load_failed === true);
-  const availableItems = items.filter(({ product }) => product.is_available !== false);
+  const availableItems = items.filter(({ product, qty }) => cartProductAvailable(product, qty));
   const sub = itemsSubtotal(availableItems);
   const fee = deliveryFee(sub);
 
@@ -57,20 +62,25 @@ async function renderCart(focusTarget = null) {
     const line = (parseFloat(p.price) || 0) * qty;
     const img = p.image_url || 'img/placeholder.svg';
     const href = 'product.html?id=' + encodeURIComponent(id);
-    const available = p.is_available !== false;
-    const availabilityLabel = p.load_failed ? t('item_unverified') : t('out_stock');
+    const catalogAvailable = p.is_available !== false && !p.load_failed;
+    const stockInsufficient = Number.isInteger(p.stock_quantity) && qty > p.stock_quantity;
+    const available = catalogAvailable && !stockInsufficient;
+    const availabilityLabel = p.load_failed
+      ? t('item_unverified')
+      : stockInsufficient
+        ? t('quantity_unavailable', { n: p.stock_quantity })
+        : t('out_stock');
     return `
       <div class="cart-item ${available ? '' : 'is-unavailable'}" data-id="${escapeHtml(id)}">
         <a class="ci-img-link" href="${href}">
-          <img src="${img}" alt="${escapeHtml(p.name)}"
-               onerror="this.onerror=null;this.src='img/placeholder.svg'">
+          <img src="${img}" alt="${escapeHtml(p.name)}" data-image-fallback="img/placeholder.svg">
         </a>
         <div class="ci-info">
           <a class="ci-name" href="${href}">${escapeHtml(p.name)}</a>
           <div class="ci-unit">${formatPrice(p.price)} ${available ? '' : `· <strong class="ci-stock-out">${availabilityLabel}</strong>`}</div>
           <div class="ci-actions">
             <div class="qty-box">
-              <button type="button" class="qty-minus" data-id="${escapeHtml(id)}" aria-label="${escapeHtml(t('decrease_named', { name: p.name }))}" ${available ? '' : 'disabled'}>−</button>
+              <button type="button" class="qty-minus" data-id="${escapeHtml(id)}" aria-label="${escapeHtml(t('decrease_named', { name: p.name }))}" ${catalogAvailable ? '' : 'disabled'}>−</button>
               <input type="text" value="${qty}" readonly aria-label="${escapeHtml(t('quantity_named', { name: p.name }))}">
               <button type="button" class="qty-plus" data-id="${escapeHtml(id)}" aria-label="${escapeHtml(t('increase_named', { name: p.name }))}" ${available ? '' : 'disabled'}>+</button>
             </div>
@@ -111,6 +121,14 @@ async function renderCart(focusTarget = null) {
     </div>`;
 
   bindCartActions();
+  summaryCol.querySelector('a.btn-checkout')?.addEventListener('click', async event => {
+    if (!getUser()) return;
+    event.preventDefault();
+    const link = event.currentTarget;
+    link.setAttribute('aria-disabled', 'true');
+    await waitForStoreMutations();
+    location.href = 'checkout.html';
+  });
   $('removeUnavailable')?.addEventListener('click', async () => {
     const unavailableIds = new Set(unavailableItems.map(item => String(item.id)));
     const removedItems = cart.filter(item => unavailableIds.has(String(item.id))).map(item => ({ ...item }));
@@ -195,5 +213,5 @@ function bindCartActions() {
   });
 }
 
-document.addEventListener('DOMContentLoaded', renderCart);
+document.addEventListener('DOMContentLoaded', () => whenStoreReady(renderCart));
 window.addEventListener('am:langchange', renderCart);
