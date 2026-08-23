@@ -1,159 +1,238 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AM MARKET — Settings</title>
-  <meta name="description" content="Manage your AM MARKET preferences: profile, appearance, language, default payment method and delivery details." />
-  <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="AM MARKET" />
-  <meta property="og:title" content="AM MARKET — Settings" />
-  <meta property="og:description" content="Profile, dark mode, language, payment and delivery preferences." />
-  <meta property="og:image" content="https://raw.githubusercontent.com/OryxAvelis/updated_market/main/img/logo-round.png" />
-  <meta name="twitter:card" content="summary" />
-  <script>(function(){var t=localStorage.getItem('am_theme')==='dark'?'dark':'light';document.documentElement.setAttribute('data-theme',t);document.documentElement.setAttribute('data-bs-theme',t);})();</script>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/common.css" />
-  <link rel="stylesheet" href="css/checkout.css" />
-  <link rel="stylesheet" href="css/settings.css" />
-  <link rel="icon" type="image/png" href="img/logo-round.png" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AM MARKET — Settings</title>
+    <meta name="description"
+        content="Manage your AM MARKET preferences: profile, appearance, language, default payment method and delivery details." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="AM MARKET" />
+    <meta property="og:title" content="AM MARKET — Settings" />
+    <meta property="og:description" content="Profile, dark mode, language, payment and delivery preferences." />
+    <meta property="og:image"
+        content="https://raw.githubusercontent.com/OryxAvelis/updated_market/main/img/logo-round.png" />
+    <meta name="twitter:card" content="summary" />
+    <script>(function () { var t = localStorage.getItem('am_theme') === 'dark' ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', t); document.documentElement.setAttribute('data-bs-theme', t); })();</script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="css/common.css" />
+    <link rel="stylesheet" href="css/settings.css" />
+    <link rel="icon" type="image/png" href="img/logo-round.png" />
 </head>
+
 <body data-page="settings">
 
-  <main class="container-fluid px-3 px-lg-4 py-3">
-    <h4 class="fw-bold mb-4" data-i18n="settings">Settings</h4>
+    <main class="container-fluid px-3 px-lg-4 py-3">
+        <h1 class="h4 fw-bold" data-i18n="settings">Settings</h1>
 
-    <div class="row g-4">
-      <div class="col-lg-7">
+        <div class="row g-3 g-lg-4">
+            <div class="col-lg-7">
 
-        <!-- Profile -->
-        <div class="card border-0 co-card mb-4">
-          <div class="card-body p-4">
-            <h6 class="fw-bold mb-3"><i class="fa-regular fa-user me-2 text-orange"></i><span data-i18n="set_profile">Profile</span></h6>
-            <div id="profileForm">
-              <div class="row g-3">
-                <div class="col-md-6">
-                  <label class="form-label" data-i18n="set_username">Username</label>
-                  <input type="text" class="form-control" id="setName" placeholder="Your name">
+                <!-- Profile -->
+                <div class="settings-card">
+                    <div class="card-body">
+                        <h2 class="set-section-title">
+                            <i class="fa-regular fa-user"></i>
+                            <span data-i18n="set_profile">Profile</span>
+                        </h2>
+                        <div id="profileForm">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label" for="setName" data-i18n="set_username">Username</label>
+                                    <input type="text" class="form-control" id="setName" placeholder="Full name" data-i18n-ph="full_name_ph" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="setEmail" data-i18n="email_optional">Email (optional)</label>
+                                    <input type="email" class="form-control" id="setEmail" placeholder="Email address" data-i18n-ph="email_ph">
+                                </div>
+                            </div>
+                            <div class="set-actions">
+                                <button class="btn btn-orange" id="saveProfile"><i class="fa-solid fa-check me-1"></i>
+                                    <span data-i18n="set_save">Save</span></button>
+                                <a href="login.html" class="btn btn-outline-orange" id="loginHintBtn"><i
+                                        class="fa-solid fa-right-to-bracket me-1"></i> <span
+                                        data-i18n="sign_in_link">Sign in</span></a>
+                                <button class="btn btn-outline-danger" id="logoutBtn" style="display:none"><i
+                                        class="fa-solid fa-arrow-right-from-bracket me-1"></i> <span
+                                        data-i18n="logout">Logout</span></button>
+                            </div>
+                            <div class="set-form-error" id="profileError" role="alert"></div>
+                            <div class="form-text" id="guestProfileNote" data-i18n="set_guest_note">You are browsing as a guest — everything
+                                works without an account. Add a name to personalize your orders.</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-md-6">
-                  <label class="form-label" data-i18n="email_label">Email *</label>
-                  <input type="email" class="form-control" id="setEmail" placeholder="Email address">
+
+                <!-- Appearance + Language -->
+                <div class="settings-card">
+                    <div class="card-body">
+                        <h2 class="set-section-title" id="appearanceTitle">
+                            <i class="fa-solid fa-palette"></i>
+                            <span data-i18n="set_appearance">Appearance</span>
+                        </h2>
+                        <div class="set-options" role="radiogroup" aria-labelledby="appearanceTitle">
+                            <label class="set-opt">
+                                <input type="radio" name="theme" value="light" checked>
+                                <span class="pay-icon"><i class="fa-solid fa-sun"></i></span>
+                                <span class="pay-text"><strong data-i18n="set_light">Light</strong><small
+                                        data-i18n="set_light_sub">Bright & clean</small></span>
+                                <span class="pay-check"><i class="fa-solid fa-check"></i></span>
+                            </label>
+                            <label class="set-opt">
+                                <input type="radio" name="theme" value="dark">
+                                <span class="pay-icon"><i class="fa-solid fa-moon"></i></span>
+                                <span class="pay-text"><strong data-i18n="set_dark">Dark</strong><small
+                                        data-i18n="set_dark_sub">Easy on the eyes</small></span>
+                                <span class="pay-check"><i class="fa-solid fa-check"></i></span>
+                            </label>
+                        </div>
+
+                        <hr class="set-divider">
+
+                        <h2 class="set-section-title" id="languageTitle">
+                            <i class="fa-solid fa-globe"></i>
+                            <span data-i18n="set_language">Language</span>
+                        </h2>
+                        <div class="set-options" role="radiogroup" aria-labelledby="languageTitle">
+                            <label class="set-opt">
+                                <input type="radio" name="lang" value="en" checked>
+                                <span class="pay-icon"><i class="fa-solid fa-language"></i></span>
+                                <span class="pay-text"><strong>English</strong><small data-i18n="set_lang_en_sub">Switch
+                                        to English</small></span>
+                                <span class="pay-check"><i class="fa-solid fa-check"></i></span>
+                            </label>
+                            <label class="set-opt">
+                                <input type="radio" name="lang" value="fr">
+                                <span class="pay-icon"><i class="fa-solid fa-language"></i></span>
+                                <span class="pay-text"><strong>Français</strong><small
+                                        data-i18n="set_lang_fr_sub">Passer au français</small></span>
+                                <span class="pay-check"><i class="fa-solid fa-check"></i></span>
+                            </label>
+                        </div>
+                    </div>
                 </div>
-              </div>
-              <div class="d-flex flex-wrap gap-2 align-items-center mt-3">
-                <button class="btn btn-orange px-4" id="saveProfile"><i class="fa-solid fa-check me-1"></i> <span data-i18n="set_save">Save</span></button>
-                <a href="login.html" class="btn btn-outline-orange px-3" id="loginHintBtn"><i class="fa-solid fa-right-to-bracket me-1"></i> <span data-i18n="sign_in_link">Sign in</span></a>
-                <button class="btn btn-outline-danger px-3" id="logoutBtn" style="display:none"><i class="fa-solid fa-arrow-right-from-bracket me-1"></i> <span data-i18n="logout">Logout</span></button>
-              </div>
-              <div class="form-text" data-i18n="set_guest_note">You are browsing as a guest — everything works without an account. Add a name to personalize your orders.</div>
+
             </div>
-          </div>
+
+            <div class="col-lg-5">
+
+                <!-- Payment -->
+                <div class="settings-card">
+                    <div class="card-body">
+                        <h2 class="set-section-title" id="paymentTitle">
+                            <i class="fa-regular fa-credit-card"></i>
+                            <span data-i18n="set_payment">Default Payment</span>
+                        </h2>
+                        <div class="set-options one-col" role="radiogroup" aria-labelledby="paymentTitle">
+                            <label class="set-opt">
+                                <input type="radio" name="pay" value="cod" checked>
+                                <span class="pay-icon"><i class="fa-solid fa-money-bill-wave"></i></span>
+                                <span class="pay-text"><strong data-i18n="cod">Cash on Delivery</strong><small
+                                        data-i18n="cod_sub">Pay at your door</small></span>
+                                <span class="pay-check"><i class="fa-solid fa-check"></i></span>
+                            </label>
+                            <label class="set-opt">
+                                <input type="radio" name="pay" value="wafacash">
+                                <span class="pay-icon"><i class="fa-solid fa-building-columns"></i></span>
+                                <span class="pay-text"><strong>Wafacash</strong><small data-i18n="wafacash_sub">Pay at an agency after confirmation</small></span>
+                                <span class="pay-check"><i class="fa-solid fa-check"></i></span>
+                            </label>
+                            <label class="set-opt">
+                                <input type="radio" name="pay" value="cashplus">
+                                <span class="pay-icon"><i class="fa-solid fa-store"></i></span>
+                                <span class="pay-text"><strong>CashPlus</strong><small data-i18n="cashplus_sub">Pay at a partner shop after confirmation</small></span>
+                                <span class="pay-check"><i class="fa-solid fa-check"></i></span>
+                            </label>
+                            <label class="set-opt">
+                                <input type="radio" name="pay" value="card">
+                                <span class="pay-icon"><i class="fa-regular fa-credit-card"></i></span>
+                                <span class="pay-text"><strong data-i18n="card_label">Credit / Debit Card</strong><small
+                                        data-i18n="card_sub">Secure online payment</small></span>
+                                <span class="pay-check"><i class="fa-solid fa-check"></i></span>
+                            </label>
+                        </div>
+                        <div class="form-text" data-i18n="set_pay_note">Pre-selected on the checkout page.</div>
+                    </div>
+                </div>
+
+                <!-- Delivery -->
+                <div class="settings-card">
+                    <div class="card-body">
+                        <h2 class="set-section-title">
+                            <i class="fa-solid fa-truck-fast"></i>
+                            <span data-i18n="set_delivery">Delivery Details</span>
+                        </h2>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label" for="dName" data-i18n="full_name">Full Name *</label>
+                                <input type="text" class="form-control" id="dName" required autocomplete="name">
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label" for="dPhone" data-i18n="phone">Phone *</label>
+                                <input type="tel" class="form-control" id="dPhone" required autocomplete="tel">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label" for="dEmail" data-i18n="email_optional">Email (optional)</label>
+                                <input type="email" class="form-control" id="dEmail" autocomplete="email">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label" for="dQuartier" data-i18n="quartier">Quartier *</label>
+                                <input type="text" class="form-control" id="dQuartier" data-i18n-ph="quartier_ph" required autocomplete="address-level3">
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label" for="dCity" data-i18n="city">City *</label>
+                                <input type="text" class="form-control" id="dCity" required autocomplete="address-level2">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label" for="dAddress" data-i18n="address">Address *</label>
+                                <textarea class="form-control" id="dAddress" rows="2" required autocomplete="street-address"></textarea>
+                            </div>
+                        </div>
+                        <div class="set-actions">
+                            <button class="btn btn-orange" id="saveDelivery"><i class="fa-solid fa-check me-1"></i>
+                                <span data-i18n="set_save">Save</span></button>
+                        </div>
+                        <div class="set-form-error" id="deliveryError" role="alert"></div>
+                        <div class="form-text" data-i18n="set_delivery_note">Used to pre-fill the checkout form.</div>
+                    </div>
+                </div>
+
+                <!-- Data -->
+                <div class="settings-card">
+                    <div class="card-body">
+                        <h2 class="set-section-title">
+                            <i class="fa-solid fa-database"></i>
+                            <span data-i18n="set_data">Your Data</span>
+                        </h2>
+                        <div class="set-data-actions">
+                            <button class="btn btn-outline-danger" id="clearCartBtn" data-i18n="set_clear_cart">Clear
+                                Cart</button>
+                            <button class="btn btn-outline-danger" id="clearWishBtn" data-i18n="set_clear_wish">Clear
+                                Wishlist</button>
+                            <button class="btn btn-outline-danger" id="clearOrdersBtn"
+                                data-i18n="set_clear_orders">Clear Orders</button>
+                            <button class="btn btn-danger" id="clearAllBtn" data-i18n="set_clear_all">Reset
+                                Everything</button>
+                        </div>
+                        <div class="form-text" data-i18n="set_data_note">Data is stored only in this browser
+                            (localStorage).</div>
+                    </div>
+                </div>
+
+            </div>
         </div>
+    </main>
 
-        <!-- Appearance + language -->
-        <div class="card border-0 co-card mb-4">
-          <div class="card-body p-4">
-            <h6 class="fw-bold mb-3"><i class="fa-solid fa-palette me-2 text-orange"></i><span data-i18n="set_appearance">Appearance</span></h6>
-            <div class="set-options">
-              <label class="set-opt">
-                <input type="radio" name="theme" value="light" checked>
-                <span class="pay-icon"><i class="fa-solid fa-sun"></i></span>
-                <span class="pay-text"><strong data-i18n="set_light">Light</strong><small data-i18n="set_light_sub">Bright & clean</small></span>
-                <span class="pay-check"><i class="fa-solid fa-check"></i></span>
-              </label>
-              <label class="set-opt">
-                <input type="radio" name="theme" value="dark">
-                <span class="pay-icon"><i class="fa-solid fa-moon"></i></span>
-                <span class="pay-text"><strong data-i18n="set_dark">Dark</strong><small data-i18n="set_dark_sub">Easy on the eyes</small></span>
-                <span class="pay-check"><i class="fa-solid fa-check"></i></span>
-              </label>
-            </div>
-
-            <div class="co-divider"></div>
-
-            <h6 class="fw-bold mb-3"><i class="fa-solid fa-globe me-2 text-orange"></i><span data-i18n="set_language">Language</span></h6>
-            <div class="set-options">
-              <label class="set-opt">
-                <input type="radio" name="lang" value="en" checked>
-                <span class="pay-icon"><i class="fa-solid fa-language"></i></span>
-                <span class="pay-text"><strong>English</strong><small data-i18n="set_lang_en_sub">Switch to English</small></span>
-                <span class="pay-check"><i class="fa-solid fa-check"></i></span>
-              </label>
-              <label class="set-opt">
-                <input type="radio" name="lang" value="fr">
-                <span class="pay-icon"><i class="fa-solid fa-language"></i></span>
-                <span class="pay-text"><strong>Français</strong><small data-i18n="set_lang_fr_sub">Passer au français</small></span>
-                <span class="pay-check"><i class="fa-solid fa-check"></i></span>
-              </label>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      <div class="col-lg-5">
-
-        <!-- Payment -->
-        <div class="card border-0 co-card mb-4">
-          <div class="card-body p-4">
-            <h6 class="fw-bold mb-3"><i class="fa-regular fa-credit-card me-2 text-orange"></i><span data-i18n="set_payment">Default Payment</span></h6>
-            <div class="set-options one-col">
-              <label class="set-opt">
-                <input type="radio" name="pay" value="cod" checked>
-                <span class="pay-icon"><i class="fa-solid fa-money-bill-wave"></i></span>
-                <span class="pay-text"><strong data-i18n="cod">Cash on Delivery</strong><small data-i18n="cod_sub">Pay at your door</small></span>
-                <span class="pay-check"><i class="fa-solid fa-check"></i></span>
-              </label>
-              <label class="set-opt is-disabled">
-                <input type="radio" name="pay" value="card" disabled>
-                <span class="pay-icon"><i class="fa-regular fa-credit-card"></i></span>
-                <span class="pay-text"><strong data-i18n="card_label">Credit / Debit Card</strong><small data-i18n="card_sub">Secure online payment</small></span>
-                <span class="pay-check"><i class="fa-solid fa-check"></i></span>
-              </label>
-            </div>
-            <div class="form-text" data-i18n="set_pay_note">Pre-selected on the checkout page.</div>
-          </div>
-        </div>
-
-        <!-- Delivery defaults -->
-        <div class="card border-0 co-card mb-4">
-          <div class="card-body p-4">
-            <h6 class="fw-bold mb-3"><i class="fa-solid fa-truck-fast me-2 text-orange"></i><span data-i18n="set_delivery">Delivery Details</span></h6>
-            <div class="row g-3">
-              <div class="col-12"><label class="form-label" data-i18n="full_name">Full Name *</label><input type="text" class="form-control" id="dName"></div>
-              <div class="col-6"><label class="form-label" data-i18n="phone">Phone *</label><input type="tel" class="form-control" id="dPhone"></div>
-              <div class="col-6"><label class="form-label" data-i18n="city">City *</label><input type="text" class="form-control" id="dCity"></div>
-              <div class="col-12"><label class="form-label" data-i18n="address">Address *</label><textarea class="form-control" id="dAddress" rows="2"></textarea></div>
-            </div>
-            <button class="btn btn-orange px-4 mt-3" id="saveDelivery"><i class="fa-solid fa-check me-1"></i> <span data-i18n="set_save">Save</span></button>
-            <div class="form-text" data-i18n="set_delivery_note">Used to pre-fill the checkout form.</div>
-          </div>
-        </div>
-
-        <!-- Data -->
-        <div class="card border-0 co-card">
-          <div class="card-body p-4">
-            <h6 class="fw-bold mb-3"><i class="fa-solid fa-database me-2 text-orange"></i><span data-i18n="set_data">Your Data</span></h6>
-            <div class="d-flex flex-wrap gap-2">
-              <button class="btn btn-outline-danger btn-sm" id="clearCartBtn" data-i18n="set_clear_cart">Clear Cart</button>
-              <button class="btn btn-outline-danger btn-sm" id="clearWishBtn" data-i18n="set_clear_wish">Clear Wishlist</button>
-              <button class="btn btn-outline-danger btn-sm" id="clearOrdersBtn" data-i18n="set_clear_orders">Clear Orders</button>
-              <button class="btn btn-danger btn-sm" id="clearAllBtn" data-i18n="set_clear_all">Reset Everything</button>
-            </div>
-            <div class="form-text mt-2" data-i18n="set_data_note">Data is stored only in this browser (localStorage).</div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  </main>
-
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-  <script src="js/i18n.js?v=20260817"></script>
-  <script src="js/core.js?v=20260817"></script>
-  <script src="js/settings.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
+    <script src="js/i18n.js"></script>
+    <script src="js/core.js"></script>
+    <script src="js/settings.js"></script>
 </body>
+
 </html>

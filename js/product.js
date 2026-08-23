@@ -6,6 +6,7 @@
 
 const productId = new URLSearchParams(location.search).get('id');
 if (!productId) location.replace('index.html');
+let productQuantity = 1;
 
 function extractPackSize(product) {
   const explicit = product.package_size || product.pack_size || product.size || product.weight || product.volume;
@@ -30,10 +31,20 @@ function productSpecsHTML(product) {
   </div>`;
 }
 
+let stickyAtcObserver = null;
+
 async function renderDetail(id) {
   const box = $('detailContent');
   const relatedBox = $('relatedSection');
-  box.innerHTML = `<div class="col-12 text-center py-5 text-muted">${t('loading')}</div>`;
+  box.setAttribute('aria-busy', 'true');
+  box.innerHTML = `<div class="col-lg-5" aria-hidden="true"><div class="detail-img skeleton-block"></div></div>
+    <div class="col-lg-7" aria-hidden="true"><div class="detail-panel">
+      <div class="skeleton-block skeleton-line short"></div>
+      <div class="skeleton-block skeleton-line title" style="height:24px;margin-top:14px"></div>
+      <div class="skeleton-block skeleton-line price" style="height:30px"></div>
+      <div class="skeleton-block skeleton-line" style="width:100%;margin-top:22px"></div>
+      <div class="skeleton-block skeleton-line" style="width:72%"></div>
+    </div></div>`;
   if (relatedBox) relatedBox.style.display = 'none';
 
   try {
@@ -77,9 +88,9 @@ async function renderDetail(id) {
           <div class="detail-qty">
             <span class="detail-qty-label">${t('quantity')}</span>
             <div class="qty-box detail-qty-box">
-              <button type="button" id="dMinus" aria-label="-">−</button>
-              <input type="number" id="dQty" value="1" min="1" aria-label="Quantity">
-              <button type="button" id="dPlus" aria-label="+">+</button>
+              <button type="button" id="dMinus" aria-label="${escapeHtml(t('decrease_named', { name: p.name }))}">−</button>
+              <input type="number" id="dQty" value="${productQuantity}" min="1" max="99" inputmode="numeric" aria-label="${escapeHtml(t('quantity_named', { name: p.name }))}">
+              <button type="button" id="dPlus" aria-label="${escapeHtml(t('increase_named', { name: p.name }))}">+</button>
             </div>
           </div>
 
@@ -88,7 +99,7 @@ async function renderDetail(id) {
               <i class="fa-solid fa-cart-shopping"></i> ${t('add_to_cart')}
             </button>
             <button class="detail-btn-secondary" id="dBuy" ${!available ? 'disabled' : ''}>${t('buy_now')}</button>
-            <button class="detail-wish ${inWish ? 'active' : ''}" id="dWish" type="button">
+            <button class="detail-wish ${inWish ? 'active' : ''}" id="dWish" type="button" aria-pressed="${inWish}">
               <i class="fa-${inWish ? 'solid' : 'regular'} fa-heart"></i>
               <span>${inWish ? t('remove_wish') : t('add_wish')}</span>
             </button>
@@ -103,12 +114,39 @@ async function renderDetail(id) {
       </div>`;
 
     const qty = $('dQty');
-    $('dMinus').onclick = () => { qty.value = Math.max(1, +qty.value - 1); };
-    $('dPlus').onclick = () => { qty.value = +qty.value + 1; };
-    const doAdd = () => addToCart(p.id, +qty.value || 1, p);
+    const normalizeQty = () => {
+      const value = Math.floor(Number(qty.value) || 1);
+      productQuantity = Math.max(1, Math.min(99, value));
+      qty.value = productQuantity;
+      return +qty.value;
+    };
+    qty.addEventListener('input', () => {
+      const value = Math.floor(Number(qty.value));
+      if (Number.isFinite(value) && value >= 1 && value <= 99) productQuantity = value;
+    });
+    qty.addEventListener('change', normalizeQty);
+    qty.addEventListener('blur', normalizeQty);
+    $('dMinus').onclick = () => { qty.value = Math.max(1, normalizeQty() - 1); };
+    $('dPlus').onclick = () => { qty.value = Math.min(99, normalizeQty() + 1); };
+    const doAdd = () => addToCart(p.id, normalizeQty(), p);
     $('dAdd').onclick = doAdd;
     $('dBuy').onclick = () => { doAdd(); location.href = 'checkout.html'; };
-    $('dWish').onclick = () => { toggleWish(p.id); renderDetail(p.id); };
+    $('dWish').onclick = async () => {
+      const id = String(p.id);
+      const wasSaved = wishlist.includes(id);
+      toggleWish(id);
+      await renderDetail(id);
+      $('dWish')?.focus({ preventScroll: true });
+      if (wasSaved) {
+        toast(t('removed_wish'), t('undo'), async () => {
+          if (!wishlist.includes(id)) wishlist.push(id);
+          saveWish();
+          await renderDetail(id);
+          $('dWish')?.focus({ preventScroll: true });
+          toast(t('added_wish'));
+        });
+      }
+    };
 
     // Sticky mobile add-to-cart bar
     let bar = document.getElementById('stickyAtc');
@@ -130,10 +168,26 @@ async function renderDetail(id) {
     const stickyBtn = $('stickyAdd');
     stickyBtn.disabled = !available;
     stickyBtn.onclick = doAdd;
+    stickyAtcObserver?.disconnect();
+    bar.classList.remove('is-visible');
+    stickyAtcObserver = new IntersectionObserver(([entry]) => {
+      const primaryActionHasPassed = !entry.isIntersecting && entry.boundingClientRect.bottom < 0;
+      bar.classList.toggle('is-visible', primaryActionHasPassed);
+    }, { threshold: 0.1 });
+    stickyAtcObserver.observe($('dAdd'));
 
     loadRelated(p);
   } catch (e) {
-    box.innerHTML = `<div class="col-12 text-center text-danger py-5">${t('product_not_found')}</div>`;
+    box.innerHTML = `<div class="col-12 text-center py-5">
+      <p class="text-danger mb-3">${t('product_not_found')}</p>
+      <div class="d-flex justify-content-center gap-2">
+        <button type="button" class="btn btn-outline-orange btn-sm state-action" id="retryProduct">${t('retry')}</button>
+        <a class="btn btn-orange btn-sm" href="categories.html">${t('browse_products')}</a>
+      </div>
+    </div>`;
+    $('retryProduct')?.addEventListener('click', () => renderDetail(id));
+  } finally {
+    box.removeAttribute('aria-busy');
   }
 }
 

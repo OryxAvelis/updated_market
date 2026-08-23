@@ -17,6 +17,8 @@ let pageProducts = [];   // current page products from API
 let sortBy = 'default';
 let maxPrice = 1000;
 let selectedBrand = null;
+let inStockOnly = false;
+let shopRequestSequence = 0;
 
 const ORDERING = {
   'price-asc': 'price',
@@ -48,6 +50,7 @@ function applyClientFilters(list) {
   if (selectedBrand) {
     result = result.filter(p => p.brand_name === selectedBrand);
   }
+  if (inStockOnly) result = result.filter(p => p.is_available !== false);
 
   if (sortBy === 'price-asc') result.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
   else if (sortBy === 'price-desc') result.sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
@@ -57,7 +60,7 @@ function applyClientFilters(list) {
 }
 
 function activeFilterCount() {
-  return [currentCat, searchQ, selectedBrand, maxPrice < +($('priceRange')?.max || 1000)].filter(Boolean).length;
+  return [currentCat, searchQ, selectedBrand, inStockOnly, maxPrice < +($('priceRange')?.max || 1000)].filter(Boolean).length;
 }
 
 function renderActiveFilters() {
@@ -69,6 +72,7 @@ function renderActiveFilters() {
   if (cat) chips.push({ key: 'cat', label: catName(cat.name) });
   if (searchQ) chips.push({ key: 'search', label: `${t('search_filter')}: ${searchQ}` });
   if (selectedBrand) chips.push({ key: 'brand', label: selectedBrand });
+  if (inStockOnly) chips.push({ key: 'availability', label: t('in_stock_only') });
   if (maxPrice < maxDefault) chips.push({ key: 'price', label: `${t('under_price')} ${maxPrice} DH` });
 
   box.innerHTML = chips.map(c => `
@@ -96,6 +100,10 @@ function renderActiveFilters() {
         if (input) input.value = '';
       }
       if (key === 'brand') selectedBrand = null;
+      if (key === 'availability') {
+        inStockOnly = false;
+        if ($('inStockOnly')) $('inStockOnly').checked = false;
+      }
       if (key === 'price') {
         maxPrice = +($('priceRange')?.max || 1000);
         $('priceRange').value = maxPrice;
@@ -114,12 +122,26 @@ function setFiltersOpen(open) {
   const column = $('filterColumn');
   const toggle = $('filterToggle');
   if (!column || !toggle) return;
+  const isMobile = matchMedia('(max-width: 767.98px)').matches;
   column.classList.toggle('open', open);
-  column.setAttribute('aria-hidden', String(!open && matchMedia('(max-width: 767.98px)').matches));
+  column.setAttribute('aria-hidden', String(!open && isMobile));
   toggle.setAttribute('aria-expanded', String(open));
   document.body.classList.toggle('filters-open', open);
-  if (open) $('closeFilters')?.focus();
-  else toggle.focus({ preventScroll: true });
+  const panel = $('filtersPanel');
+  const blocked = [$('productColumn'), document.querySelector('.top-header'), document.querySelector('.footer'), document.querySelector('.mobile-tabbar')].filter(Boolean);
+  if (open && isMobile) {
+    panel?.setAttribute('role', 'dialog');
+    panel?.setAttribute('aria-modal', 'true');
+    panel?.setAttribute('aria-labelledby', 'filtersTitle');
+    blocked.forEach(el => { el.inert = true; });
+    $('closeFilters')?.focus();
+  } else {
+    panel?.removeAttribute('role');
+    panel?.removeAttribute('aria-modal');
+    panel?.removeAttribute('aria-labelledby');
+    blocked.forEach(el => { el.inert = false; });
+    if (!open) toggle.focus({ preventScroll: true });
+  }
 }
 
 // ---------- Filter panel ----------
@@ -193,7 +215,7 @@ function renderPageProducts(suggestion = null) {
       <div class="col-12">
         <div class="empty-search text-center py-5">
           <div class="empty-icon mb-3">🔍</div>
-          <h5 class="fw-bold">${t('no_products')}</h5>
+          <h2 class="h5 fw-bold">${t('no_products')}</h2>
           <p class="text-muted mb-3">${t('no_products_sub', { q: escapeHtml(searchQ || '…') })}</p>
           <div class="d-flex flex-wrap justify-content-center gap-2">
             <button class="btn btn-outline-orange btn-sm" id="emptyClear">${t('clear_search')}</button>
@@ -292,13 +314,16 @@ function updateShopTitle() {
 
 // ---------- Data loading ----------
 async function loadShopPage(page = 1) {
+  const requestSequence = ++shopRequestSequence;
   const box = $('shopProducts');
   currentPage = page;
   syncURL();
-  box.innerHTML = `<div class="col-12 text-center py-5 text-muted"><div class="spinner-border spinner-border-sm text-warning" role="status"></div><div class="mt-2 small">${t('loading')}</div></div>`;
+  box.setAttribute('aria-busy', 'true');
+  box.innerHTML = skeletonCards(8);
 
   try {
     let data = await fetchProducts(currentPage, currentCat, searchQ, ORDERING[sortBy] || '');
+    if (requestSequence !== shopRequestSequence) return;
     pageProducts = data.results || [];
     totalCount = data.count || 0;
 
@@ -308,6 +333,7 @@ async function loadShopPage(page = 1) {
       const firstWord = searchQ.split(/\s+/)[0].replace(/['’]/g, '');
       if (firstWord && firstWord.length >= 3 && firstWord.toLowerCase() !== searchQ.toLowerCase()) {
         const fallback = await fetchProducts(1, currentCat, firstWord, ORDERING[sortBy] || '');
+        if (requestSequence !== shopRequestSequence) return;
         if ((fallback.count || 0) > 0) {
           suggestion = firstWord;
           pageProducts = fallback.results || [];
@@ -340,11 +366,18 @@ async function loadShopPage(page = 1) {
     renderPageProducts(suggestion);
     renderActiveFilters();
     renderPagination();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: motionBehavior() });
   } catch (e) {
-    box.innerHTML = `<div class="col-12 text-center text-danger py-4">${t('failed_load')}</div>`;
+    if (requestSequence !== shopRequestSequence) return;
+    box.innerHTML = `<div class="col-12 text-center py-4">
+      <p class="text-danger mb-2">${t('failed_load')}</p>
+      <button type="button" class="btn btn-outline-orange btn-sm state-action" id="retryShop">${t('retry')}</button>
+    </div>`;
+    $('retryShop')?.addEventListener('click', () => loadShopPage(currentPage));
     const nav = $('paginationNav');
     if (nav) nav.style.display = 'none';
+  } finally {
+    if (requestSequence === shopRequestSequence) box.removeAttribute('aria-busy');
   }
 }
 
@@ -382,27 +415,44 @@ async function initCategories() {
     renderActiveFilters();
   });
 
+  $('inStockOnly')?.addEventListener('change', e => {
+    inStockOnly = e.target.checked;
+    renderPageProducts();
+    renderActiveFilters();
+  });
+
   $('filterToggle')?.addEventListener('click', () => setFiltersOpen(true));
   $('closeFilters')?.addEventListener('click', () => setFiltersOpen(false));
   $('filterColumn')?.addEventListener('click', e => {
     if (e.target === $('filterColumn')) setFiltersOpen(false);
   });
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && $('filterColumn')?.classList.contains('open')) setFiltersOpen(false);
+    const open = $('filterColumn')?.classList.contains('open');
+    if (e.key === 'Escape' && open) { setFiltersOpen(false); return; }
+    if (e.key !== 'Tab' || !open || !matchMedia('(max-width: 767.98px)').matches) return;
+    const focusable = [...$('filtersPanel').querySelectorAll('button, input, select, a[href], [tabindex]:not([tabindex="-1"])')]
+      .filter(el => !el.disabled && !el.hidden);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
   });
 
   $('clearFilters')?.addEventListener('click', () => {
-    maxPrice = 1000;
+    const range = $('priceRange');
+    maxPrice = +(range?.max || 1000);
     selectedBrand = null;
+    inStockOnly = false;
     searchQ = '';
     currentCat = null;
     currentPage = 1;
     const input = $('searchInput');
     if (input) input.value = '';
-    const range = $('priceRange');
-    if (range) range.value = 1000;
+    if (range) range.value = maxPrice;
     const maxInput = $('priceMaxInput');
-    if (maxInput) maxInput.value = 1000;
+    if (maxInput) maxInput.value = maxPrice;
+    if ($('inStockOnly')) $('inStockOnly').checked = false;
     syncURL();
     renderSidebar(null);
     updateShopTitle();

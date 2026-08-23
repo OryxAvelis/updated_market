@@ -277,6 +277,22 @@ textarea.form-control.co-input {
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
+.co-demo-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 2px 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+.co-demo-note i { color: var(--co-accent); margin-top: 2px; }
+.co-summary-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0 12px;
+}
 .pay-opt-cod {
   grid-column: 1 / -1;
   min-height: 88px;
@@ -391,6 +407,10 @@ textarea.form-control.co-input {
 .pay-opt:has(input:checked) .pay-text strong {
   color: var(--co-accent);
 }
+.pay-opt:has(input:focus-visible) {
+  outline: 3px solid rgba(6,89,234,0.3);
+  outline-offset: 3px;
+}
 
 /* ========== ACTION BUTTONS ========== */
 .co-btn {
@@ -417,6 +437,15 @@ textarea.form-control.co-input {
   transform: translateY(-1px);
 }
 .co-btn:active { transform: scale(0.98); }
+.co-btn:disabled {
+  cursor: wait;
+  opacity: 0.82;
+  transform: none;
+}
+.co-btn.is-success {
+  background: #15803d;
+  box-shadow: 0 6px 18px rgba(21,128,61,0.28);
+}
 
 .co-btn-outline {
   background: transparent;
@@ -482,6 +511,11 @@ textarea.form-control.co-input {
   color: var(--muted);
   font-size: 0.7rem;
 }
+
+/* Keep long product names flexible without allowing prices to wrap. */
+.co-line-item { gap: 12px; }
+.co-line-name { min-width: 0; overflow-wrap: anywhere; }
+.co-line-price { flex: 0 0 auto; white-space: nowrap; }
 
 /* ========== RESPONSIVE ========== */
 @media (min-width: 992px) {

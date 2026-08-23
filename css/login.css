@@ -38,17 +38,18 @@ button { font-family: inherit; cursor: pointer; }
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: rgba(255,255,255,0.14);
-  border: 1px solid rgba(255,255,255,0.35);
-  color: #fff;
+  background: #fff;
+  border: 1px solid var(--border);
+  color: var(--orange);
   border-radius: 2%;
   padding: 7px 14px;
   font-weight: 700;
   font-size: 0.8rem;
+  min-height: 44px;
   backdrop-filter: blur(6px);
   transition: background 0.2s, transform 0.2s;
 }
-.lang-float:hover { background: rgba(255,255,255,0.25); transform: translateY(-1px); }
+.lang-float:hover { background: var(--orange-light); transform: translateY(-1px); }
 
 .back-home {
   position: fixed;
@@ -66,6 +67,7 @@ button { font-family: inherit; cursor: pointer; }
   box-shadow: 0 2px 10px rgba(0,0,0,0.06);
   transition: color 0.15s, transform 0.15s;
   z-index: 10;
+  min-height: 44px;
 }
 .back-home:hover { color: var(--orange); transform: translateX(-2px); }
 
@@ -262,15 +264,32 @@ button { font-family: inherit; cursor: pointer; }
   font-size: 0.9rem;
   color: var(--text);
   min-width: 0;
+  min-height: 44px;
 }
 .eye {
   border: none;
   background: none;
   color: #9ca3af;
-  padding: 4px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
   transition: color 0.15s;
 }
 .eye:hover { color: var(--orange); }
+.field-error {
+  min-height: 0;
+  margin: -8px 0 10px 14px;
+  color: #b42318;
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+.field-error:not(:empty) { min-height: 1rem; }
+.demo-auth-note {
+  margin: -4px 0 14px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
 
 .input-group-custom.error {
   border-color: #ef4444;
@@ -290,12 +309,19 @@ button { font-family: inherit; cursor: pointer; }
   margin: 4px 0 20px;
   font-size: 0.82rem;
 }
-.remember { display: flex; align-items: center; gap: 7px; color: var(--muted); cursor: pointer; }
-.remember input { accent-color: var(--orange); }
+.remember { display: flex; align-items: center; gap: 7px; color: var(--muted); cursor: pointer; min-height: 44px; }
+.remember input {
+  width: 20px;
+  min-width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  accent-color: var(--orange);
+}
 .forgot {
   border: 0;
   background: none;
-  padding: 0;
+  padding: 8px 2px;
+  min-height: 44px;
   color: var(--orange);
   font: inherit;
   font-weight: 600;
@@ -337,8 +363,20 @@ button { font-family: inherit; cursor: pointer; }
   color: var(--orange);
   font-weight: 700;
   font-size: 0.86rem;
+  min-height: 44px;
+  padding: 8px 2px;
 }
 .link-btn:hover { text-decoration: underline; }
+
+.toast .btn-close {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  padding: 0 !important;
+  margin: 0 4px 0 0 !important;
+  align-self: center;
+  background-size: 12px;
+}
 
 /* Responsive */
 @media (max-width: 860px) {
@@ -347,6 +385,15 @@ button { font-family: inherit; cursor: pointer; }
   .brand-content h1 { font-size: 1.5rem; }
   .perks { display: none; }
   .auth-form-side { padding: 34px 26px; }
+}
+
+@media (max-width: 860px) and (orientation: landscape) and (max-height: 500px) {
+  body { align-items: flex-start; padding: 12px; }
+  .auth-card { margin-top: 54px; }
+  .auth-brand { padding: 20px 24px; }
+  .auth-logo-card { margin-bottom: 16px; padding: 8px 12px; }
+  .auth-logo-card img { height: 48px; }
+  .auth-form-side { padding: 24px; }
 }
 
 /* ========== DARK MODE ========== */
@@ -377,7 +424,21 @@ button { font-family: inherit; cursor: pointer; }
   border: 1px solid var(--border);
   box-shadow: none;
 }
+[data-theme="dark"] .lang-float {
+  background: #1c2434;
+  color: #9fc5ff;
+  border-color: var(--border);
+}
+[data-theme="dark"] .field-error { color: #fda4af; }
 [data-theme="dark"] .input-group-custom { background: #1c2434; }
 [data-theme="dark"] .input-group-custom:focus-within { background: #171e2c; }
 [data-theme="dark"] .input-group-custom > i,
 [data-theme="dark"] .eye { color: #7d8aa3; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -77,11 +77,20 @@ let cart = [];
 let wishlist = [];
 let orders = [];
 
+function normalizeCart(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter(item => item && item.id != null)
+    .map(item => ({ ...item, id: String(item.id), qty: Math.min(99, Math.max(1, Math.floor(Number(item.qty) || 1))) }));
+}
+
 function loadState() {
   try {
-    cart = JSON.parse(localStorage.getItem(LS.cart)) || [];
-    wishlist = JSON.parse(localStorage.getItem(LS.wish)) || [];
-    orders = JSON.parse(localStorage.getItem(LS.orders)) || [];
+    cart = normalizeCart(JSON.parse(localStorage.getItem(LS.cart)));
+    const savedWish = JSON.parse(localStorage.getItem(LS.wish));
+    wishlist = Array.isArray(savedWish) ? [...new Set(savedWish.filter(id => id != null).map(String))] : [];
+    const savedOrders = JSON.parse(localStorage.getItem(LS.orders));
+    orders = Array.isArray(savedOrders) ? savedOrders.filter(order => order && order.id != null && Array.isArray(order.items) && order.items.length > 0) : [];
   } catch { cart = []; wishlist = []; orders = []; }
 }
 function saveCart() { localStorage.setItem(LS.cart, JSON.stringify(cart)); updateBadges(); }
@@ -90,7 +99,10 @@ function saveOrders() { localStorage.setItem(LS.orders, JSON.stringify(orders));
 
 // Recently viewed (product snapshots, newest first, max 8)
 function getRecent() {
-  try { return JSON.parse(localStorage.getItem(LS.recent)) || []; } catch { return []; }
+  try {
+    const value = JSON.parse(localStorage.getItem(LS.recent));
+    return Array.isArray(value) ? value.filter(p => p && p.id != null) : [];
+  } catch { return []; }
 }
 function addRecent(product) {
   let list = getRecent().filter(p => String(p.id) !== String(product.id));
@@ -99,7 +111,8 @@ function addRecent(product) {
     name: product.name,
     price: product.price,
     image_url: product.image_url,
-    brand_name: product.brand_name || ''
+    brand_name: product.brand_name || '',
+    is_available: product.is_available !== false
   });
   list = list.slice(0, 8);
   localStorage.setItem(LS.recent, JSON.stringify(list));
@@ -127,9 +140,14 @@ function fetchWithTimeout(url, ms) {
 async function apiJSON(url) {
   try {
     const res = await fetchWithTimeout(url, 8000);
-    if (!res.ok) throw new Error('HTTP ' + res.status);
+    if (!res.ok) {
+      const error = new Error('HTTP ' + res.status);
+      error.status = res.status;
+      throw error;
+    }
     return await res.json();
   } catch (e) {
+    if (e?.status >= 400 && e.status < 500) throw e;
     for (const px of PROXIES) {
       try {
         const res = await fetchWithTimeout(px.url(url), 6000);
@@ -154,6 +172,7 @@ document.addEventListener('error', e => {
 }, true);
 
 let productCache = {};   // in-memory product cache for this page load
+let productPromises = {}; // de-duplicate overlapping detail requests
 let categories = [];
 let categoriesPromise = null;
 
@@ -176,9 +195,12 @@ async function fetchProducts(page = 1, categoryId = null, search = '', ordering 
 
 async function fetchProduct(id) {
   if (productCache[id]) return productCache[id];
-  const p = await apiJSON(`${API}/products/${id}/`);
-  productCache[id] = p;
-  return p;
+  if (!productPromises[id]) {
+    productPromises[id] = apiJSON(`${API}/products/${id}/`)
+      .then(p => { productCache[id] = p; return p; })
+      .finally(() => { delete productPromises[id]; });
+  }
+  return productPromises[id];
 }
 
 // Fetch the category list once per page load (memoized promise)
@@ -207,14 +229,21 @@ function setTheme(theme) {
 
 // ---------- Saved preferences (used by settings + checkout) ----------
 function getUser() {
-  try { return JSON.parse(localStorage.getItem('am_user')); } catch { return null; }
+  try { return JSON.parse(localStorage.getItem('am_user') || sessionStorage.getItem('am_user')); } catch { return null; }
+}
+
+function getProfile() {
+  const user = getUser();
+  if (user) return user;
+  try { return JSON.parse(localStorage.getItem('am_profile')) || {}; } catch { return {}; }
 }
 
 function getDefaultPay() {
-  return localStorage.getItem('am_pay') === 'card' ? 'card' : 'cod';
+  const saved = localStorage.getItem('am_pay');
+  return ['cod', 'card', 'wafacash', 'cashplus'].includes(saved) ? saved : 'cod';
 }
 function setDefaultPay(p) {
-  localStorage.setItem('am_pay', p === 'card' ? 'card' : 'cod');
+  localStorage.setItem('am_pay', ['cod', 'card', 'wafacash', 'cashplus'].includes(p) ? p : 'cod');
 }
 
 function getDeliveryInfo() {
@@ -229,33 +258,85 @@ function formatPrice(v) {
   return isNaN(n) ? '—' : Math.round(n) + ' DH';
 }
 
+function normalizeMoroccanPhone(value) {
+  let digits = String(value || '').replace(/\D/g, '');
+  if (digits.startsWith('00212')) digits = digits.slice(5);
+  else if (digits.startsWith('212')) digits = digits.slice(3);
+  if (digits.startsWith('0')) digits = digits.slice(1);
+  return digits;
+}
+
+function isValidMoroccanPhone(value) {
+  return /^[5-7]\d{8}$/.test(normalizeMoroccanPhone(value));
+}
+
 function escapeHtml(t) {
   const d = document.createElement('div');
   d.textContent = t || '';
   return d.innerHTML;
 }
 
-function toast(msg) {
+function motionBehavior() {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+}
+
+function skeletonCards(count = 8) {
+  return Array.from({ length: count }, () => `
+    <div class="col-6 col-md-4 col-xl-3" aria-hidden="true">
+      <div class="product-card product-card-skeleton">
+        <div class="skeleton-block skeleton-image"></div>
+        <div class="skeleton-body">
+          <div class="skeleton-block skeleton-line title"></div>
+          <div class="skeleton-block skeleton-line short"></div>
+          <div class="skeleton-block skeleton-line price"></div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+let toastActionHandler = null;
+function toast(msg, actionLabel = '', action = null) {
   const el = $('toast');
   if (!el) return;
   $('toastMsg').textContent = msg;
-  new bootstrap.Toast(el, { delay: 2200 }).show();
+  const actionBtn = $('toastAction');
+  toastActionHandler = typeof action === 'function' ? action : null;
+  if (actionBtn) {
+    actionBtn.hidden = !toastActionHandler;
+    actionBtn.textContent = actionLabel || '';
+    actionBtn.onclick = () => {
+      const handler = toastActionHandler;
+      toastActionHandler = null;
+      actionBtn.hidden = true;
+      const instance = bootstrap.Toast.getOrCreateInstance(el, { delay: 4000 });
+      if (!handler) { instance.hide(); return; }
+      el.addEventListener('hidden.bs.toast', () => handler(), { once: true });
+      instance.hide();
+    };
+  }
+  bootstrap.Toast.getOrCreateInstance(el, { delay: 4000 }).show();
 }
 
 // ---------- Cart & wishlist actions ----------
-function addToCart(id, qty = 1, product = null) {
+function addToCart(id, qty = 1, product = null, silent = false) {
   id = String(id);
+  const p = product || productCache[id] || null;
+  if (p?.is_available === false) {
+    if (!silent) toast(t('named_out_stock', { name: p.name || t('product_crumb') }));
+    return false;
+  }
+  qty = Math.min(99, Math.max(1, Math.floor(Number(qty) || 1)));
   const item = cart.find(i => i.id === id);
-  if (item) item.qty += qty;
+  if (item) item.qty = Math.min(99, item.qty + qty);
   else {
     // Keep a product snapshot so cart/checkout pages can render without refetching
-    const p = product || productCache[id] || null;
     cart.push(p
-      ? { id, qty, name: p.name, price: p.price, image_url: p.image_url, brand_name: p.brand_name || '' }
+      ? { id, qty, name: p.name, price: p.price, image_url: p.image_url, brand_name: p.brand_name || '', is_available: p.is_available !== false }
       : { id, qty });
   }
   saveCart();
-  toast(t('added_cart'));
+  if (!silent) toast(t('added_cart'));
+  return true;
 }
 
 function toggleWish(id) {
@@ -282,19 +363,22 @@ async function getCartItems() {
     if (needsFetch) {
       try {
         p = await fetchProduct(c.id);
-      } catch {
+      } catch (error) {
+        const hasTrustworthySnapshot = Boolean(c.name && Number.isFinite(parseFloat(c.price)) && parseFloat(c.price) > 0);
         p = p || {
           id: String(c.id),
           name: c.name || 'Product',
           price: c.price || 0,
           image_url: c.image_url || '',
-          brand_name: c.brand_name || ''
+          brand_name: c.brand_name || '',
+          is_available: error?.status === 404 ? false : (hasTrustworthySnapshot && c.is_available !== false),
+          load_failed: error?.status !== 404 && !hasTrustworthySnapshot
         };
       }
       productCache[c.id] = p;
     }
-    if (c.name == null || String(c.price) !== String(p.price) || c.image_url !== p.image_url) {
-      c.name = p.name; c.price = p.price; c.image_url = p.image_url; c.brand_name = p.brand_name || '';
+    if (c.name == null || String(c.price) !== String(p.price) || c.image_url !== p.image_url || c.is_available !== (p.is_available !== false) || Boolean(c.load_failed) !== Boolean(p.load_failed)) {
+      c.name = p.name; c.price = p.price; c.image_url = p.image_url; c.brand_name = p.brand_name || ''; c.is_available = p.is_available !== false; c.load_failed = Boolean(p.load_failed);
       changed = true;
     }
     items.push({ id: String(c.id), qty: c.qty, product: p });
@@ -417,21 +501,26 @@ async function renderSidebar(activeCat = null) {
 function cardHTML(p) {
   const img = p.image_url || '';
   const inWish = wishlist.includes(String(p.id));
+  const available = p.is_available !== false;
   const disc = parseInt(p.discount_percent) || 0;
   const oldPrice = parseFloat(p.original_price);
   const hasOld = oldPrice > 0 && oldPrice > parseFloat(p.price);
   const href = 'product.html?id=' + encodeURIComponent(p.id);
   return `
     <div class="col-6 col-md-4 col-xl-3">
-      <div class="product-card">
-        ${disc > 0 ? `<span class="badge-disc">-${disc}%</span>` : (p.is_promo ? `<span class="badge-disc badge-promo">Promo 🔥</span>` : '')}
+      <div class="product-card ${available ? '' : 'is-unavailable'}">
+        ${disc > 0 ? `<span class="badge-disc">-${disc}%</span>` : (p.is_promo ? `<span class="badge-disc badge-promo">${t('promo')}</span>` : '')}
         <a class="product-img" href="${href}">
-          <img src="${img}" alt="${escapeHtml(p.name)}" loading="lazy"
+          <img src="${img}" alt="${escapeHtml(p.name)}" loading="lazy" decoding="async"
+               onload="this.parentElement.classList.add('is-loaded')"
                onerror="this.onerror=null;this.src='img/placeholder.svg'">
         </a>
         <div class="product-body">
           <a class="product-title" href="${href}">${escapeHtml(p.name)}</a>
-          <div class="product-brand">${p.brand_name ? escapeHtml(p.brand_name) : 'AM Market'}</div>
+          <div class="product-meta">
+            <div class="product-brand">${p.brand_name ? escapeHtml(p.brand_name) : 'AM Market'}</div>
+            <span class="product-stock ${available ? '' : 'out'}">${t(available ? 'in_stock' : 'out_stock')}</span>
+          </div>
           <div class="product-foot">
             <div class="product-price">
               <span class="current">${formatPrice(p.price)}</span>
@@ -439,11 +528,12 @@ function cardHTML(p) {
             </div>
             <div class="card-actions">
               <button class="wish-btn ${inWish ? 'active' : ''}" data-wish="${p.id}" title="${t('wish_title')}"
-                      aria-label="${escapeHtml(t(inWish ? 'remove_named_wish' : 'add_named_wish', { name: p.name }))}">
+                      aria-label="${escapeHtml(t(inWish ? 'remove_named_wish' : 'add_named_wish', { name: p.name }))}"
+                      aria-pressed="${inWish}">
                 <i class="fa-${inWish ? 'solid' : 'regular'} fa-heart"></i>
               </button>
-              <button class="add-btn" data-id="${p.id}" title="${t('add_to_cart')}"
-                      aria-label="${escapeHtml(t('add_named_cart', { name: p.name }))}">
+              <button class="add-btn" data-id="${p.id}" title="${t(available ? 'add_to_cart' : 'out_stock')}"
+                      aria-label="${escapeHtml(t(available ? 'add_named_cart' : 'named_out_stock', { name: p.name }))}" ${available ? '' : 'disabled'}>
                 <i class="fa-solid fa-cart-plus"></i>
               </button>
             </div>
@@ -457,25 +547,66 @@ function cardHTML(p) {
 // is called after a wishlist toggle so the page can refresh its cards.
 function bindCards(container, rerender) {
   container.querySelectorAll('.add-btn').forEach(btn => {
-    btn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); addToCart(btn.dataset.id); };
+    btn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (btn.disabled) return;
+      addToCart(btn.dataset.id);
+      const icon = btn.querySelector('i');
+      btn.classList.add('is-added');
+      if (icon) icon.className = 'fa-solid fa-check';
+      setTimeout(() => {
+        btn.classList.remove('is-added');
+        if (icon) icon.className = 'fa-solid fa-cart-plus';
+      }, 650);
+    };
   });
   container.querySelectorAll('[data-wish]').forEach(btn => {
     btn.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      toggleWish(btn.dataset.wish);
-      if (rerender) rerender();
+      const id = String(btn.dataset.wish);
+      const wasSaved = wishlist.includes(id);
+      toggleWish(id);
+      const syncButton = () => {
+        const saved = wishlist.includes(id);
+        const name = btn.closest('.product-card')?.querySelector('.product-title')?.textContent?.trim() || t('product_crumb');
+        btn.classList.toggle('active', saved);
+        btn.setAttribute('aria-pressed', String(saved));
+        btn.setAttribute('aria-label', t(saved ? 'remove_named_wish' : 'add_named_wish', { name }));
+        const icon = btn.querySelector('i');
+        if (icon) icon.className = `fa-${saved ? 'solid' : 'regular'} fa-heart`;
+      };
+      syncButton();
+      if (wasSaved) {
+        toast(t('removed_wish'), t('undo'), () => {
+          if (!wishlist.includes(id)) wishlist.push(id);
+          saveWish();
+          if (rerender) rerender({ restoreFocus: true });
+          else {
+            syncButton();
+            btn.focus({ preventScroll: true });
+          }
+          toast(t('added_wish'));
+        });
+      }
+      btn.classList.add('is-pulsing');
+      setTimeout(() => {
+        btn.classList.remove('is-pulsing');
+        if (rerender) rerender({ restoreFocus: true, removedWishId: btn.dataset.wish });
+      }, 220);
     };
   });
 }
 
 // ---------- Shared layout: header / footer / tabbar ----------
 const HEADER_HTML = `
+<a class="skip-link" href="#mainContent" data-i18n="skip_content">Skip to main content</a>
 <header class="top-header">
   <div class="container-fluid px-3 px-lg-4">
     <div class="header-card d-flex align-items-center gap-3 header-row">
       <a href="index.html" class="logo" aria-label="AM MARKET home" data-i18n-aria="home_link">
-        <img src="img/logo-round.png" alt="AM MARKET — Shop More, Live Better" class="logo-img">
+        <img src="img/logo-round.png" alt="AM MARKET" class="logo-img">
         <span class="logo-text">
           <span class="brand">AM <span class="text-orange">MARKET</span></span>
           <small data-i18n="tagline">SHOP MORE, LIVE BETTER</small>
@@ -486,10 +617,13 @@ const HEADER_HTML = `
         <div class="input-group">
           <span class="search-lead"><i class="fa-solid fa-magnifying-glass"></i></span>
           <input type="search" class="form-control" id="searchInput" placeholder="Search for products, brands and more..."
-                 data-i18n-ph="search_ph" aria-label="Search products" data-i18n-aria="search_label" />
+                 data-i18n-ph="search_ph" aria-label="Search products" data-i18n-aria="search_label"
+                 role="combobox" aria-autocomplete="list" aria-controls="searchSuggestions" aria-expanded="false" autocomplete="off" />
           <button class="btn btn-orange" id="searchBtn" title="Search" data-i18n-title="search_btn"
                   aria-label="Search" data-i18n-aria="search_btn"><i class="fa-solid fa-magnifying-glass"></i></button>
         </div>
+        <div class="search-suggestions" id="searchSuggestions" role="listbox" aria-label="Search suggestions"
+             data-i18n-aria="search_suggestions" hidden></div>
       </div>
 
       <div class="d-flex align-items-center gap-1 gap-lg-2 header-actions">
@@ -640,24 +774,131 @@ const TABBAR_HTML = `
   <i class="fa-solid fa-arrow-up"></i>
 </button>
 <div class="toast-container position-fixed bottom-0 end-0 p-3">
-  <div id="toast" class="toast align-items-center text-bg-dark border-0"><div class="d-flex"><div class="toast-body" id="toastMsg"></div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>
+  <div id="toast" class="toast align-items-center text-bg-dark border-0" role="status" aria-live="polite">
+    <div class="d-flex">
+      <div class="toast-body" id="toastMsg"></div>
+      <button type="button" class="toast-action" id="toastAction" hidden></button>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close" data-i18n-aria="close"></button>
+    </div>
+  </div>
 </div>`;
 
 // Inject the shared chrome around the page's <main> (this script runs at the
 // end of <body>, so the DOM is ready and i18n can translate right after).
 document.body.insertAdjacentHTML('afterbegin', HEADER_HTML);
 document.body.insertAdjacentHTML('beforeend', FOOTER_HTML + TABBAR_HTML);
+const mainContent = document.querySelector('main');
+if (mainContent && !mainContent.id) mainContent.id = 'mainContent';
 if (typeof applyI18n === 'function') applyI18n();
 
 function initHeaderSearch() {
   const input = $('searchInput');
   const btn = $('searchBtn');
-  const go = () => {
-    const q = input.value.trim();
+  const box = $('searchSuggestions');
+  if (!input || !box) return;
+
+  const cache = new Map();
+  let timer = null;
+  let requestSeq = 0;
+  let activeIndex = -1;
+
+  const go = (value = input.value) => {
+    const q = value.trim();
     location.href = 'categories.html' + (q ? '?q=' + encodeURIComponent(q) : '');
   };
-  if (btn) btn.onclick = go;
-  if (input) input.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+
+  const close = () => {
+    box.hidden = true;
+    box.innerHTML = '';
+    input.setAttribute('aria-expanded', 'false');
+    input.removeAttribute('aria-activedescendant');
+    activeIndex = -1;
+  };
+
+  const open = html => {
+    box.innerHTML = html;
+    box.hidden = false;
+    input.setAttribute('aria-expanded', 'true');
+    activeIndex = -1;
+  };
+
+  const renderProducts = (list, query, labelKey = 'search_suggestions') => {
+    if (!list.length) {
+      open(`<div class="search-suggestion-status">${t('search_no_suggestions')}</div>
+        <a class="search-suggestion-all" href="categories.html?q=${encodeURIComponent(query)}">
+          <span>${t('search_all_results', { q: escapeHtml(query) })}</span><i class="fa-solid fa-arrow-right"></i>
+        </a>`);
+      return;
+    }
+    list.forEach(p => { productCache[p.id] = p; });
+    open(`<div class="search-suggestion-label">${t(labelKey)}</div>${list.slice(0, 5).map((p, i) => `
+      <a class="search-suggestion" id="searchOption${i}" role="option" href="product.html?id=${encodeURIComponent(p.id)}">
+        <img src="${p.image_url || 'img/placeholder.svg'}" alt="" loading="eager" onerror="this.onerror=null;this.src='img/placeholder.svg'">
+        <span class="search-suggestion-copy">
+          <strong>${escapeHtml(p.name)}</strong>
+          <small>${escapeHtml(p.brand_name || 'AM Market')}</small>
+        </span>
+        <span class="search-suggestion-price">${formatPrice(p.price)}</span>
+      </a>`).join('')}
+      <a class="search-suggestion-all" href="categories.html?q=${encodeURIComponent(query)}">
+        <span>${t('search_all_results', { q: escapeHtml(query) })}</span><i class="fa-solid fa-arrow-right"></i>
+      </a>`);
+  };
+
+  const showRecent = () => {
+    const recent = getRecent().slice(0, 4);
+    if (recent.length) renderProducts(recent, '', 'recently_viewed');
+  };
+
+  const requestSuggestions = async query => {
+    const q = query.trim();
+    if (q.length < 2) { if (!q) showRecent(); else close(); return; }
+    const seq = ++requestSeq;
+    open(`<div class="search-suggestion-status"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>${t('loading')}</div>`);
+    try {
+      let list = cache.get(q.toLowerCase());
+      if (!list) {
+        const data = await fetchProducts(1, null, q);
+        list = data.results || [];
+        cache.set(q.toLowerCase(), list);
+      }
+      if (seq !== requestSeq || input.value.trim() !== q) return;
+      renderProducts(list, q);
+    } catch {
+      if (seq === requestSeq) open(`<div class="search-suggestion-status">${t('search_unavailable')}</div>`);
+    }
+  };
+
+  btn?.addEventListener('click', () => go());
+  input.addEventListener('focus', () => {
+    if (input.value.trim().length >= 2) requestSuggestions(input.value);
+    else showRecent();
+  });
+  input.addEventListener('input', () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => requestSuggestions(input.value), 280);
+  });
+  input.addEventListener('keydown', e => {
+    const options = [...box.querySelectorAll('.search-suggestion, .search-suggestion-all')];
+    if (e.key === 'Escape') { close(); return; }
+    if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && options.length) {
+      e.preventDefault();
+      activeIndex = e.key === 'ArrowDown'
+        ? (activeIndex + 1) % options.length
+        : (activeIndex - 1 + options.length) % options.length;
+      options.forEach((o, i) => o.classList.toggle('is-active', i === activeIndex));
+      input.setAttribute('aria-activedescendant', options[activeIndex].id || '');
+      return;
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (activeIndex >= 0 && options[activeIndex]) location.href = options[activeIndex].href;
+      else go();
+    }
+  });
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.search-box')) close();
+  });
 }
 
 // Sync the mobile bottom toolbar active tab with the current page
@@ -665,12 +906,15 @@ function initTabbar() {
   const map = { home: 'home', categories: 'home', product: 'home', cart: 'cart', checkout: 'cart', wishlist: 'wishlist', orders: 'account', settings: 'account', help: 'account' };
   const active = map[document.body.dataset.page] || '';
   document.querySelectorAll('.mobile-tabbar [data-tab]').forEach(el => {
-    el.classList.toggle('active', el.dataset.tab === active);
+    const isActive = el.dataset.tab === active;
+    el.classList.toggle('active', isActive);
+    if (isActive) el.setAttribute('aria-current', 'page');
+    else el.removeAttribute('aria-current');
     if (el.tagName !== 'BUTTON') return;
     el.addEventListener('click', () => {
       const tab = el.dataset.tab;
       if (tab === 'search') {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        window.scrollTo({ top: 0, behavior: motionBehavior() });
         setTimeout(() => $('searchInput')?.focus({ preventScroll: true }), 350);
       } else if (tab === 'account') {
         location.href = 'settings.html';
@@ -685,7 +929,7 @@ function initBackToTop() {
   window.addEventListener('scroll', () => {
     btt.classList.toggle('show', window.scrollY > 400);
   });
-  btt.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+  btt.onclick = () => window.scrollTo({ top: 0, behavior: motionBehavior() });
 }
 
 // "Coming soon" links + logout (account panel, header dropdown, settings)
@@ -696,6 +940,7 @@ document.addEventListener('click', e => {
   if (lo) {
     e.preventDefault();
     localStorage.removeItem('am_user');
+    sessionStorage.removeItem('am_user');
     renderAccountPanel();
     updateAccountUI();
     toast(t('logged_out'));

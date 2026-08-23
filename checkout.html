@@ -27,7 +27,7 @@
 <body data-page="checkout">
 
   <main class="container-fluid px-3 px-lg-4 py-3">
-    <h4 class="fw-bold mb-4" data-i18n="checkout">Checkout</h4>
+    <h1 class="h4 fw-bold mb-4" data-i18n="checkout">Checkout</h1>
 
     <!-- Checkout progress -->
     <div class="co-steps" role="list" aria-label="Checkout progress" data-i18n-aria="checkout_progress">
@@ -59,7 +59,7 @@
             <div class="co-section-head">
               <span class="co-section-icon"><i class="fa-solid fa-truck-fast"></i></span>
               <div>
-                <h6 class="fw-bold mb-0" data-i18n="delivery_info">Delivery Information</h6>
+                <h2 class="h6 fw-bold mb-0" data-i18n="delivery_info">Delivery Information</h2>
                 <small class="text-muted" data-i18n="delivery_sub">Where should we deliver your order?</small>
               </div>
             </div>
@@ -72,22 +72,22 @@
               </div>
               <div class="row g-3">
                 <div class="col-md-6">
-                  <label class="form-label" data-i18n="phone">Phone *</label>
+                  <label class="form-label" for="cPhone" data-i18n="phone">Phone *</label>
                   <div class="input-group co-phone-group">
                     <span class="input-group-text fw-semibold">🇲🇦 +212</span>
-                    <input type="tel" class="form-control co-input" id="cPhone" placeholder="06 12 34 56 78"
-                      data-i18n-ph="phone_ph" required autocomplete="tel">
+                    <input type="tel" class="form-control co-input" id="cPhone" placeholder="6 12 34 56 78"
+                      data-i18n-ph="phone_prefix_ph" required autocomplete="tel">
                   </div>
                 </div>
                 <div class="col-md-6">
-                  <label class="form-label" data-i18n="full_name">Full Name *</label>
+                  <label class="form-label" for="cName" data-i18n="full_name">Full Name *</label>
                   <div class="co-input-wrap">
                     <i class="fa-regular fa-user co-input-icon"></i>
                     <input type="text" class="form-control co-input" id="cName" required autocomplete="name">
                   </div>
                 </div>
                 <div class="col-12">
-                  <label class="form-label" data-i18n="email_optional">Email (optional)</label>
+                  <label class="form-label" for="cEmail" data-i18n="email_optional">Email (optional)</label>
                   <div class="co-input-wrap">
                     <i class="fa-regular fa-envelope co-input-icon"></i>
                     <input type="email" class="form-control co-input" id="cEmail" autocomplete="email">
@@ -104,10 +104,10 @@
               </div>
               <div class="row g-3">
                 <div class="col-md-6">
-                  <label class="form-label" data-i18n="city">City *</label>
+                  <label class="form-label" for="cCity" data-i18n="city">City *</label>
                   <div class="co-input-wrap">
                     <i class="fa-solid fa-city co-input-icon"></i>
-                    <select class="form-select co-input" id="cCity" required>
+                    <select class="form-select co-input" id="cCity" required autocomplete="address-level2">
                       <option value="" disabled selected data-i18n="select_city">Select city</option>
                       <optgroup label="Casablanca–Settat">
                         <option value="Casablanca">Casablanca</option>
@@ -151,15 +151,15 @@
                   </div>
                 </div>
                 <div class="col-md-6">
-                  <label class="form-label" data-i18n="quartier">Quartier *</label>
+                  <label class="form-label" for="cQuartier" data-i18n="quartier">Quartier *</label>
                   <div class="co-input-wrap">
                     <i class="fa-solid fa-map-pin co-input-icon"></i>
                     <input type="text" class="form-control co-input" id="cQuartier" required
-                      placeholder="Hay Riad, Maarif, Agdal..." data-i18n-ph="quartier_ph" autocomplete="address-level2">
+                      placeholder="Hay Riad, Maarif, Agdal..." data-i18n-ph="quartier_ph" autocomplete="address-level3">
                   </div>
                 </div>
                 <div class="col-12">
-                  <label class="form-label" data-i18n="address">Street / Building *</label>
+                  <label class="form-label" for="cAddress" data-i18n="address">Street / Building *</label>
                   <div class="co-input-wrap">
                     <i class="fa-solid fa-map-location-dot co-input-icon"></i>
                     <textarea class="form-control co-input" id="cAddress" rows="2" required
@@ -168,7 +168,7 @@
                   </div>
                 </div>
                 <div class="col-12">
-                  <label class="form-label" data-i18n="note_label">Landmark / Floor (optional)</label>
+                  <label class="form-label" for="cNote" data-i18n="note_label">Landmark / Floor (optional)</label>
                   <div class="co-input-wrap">
                     <i class="fa-regular fa-comment-dots co-input-icon"></i>
                     <textarea class="form-control co-input" id="cNote" rows="1"
@@ -184,12 +184,12 @@
             <div class="co-section-head mb-3">
               <span class="co-section-icon pay"><i class="fa-solid fa-wallet"></i></span>
               <div>
-                <h6 class="fw-bold mb-0" data-i18n="payment_method">Payment Method</h6>
+                <h2 class="h6 fw-bold mb-0" id="paymentHeading" data-i18n="payment_method">Payment Method</h2>
                 <small class="text-muted" data-i18n="payment_sub">Choose how you want to pay</small>
               </div>
             </div>
 
-            <div class="pay-options">
+            <div class="pay-options" role="radiogroup" aria-labelledby="paymentHeading">
               <label class="pay-opt pay-opt-cod selected">
                 <input type="radio" name="pay" id="pay1" value="Cash on Delivery" checked>
                 <span class="pay-icon"><i class="fa-solid fa-money-bill-wave"></i></span>
@@ -228,6 +228,7 @@
                 <span class="pay-check"><i class="fa-solid fa-check"></i></span>
               </label>
             </div>
+            <p class="co-demo-note" role="note"><i class="fa-solid fa-circle-info" aria-hidden="true"></i><span data-i18n="demo_payment_note">Demo checkout: no payment is processed and no card details are collected.</span></p>
           </div>
         </div>
 
@@ -238,20 +239,20 @@
       </div>
 
       <div class="col-lg-5">
-        <div class="card border-0 co-card checkout-summary">
+        <div class="card border-0 co-card checkout-summary" id="checkoutSummary" aria-busy="true">
           <div class="card-body p-4">
-            <h6 class="fw-bold mb-3" data-i18n="order_summary">Order Summary</h6>
-            <div id="coItems"></div>
+            <h2 class="h6 fw-bold mb-3" data-i18n="order_summary">Order Summary</h2>
+            <div id="coItems"><div class="co-summary-skeleton" aria-hidden="true"><span class="skeleton-block skeleton-line"></span><span class="skeleton-block skeleton-line short"></span></div><span class="visually-hidden" data-i18n="loading">Loading...</span></div>
             <hr>
             <div class="d-flex justify-content-between mb-1"><span class="text-muted"
-                data-i18n="subtotal">Subtotal</span><span id="coSub">0 DH</span></div>
+                data-i18n="subtotal">Subtotal</span><span id="coSub">—</span></div>
             <div class="d-flex justify-content-between mb-1"><span class="text-muted"
-                data-i18n="delivery">Delivery</span><span id="coFee">0 DH</span></div>
+                data-i18n="delivery">Delivery</span><span id="coFee">—</span></div>
             <div class="d-flex justify-content-between fw-bold fs-5 mt-2"><span data-i18n="total">Total</span><span
-                class="text-orange" id="coTotal">0 DH</span></div>
+                class="text-orange" id="coTotal">—</span></div>
             <div class="co-secure"><i class="fa-solid fa-lock me-1"></i><span data-i18n="secure_checkout">Secure
                 checkout</span></div>
-            <button class="co-btn" id="placeOrder" type="submit"><i class="fa-solid fa-bag-shopping me-1"></i> <span
+            <button class="co-btn" id="placeOrder" type="submit" disabled><i class="fa-solid fa-bag-shopping me-1"></i> <span
                 data-i18n="place_order">Place Order</span></button>
           </div>
         </div>

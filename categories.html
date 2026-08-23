@@ -27,10 +27,10 @@
 <body data-page="categories">
 
   <main class="container-fluid px-3 px-lg-4 py-3">
-    <nav class="mb-3">
+    <nav class="mb-3" aria-label="Breadcrumb" data-i18n-aria="breadcrumb">
       <ol class="breadcrumb mb-0">
         <li class="breadcrumb-item"><a href="index.html" data-i18n="home">Home</a></li>
-        <li class="breadcrumb-item active" id="shopCrumb">All Categories</li>
+        <li class="breadcrumb-item active" id="shopCrumb" aria-current="page">All Categories</li>
       </ol>
     </nav>
 
@@ -40,7 +40,7 @@
         <div class="card border-0 shadow-sm filters-panel sticky-top" id="filtersPanel" style="top:90px">
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-3">
-              <h6 class="fw-bold mb-0" data-i18n="filters">Filters</h6>
+              <h2 class="h6 fw-bold mb-0" id="filtersTitle" data-i18n="filters">Filters</h2>
               <div class="d-flex align-items-center gap-3">
                 <button class="btn btn-link btn-sm text-orange p-0" id="clearFilters" data-i18n="clear">Clear</button>
                 <button class="filter-close" id="closeFilters" type="button" aria-label="Close filters" data-i18n-aria="close_filters">
@@ -49,10 +49,10 @@
               </div>
             </div>
 
-            <h6 class="fw-semibold small text-muted mb-2" data-i18n="category">Category</h6>
+            <h3 class="h6 fw-semibold small text-muted mb-2" data-i18n="category">Category</h3>
             <div id="filterCategories" class="mb-3 filter-scroll"></div>
 
-            <h6 class="fw-semibold small text-muted mb-2" data-i18n="price_page">Maximum price on this page</h6>
+            <h3 class="h6 fw-semibold small text-muted mb-2" data-i18n="price_page">Maximum price on this page</h3>
             <div class="mb-3">
               <input type="range" class="form-range" id="priceRange" min="0" max="1000" step="10" value="1000"
                 aria-label="Maximum price" data-i18n-aria="max_price">
@@ -66,14 +66,20 @@
               </div>
             </div>
 
-            <h6 class="fw-semibold small text-muted mb-2" data-i18n="brand_page">Brands on this page</h6>
+            <h3 class="h6 fw-semibold small text-muted mb-2" data-i18n="availability">Availability</h3>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="inStockOnly">
+              <label class="form-check-label small" for="inStockOnly" data-i18n="in_stock_only">In stock only</label>
+            </div>
+
+            <h3 class="h6 fw-semibold small text-muted mb-2" data-i18n="brand_page">Brands on this page</h3>
             <div id="filterBrands" class="filter-scroll mb-2"></div>
           </div>
         </div>
       </div>
 
       <!-- PRODUCTS -->
-      <div class="col-md-9">
+      <div class="col-md-9" id="productColumn">
         <div class="shop-toolbar d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
           <div class="d-flex align-items-center gap-2">
             <button class="filter-toggle" id="filterToggle" type="button" aria-expanded="false" aria-controls="filtersPanel">
@@ -81,7 +87,7 @@
               <span data-i18n="filter_products">Filter</span>
               <span class="filter-count" id="filterCount" hidden>0</span>
             </button>
-            <h4 class="fw-bold mb-0" id="shopTitle">All Categories</h4>
+            <h1 class="h4 fw-bold mb-0" id="shopTitle">All Categories</h1>
           </div>
           <div class="d-flex align-items-center gap-2">
             <span class="small text-muted" id="resultCount"></span>
@@ -96,7 +102,7 @@
         </div>
         <div class="active-filters" id="activeFilters" aria-live="polite"></div>
         <div class="row g-3" id="shopProducts"></div>
-        <nav class="mt-4" id="paginationNav" style="display:none">
+        <nav class="mt-4" id="paginationNav" style="display:none" aria-label="Product pages" data-i18n-aria="pagination">
           <ul class="pagination justify-content-center flex-wrap mb-0" id="pagination"></ul>
         </nav>
       </div>

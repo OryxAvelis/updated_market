@@ -18,15 +18,15 @@
   <link rel="stylesheet" href="css/login.css" />
   <link rel="icon" type="image/png" href="img/logo-round.png" />
 </head>
-<body>
+<body data-page="login">
 
   <a href="index.html" class="back-home"><i class="fa-solid fa-arrow-left"></i> <span data-i18n="back_home">Back to Store</span></a>
 
-  <button class="lang-float" data-lang-toggle title="Français / English">
+  <button class="lang-float" data-lang-toggle title="Français / English" aria-label="Change language" data-i18n-aria="change_language">
     <i class="fa-solid fa-globe"></i> <span id="langLabel">EN</span>
   </button>
 
-  <div class="auth-card">
+  <main class="auth-card">
 
     <!-- LEFT : BRAND -->
     <div class="auth-brand">
@@ -35,7 +35,7 @@
       </div>
       <div class="brand-content">
         <a href="index.html" class="auth-logo-card">
-          <img src="img/logo-round.png" alt="AM MARKET — Shop More, Live Better">
+          <img src="img/logo-round.png" alt="AM MARKET">
         </a>
         <h1 id="brandTitle">Welcome back!</h1>
         <p id="brandText">Sign in to manage your orders, wishlist and get the best deals on everyday products.</p>
@@ -57,17 +57,22 @@
         <form id="loginForm" novalidate>
           <div class="input-group-custom" id="loginEmailWrap">
             <i class="fa-regular fa-envelope"></i>
-            <input type="email" id="loginEmail" placeholder="Email address" autocomplete="email" data-i18n-ph="email_ph" />
+            <label class="visually-hidden" for="loginEmail" data-i18n="email_ph">Email address</label>
+            <input type="email" id="loginEmail" placeholder="Email address" autocomplete="email" data-i18n-ph="email_ph" required />
           </div>
+          <div class="field-error" id="loginEmailError" role="alert"></div>
           <div class="input-group-custom" id="loginPassWrap">
             <i class="fa-solid fa-lock"></i>
-            <input type="password" id="loginPass" placeholder="Password" autocomplete="current-password" data-i18n-ph="password_ph" />
-            <button type="button" class="eye" data-eye="loginPass" title="Show password" aria-label="Show password" aria-controls="loginPass" aria-pressed="false" data-i18n-title="show_pass" data-i18n-aria="show_pass"><i class="fa-regular fa-eye"></i></button>
+            <label class="visually-hidden" for="loginPass" data-i18n="password_ph">Password</label>
+            <input type="password" id="loginPass" placeholder="Password" autocomplete="current-password" data-i18n-ph="password_ph" required minlength="6" />
+            <button type="button" class="eye" data-eye="loginPass" title="Show password" aria-label="Show password" aria-controls="loginPass" aria-pressed="false"><i class="fa-regular fa-eye"></i></button>
           </div>
+          <div class="field-error" id="loginPassError" role="alert"></div>
           <div class="row-between">
-            <label class="remember"><input type="checkbox" checked /> <span data-i18n="remember">Remember me</span></label>
+            <label class="remember"><input type="checkbox" id="rememberLogin" checked /> <span data-i18n="remember">Remember me</span></label>
             <button type="button" class="forgot" id="forgotHelp" data-i18n="forgot">Forgot password?</button>
           </div>
+          <p class="demo-auth-note" data-i18n="demo_password_note">This demo does not store passwords. Use any valid email and a password of 6+ characters.</p>
           <button class="btn-submit" type="submit" id="loginBtn">
             <span data-i18n="sign_in_btn">Sign In</span><i class="fa-solid fa-arrow-right"></i>
           </button>
@@ -82,17 +87,24 @@
         <form id="signupForm" novalidate>
           <div class="input-group-custom" id="suNameWrap">
             <i class="fa-regular fa-user"></i>
-            <input type="text" id="suName" placeholder="Full name" autocomplete="name" data-i18n-ph="full_name_ph" />
+            <label class="visually-hidden" for="suName" data-i18n="full_name_ph">Full name</label>
+            <input type="text" id="suName" placeholder="Full name" autocomplete="name" data-i18n-ph="full_name_ph" required minlength="2" />
           </div>
+          <div class="field-error" id="suNameError" role="alert"></div>
           <div class="input-group-custom" id="suEmailWrap">
             <i class="fa-regular fa-envelope"></i>
-            <input type="email" id="suEmail" placeholder="Email address" autocomplete="email" data-i18n-ph="email_ph" />
+            <label class="visually-hidden" for="suEmail" data-i18n="email_ph">Email address</label>
+            <input type="email" id="suEmail" placeholder="Email address" autocomplete="email" data-i18n-ph="email_ph" required />
           </div>
+          <div class="field-error" id="suEmailError" role="alert"></div>
           <div class="input-group-custom" id="suPassWrap">
             <i class="fa-solid fa-lock"></i>
-            <input type="password" id="suPass" placeholder="Password (6+ characters)" autocomplete="new-password" data-i18n-ph="pass6_ph" />
-            <button type="button" class="eye" data-eye="suPass" title="Show password" aria-label="Show password" aria-controls="suPass" aria-pressed="false" data-i18n-title="show_pass" data-i18n-aria="show_pass"><i class="fa-regular fa-eye"></i></button>
+            <label class="visually-hidden" for="suPass" data-i18n="password_ph">Password</label>
+            <input type="password" id="suPass" placeholder="Password (6+ characters)" autocomplete="new-password" data-i18n-ph="pass6_ph" required minlength="6" />
+            <button type="button" class="eye" data-eye="suPass" title="Show password" aria-label="Show password" aria-controls="suPass" aria-pressed="false"><i class="fa-regular fa-eye"></i></button>
           </div>
+          <div class="field-error" id="suPassError" role="alert"></div>
+          <p class="demo-auth-note" data-i18n="demo_password_note">This demo does not store passwords. Use any valid email and a password of 6+ characters.</p>
           <button class="btn-submit mt-3" type="submit" id="signupBtn">
             <span data-i18n="create_btn">Create Account</span><i class="fa-solid fa-user-plus"></i>
           </button>
@@ -101,13 +113,13 @@
       </div>
 
     </div>
-  </div>
+  </main>
 
   <div class="toast-container position-fixed bottom-0 end-0 p-3">
-    <div id="toast" class="toast align-items-center text-bg-dark border-0">
+    <div id="toast" class="toast align-items-center text-bg-dark border-0" role="status" aria-live="polite" aria-atomic="true">
       <div class="d-flex">
         <div class="toast-body" id="toastMsg"></div>
-        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close" data-i18n-aria="close"></button>
       </div>
     </div>
   </div>
@@ -141,7 +153,19 @@
         el.classList.add('swap');
       });
     }
-    window.addEventListener('am:langchange', () => setBrand(currentMode));
+    const syncEyeLabels = () => document.querySelectorAll('.eye').forEach(btn => {
+      const showing = $(btn.dataset.eye).type === 'text';
+      const key = showing ? 'hide_pass' : 'show_pass';
+      btn.setAttribute('aria-label', t(key));
+      btn.setAttribute('title', t(key));
+    });
+    window.addEventListener('am:langchange', () => {
+      setBrand(currentMode);
+      syncEyeLabels();
+      document.querySelectorAll('.field-error[data-error-key]').forEach(error => {
+        error.textContent = t(error.dataset.errorKey);
+      });
+    });
 
     function showBox(showId, hideId, back) {
       const show = $(showId), hide = $(hideId);
@@ -149,6 +173,11 @@
       show.classList.remove('hidden', 'anim', 'anim-back');
       void show.offsetWidth; // restart animation
       show.classList.add(back ? 'anim-back' : 'anim');
+      const heading = show.querySelector('h2');
+      if (heading) {
+        heading.tabIndex = -1;
+        requestAnimationFrame(() => heading.focus({ preventScroll: true }));
+      }
     }
     $('toSignup').onclick = () => { showBox('signupBox', 'loginBox', false); setBrand('signup'); };
     $('toLogin').onclick  = () => { showBox('loginBox', 'signupBox', true);  setBrand('login'); };
@@ -170,10 +199,23 @@
     // ---------- Validation helpers ----------
     const validEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
-    function markError(wrapId, bad) {
+    function markError(wrapId, inputId, errorId, bad, key) {
       const w = $(wrapId);
+      const input = $(inputId);
+      const error = $(errorId);
       w.classList.remove('error');
-      if (bad) { void w.offsetWidth; w.classList.add('error'); }
+      input.removeAttribute('aria-invalid');
+      input.removeAttribute('aria-describedby');
+      error.textContent = '';
+      delete error.dataset.errorKey;
+      if (bad) {
+        void w.offsetWidth;
+        w.classList.add('error');
+        input.setAttribute('aria-invalid', 'true');
+        input.setAttribute('aria-describedby', errorId);
+        error.dataset.errorKey = key;
+        error.textContent = t(key);
+      }
       return bad;
     }
 
@@ -187,10 +229,13 @@
       }
     }
 
-    function success(btn, msg, email, name) {
+    function success(btn, msg, email, name, remember = true) {
       setLoading(btn, false);
       btn.innerHTML = '<i class="fa-solid fa-check"></i> ' + msg;
-      localStorage.setItem('am_user', JSON.stringify({ email, name: name || email.split('@')[0] }));
+      const authStorage = remember ? localStorage : sessionStorage;
+      const otherStorage = remember ? sessionStorage : localStorage;
+      otherStorage.removeItem('am_user');
+      authStorage.setItem('am_user', JSON.stringify({ email, name: name || email.split('@')[0] }));
       toast(t('welcome_user', { name: (name || email.split('@')[0]) }));
       setTimeout(() => { window.location.href = 'index.html'; }, 900);
     }
@@ -201,12 +246,16 @@
       const email = $('loginEmail').value.trim();
       const pass = $('loginPass').value;
       let bad = false;
-      bad = markError('loginEmailWrap', !validEmail(email)) || bad;
-      bad = markError('loginPassWrap', pass.length < 6) || bad;
-      if (bad) { toast(t('check_creds')); return; }
+      bad = markError('loginEmailWrap', 'loginEmail', 'loginEmailError', !validEmail(email), 'login_email_error') || bad;
+      bad = markError('loginPassWrap', 'loginPass', 'loginPassError', pass.length < 6, 'login_password_error') || bad;
+      if (bad) {
+        toast(t('check_creds'));
+        document.querySelector('[aria-invalid="true"]')?.focus();
+        return;
+      }
 
       setLoading($('loginBtn'), true);
-      setTimeout(() => success($('loginBtn'), t('signed_in'), email), 900);
+      setTimeout(() => success($('loginBtn'), t('signed_in'), email, '', $('rememberLogin').checked), 900);
     };
 
     // ---------- Sign up ----------
@@ -216,10 +265,14 @@
       const email = $('suEmail').value.trim();
       const pass = $('suPass').value;
       let bad = false;
-      bad = markError('suNameWrap', name.length < 2) || bad;
-      bad = markError('suEmailWrap', !validEmail(email)) || bad;
-      bad = markError('suPassWrap', pass.length < 6) || bad;
-      if (bad) { toast(t('fill_correct')); return; }
+      bad = markError('suNameWrap', 'suName', 'suNameError', name.length < 2, 'login_name_error') || bad;
+      bad = markError('suEmailWrap', 'suEmail', 'suEmailError', !validEmail(email), 'login_email_error') || bad;
+      bad = markError('suPassWrap', 'suPass', 'suPassError', pass.length < 6, 'login_password_error') || bad;
+      if (bad) {
+        toast(t('fill_correct'));
+        document.querySelector('[aria-invalid="true"]')?.focus();
+        return;
+      }
 
       setLoading($('signupBtn'), true);
       setTimeout(() => success($('signupBtn'), t('account_created'), email, name), 900);
@@ -227,11 +280,22 @@
 
     // Clear error state while typing
     document.querySelectorAll('.input-group-custom input').forEach(inp => {
-      inp.addEventListener('input', () => inp.closest('.input-group-custom').classList.remove('error'));
+      inp.addEventListener('input', () => {
+        const wrap = inp.closest('.input-group-custom');
+        wrap.classList.remove('error');
+        inp.removeAttribute('aria-invalid');
+        const error = wrap.nextElementSibling;
+        if (error?.classList.contains('field-error')) {
+          error.textContent = '';
+          delete error.dataset.errorKey;
+        }
+        inp.removeAttribute('aria-describedby');
+      });
     });
 
     // Sync brand panel with saved language on load
     setBrand('login');
+    syncEyeLabels();
   </script>
 </body>
 </html>

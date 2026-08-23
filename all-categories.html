@@ -1,17 +1,20 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AM MARKET — Toutes les Catégories</title>
-  <meta name="description" content="Parcourez toutes les catégories AM MARKET — alimentation, boissons, laitiers, snacks, hygiène et plus encore." />
+  <title>AM MARKET — All Categories</title>
+  <meta name="description"
+    content="Browse all AM MARKET categories — groceries, beverages, dairy, snacks, hygiene, office supplies and more." />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="AM MARKET" />
-  <meta property="og:title" content="AM MARKET — Toutes les Catégories" />
-  <meta property="og:description" content="Parcourez toutes les catégories AM MARKET — alimentation, boissons, laitiers, snacks, hygiène et plus encore." />
-  <meta property="og:image" content="https://raw.githubusercontent.com/OryxAvelis/updated_market/main/img/logo-round.png" />
+  <meta property="og:title" content="AM MARKET — All Categories" />
+  <meta property="og:description" content="Browse all AM MARKET categories." />
+  <meta property="og:image"
+    content="https://raw.githubusercontent.com/OryxAvelis/updated_market/main/img/logo-round.png" />
   <meta name="twitter:card" content="summary" />
-  <script>(function(){var t=localStorage.getItem('am_theme')==='dark'?'dark':'light';document.documentElement.setAttribute('data-theme',t);document.documentElement.setAttribute('data-bs-theme',t);})();</script>
+  <script>(function () { var t = localStorage.getItem('am_theme') === 'dark' ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', t); document.documentElement.setAttribute('data-bs-theme', t); })();</script>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -19,31 +22,29 @@
   <link rel="stylesheet" href="css/all-categories.css" />
   <link rel="icon" type="image/png" href="img/logo-round.png" />
 </head>
-<body data-page="categories">
+
+<body data-page="all-categories">
 
   <main class="container-fluid px-3 px-lg-4 py-3">
-    <nav class="mb-3">
+    <nav class="mb-3" aria-label="Breadcrumb" data-i18n-aria="breadcrumb">
       <ol class="breadcrumb mb-0">
-        <li class="breadcrumb-item"><a href="index.html" data-i18n="home">Accueil</a></li>
-        <li class="breadcrumb-item active" data-i18n="all_categories">Toutes les Catégories</li>
+        <li class="breadcrumb-item"><a href="index.html" data-i18n="home">Home</a></li>
+        <li class="breadcrumb-item active" data-i18n="all_categories" aria-current="page">All Categories</li>
       </ol>
     </nav>
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <div>
-        <h3 class="fw-bold mb-1" data-i18n="all_categories">Toutes les Catégories</h3>
-        <p class="text-muted mb-0 small" id="catCount"></p>
-      </div>
-    </div>
-
-    <div id="allCategoriesGrid">
-      <div class="text-center py-5 text-muted" data-i18n="loading">Chargement...</div>
+    <h1 class="h4 fw-bold mb-4" data-i18n="all_categories">All Categories</h1>
+    <div class="all-cat-grid" id="allCatGrid">
+      <div class="text-center text-muted py-5 w-100" style="grid-column:1/-1" data-i18n="loading">Loading...</div>
     </div>
   </main>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-  <script src="js/i18n.js?v=20260817"></script>
-  <script src="js/core.js?v=20260817"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+    crossorigin="anonymous"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/core.js"></script>
   <script src="js/all-categories.js"></script>
 </body>
+
 </html>

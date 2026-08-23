@@ -28,9 +28,10 @@
 
   <main class="container-fluid px-3 px-lg-4 py-3">
     <section>
+      <h1 class="visually-hidden" data-i18n="home_page_heading">AM MARKET online supermarket</h1>
       <div class="row g-3 mb-3 home-top">
         <div class="col-12">
-          <div class="hero-banner">
+          <div class="hero-banner" role="region" aria-label="Featured AM MARKET offers" data-i18n-aria="carousel_label">
             <div class="hero-bubbles">
               <span></span><span></span><span></span><span></span><span></span>
             </div>
@@ -38,7 +39,7 @@
               <div class="hero-slide s1 active hero-rentree">
                 <div class="hero-text">
                   <span class="hero-season-tag" data-i18n="season_rentree_tag">Back to School</span>
-                  <h1 data-i18n-html="hero_rentree_title">Ready for<br>the new school year</h1>
+                  <h2 data-i18n-html="hero_rentree_title">Ready for<br>the new school year</h2>
                   <p data-i18n="hero_rentree_sub">Office supplies, breakfast & everyday essentials for the rentrée.</p>
                   <a class="btn btn-light hero-cta" href="categories.html?cat=1363"><span data-i18n="shop_school">Shop
                       school supplies</span> <i class="fa-solid fa-arrow-right"></i></a>
@@ -47,7 +48,7 @@
               </div>
               <div class="hero-slide s2">
                 <div class="hero-text">
-                  <h1 data-i18n="hero2_title">Fresh Groceries Every Day</h1>
+                  <h2 data-i18n="hero2_title">Fresh Groceries Every Day</h2>
                   <p data-i18n="hero2_sub">Fruits, dairy & essentials delivered fast.</p>
                   <a class="btn btn-light hero-cta" href="categories.html"><span data-i18n="shop_now">Shop Now</span> <i
                       class="fa-solid fa-arrow-right"></i></a>
@@ -56,7 +57,7 @@
               </div>
               <div class="hero-slide s3">
                 <div class="hero-text">
-                  <h1 data-i18n="hero4_title">Free Delivery over 200 DH</h1>
+                  <h2 data-i18n="hero4_title">Free Delivery over 200 DH</h2>
                   <p data-i18n="hero4_sub">Fast & safe delivery all over Morocco.</p>
                   <a class="btn btn-light hero-cta" href="categories.html"><span data-i18n="shop_now">Shop Now</span> <i
                       class="fa-solid fa-arrow-right"></i></a>
@@ -65,7 +66,7 @@
               </div>
               <div class="hero-slide s4">
                 <div class="hero-text">
-                  <h1 data-i18n-html="hero_title">Shop more,<br>live better</h1>
+                  <h2 data-i18n-html="hero_title">Shop more,<br>live better</h2>
                   <p data-i18n="hero_sub">Your Moroccan supermarket — delivered to your door.</p>
                   <a class="btn btn-light hero-cta" href="categories.html"><span data-i18n="shop_now">Shop Now</span> <i
                       class="fa-solid fa-arrow-right"></i></a>
@@ -74,7 +75,7 @@
               </div>
             </div>
             <div class="hero-dots" id="heroDots"></div>
-            <button class="hero-pause" id="heroPause" type="button" aria-label="Pause carousel" data-i18n-aria="pause_carousel">
+            <button class="hero-pause" id="heroPause" type="button" aria-label="Pause carousel">
               <i class="fa-solid fa-pause"></i>
             </button>
           </div>
@@ -104,11 +105,11 @@
         <div class="season-strip-head">
           <div>
             <span class="season-badge" data-i18n="season_rentree_tag">Back to School</span>
-            <h4 class="fw-bold mb-1" data-i18n="season_rentree_title">Rentrée scolaire</h4>
+            <h2 class="h4 fw-bold mb-1" data-i18n="season_rentree_title">Rentrée scolaire</h2>
             <p class="text-muted small mb-0" data-i18n="season_rentree_sub">Office supplies and essentials for the new
               school year</p>
           </div>
-          <a href="categories.html?cat=1363" class="btn btn-orange btn-sm" data-i18n="view_catalogue">View catalogue</a>
+          <a href="categories.html?cat=1363" class="btn btn-orange btn-sm state-action" data-i18n="view_catalogue">View catalogue</a>
         </div>
         <div class="season-chips">
           <a class="season-chip" href="categories.html?cat=1363"><i class="fa-solid fa-pen"></i> <span
@@ -119,8 +120,8 @@
               data-i18n="chip_snacks">Snacks</span></a>
           <a class="season-chip" href="categories.html?cat=1813"><i class="fa-solid fa-bottle-water"></i> <span
               data-i18n="chip_drinks">Drinks</span></a>
-          <a class="season-chip" href="categories.html?q=stylo"><i class="fa-solid fa-pen-nib"></i> Stylo</a>
-          <a class="season-chip" href="categories.html?q=cahier"><i class="fa-solid fa-book"></i> Cahier</a>
+          <a class="season-chip" href="categories.html?q=stylo"><i class="fa-solid fa-pen-nib"></i> <span data-i18n="chip_pens">Pens</span></a>
+          <a class="season-chip" href="categories.html?q=cahier"><i class="fa-solid fa-book"></i> <span data-i18n="chip_notebooks">Notebooks</span></a>
         </div>
         <div class="row g-3 mt-2" id="seasonProducts">
           <div class="col-12 text-center py-3 text-muted small" data-i18n="loading_products">Loading products...</div>
@@ -128,21 +129,21 @@
       </div>
 
       <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4 class="fw-bold mb-0" data-i18n="shop_by_cats">Shop by Categories</h4>
-        <a href="all-categories.html" class="text-orange small fw-semibold" data-i18n="view_all">Voir tout</a>
+        <h2 class="h4 fw-bold mb-0" data-i18n="shop_by_cats">Shop by Categories</h2>
+        <a href="all-categories.html" class="text-orange small fw-semibold section-link" data-i18n="view_all">Voir tout</a>
       </div>
       <div class="categories-grid mb-4" id="homeCategories"></div>
 
       <div id="recentSection" style="display:none">
         <div class="d-flex justify-content-between align-items-center mb-3">
-          <h4 class="fw-bold mb-0" data-i18n="recently_viewed">Recently Viewed</h4>
+          <h2 class="h4 fw-bold mb-0" data-i18n="recently_viewed">Recently Viewed</h2>
         </div>
         <div class="row g-3 mb-4" id="recentProducts"></div>
       </div>
 
       <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4 class="fw-bold mb-0" data-i18n="products">Products</h4>
-        <a href="categories.html" class="text-orange small fw-semibold" data-i18n="view_all">View all</a>
+        <h2 class="h4 fw-bold mb-0" data-i18n="products">Products</h2>
+        <a href="categories.html" class="text-orange small fw-semibold section-link" data-i18n="view_all">View all</a>
       </div>
       <div class="row g-3" id="homeProducts">
         <div class="col-12 text-center py-5 text-muted" data-i18n="loading_products">Loading products...</div>

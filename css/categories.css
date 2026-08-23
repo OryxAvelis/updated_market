@@ -22,6 +22,8 @@
   font-size: 0.8rem;
   font-weight: 600;
   text-decoration: none !important;
+  min-height: 44px;
+  padding: 8px 4px !important;
 }
 .filters-panel #clearFilters:hover {
   text-decoration: underline !important;
@@ -110,8 +112,8 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  min-height: 34px;
-  padding: 5px 10px;
+  min-height: 44px;
+  padding: 0 0 0 10px;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--card);
@@ -123,8 +125,8 @@
   border: 0;
   background: transparent;
   color: var(--muted);
-  width: 22px;
-  height: 22px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
 }
 .filter-chip button:hover { background: var(--orange-light); color: var(--orange); }
@@ -164,6 +166,7 @@
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236b7280' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 0.75rem center;
+  min-height: 44px;
 }
 #sortSelect:hover {
   border-color: var(--orange);
@@ -237,13 +240,32 @@
     overflow-y: auto;
     border-radius: 14px !important;
   }
+  .filters-panel .card-body > .d-flex:first-child {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    min-height: 52px;
+    padding: 4px 0;
+    background: var(--card);
+    box-shadow: 0 8px 14px -14px rgba(15,23,42,0.55);
+  }
   .filter-scroll { max-height: none; }
+  .filter-scroll .form-check-label {
+    min-height: 44px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+  }
+  .filters-panel .form-check-input {
+    width: 20px;
+    height: 20px;
+  }
   .filter-close {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     border: 0;
     border-radius: 10px;
     color: var(--text);
@@ -274,7 +296,36 @@
     align-items: center;
     justify-content: center;
   }
-  .shop-toolbar > div:last-child { width: 100%; justify-content: space-between; }
-  #sortSelect { min-width: 148px; }
-  #resultCount { font-size: 0.7rem; padding: 4px 7px; }
+  .shop-toolbar > div:last-child {
+    width: 100%;
+    min-width: 0;
+    justify-content: space-between;
+  }
+  #sortSelect {
+    flex: 0 1 148px;
+    width: 148px !important;
+    min-width: 0;
+    max-width: 55%;
+  }
+  #resultCount {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.7rem;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+    padding: 4px 7px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  .filters-panel .form-check-label {
+    min-height: 44px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+  }
+  .filters-panel .form-check-input {
+    width: 20px;
+    height: 20px;
+  }
 }

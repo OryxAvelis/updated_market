@@ -22,6 +22,22 @@
   box-shadow: 0 6px 20px rgba(0,0,0,0.08);
   transform: translateY(-2px);
 }
+.cart-item.is-unavailable { opacity: 0.72; }
+.ci-stock-out { color: #b42318; }
+[data-theme="dark"] .ci-stock-out { color: #fda4af; }
+.cart-item-skeleton { pointer-events: none; }
+.cart-skeleton-img {
+  width: 84px;
+  height: 84px;
+  flex: 0 0 84px;
+  border-radius: 10px;
+}
+.cart-skeleton-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+}
 
 /* Image */
 .cart-item .ci-img-link {
@@ -95,10 +111,13 @@
   border-radius: 2%;
   border-color: var(--border);
   background: var(--card-alt);
+  flex: 0 0 auto;
 }
 
 .cart-item .qty-box button {
   width: 44px;
+  min-width: 44px;
+  flex: 0 0 44px;
   height: 44px;
   background: transparent;
   color: var(--text-2);
@@ -153,7 +172,7 @@
   top: 96px;
 }
 
-.cart-summary h6 {
+.cart-summary h2 {
   font-size: 1rem;
   font-weight: 700;
   margin-bottom: 14px;
@@ -228,6 +247,8 @@
   color: var(--muted);
   text-decoration: none;
   transition: color 0.15s;
+  min-height: 44px;
+  padding: 8px 4px;
 }
 .cart-continue-link:hover { color: var(--orange); }
 
@@ -238,6 +259,27 @@
   padding: 12px 14px;
   margin-bottom: 16px;
 }
+.cart-availability-note {
+  margin-bottom: 14px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  background: #fff3f2;
+  color: #9f2018;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+.cart-availability-note button {
+  display: block;
+  margin-top: 6px;
+  padding: 8px 0;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-weight: 750;
+  text-decoration: underline;
+}
+[data-theme="dark"] .cart-availability-note { background: #3b1b1b; color: #fecaca; }
 .free-deliv-bar.unlocked {
   background: #e8f8ef;
   color: #15803d;
@@ -323,7 +365,7 @@
   50% { transform: scale(1.08); opacity: 0.85; }
 }
 
-.cart-empty h5 {
+.cart-empty h2 {
   color: var(--text);
   font-weight: 750;
   margin-bottom: 8px;
@@ -373,6 +415,7 @@
   .cart-item .ci-remove {
     margin-left: 0;
   }
+  .cart-item .ci-actions { flex-wrap: wrap; }
   .cart-summary {
     position: static;
   }
