@@ -1,0 +1,177 @@
+/* Settings page only. Shared admin primitives live in admin-common.css. */
+body[data-admin-page="settings"] .admin-settings-notice {
+  margin-bottom: 18px;
+}
+
+body[data-admin-page="settings"] .admin-settings-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
+  gap: 18px;
+}
+
+body[data-admin-page="settings"] .admin-settings-stack {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+}
+
+body[data-admin-page="settings"] .admin-settings-card {
+  min-width: 0;
+  overflow: hidden;
+}
+
+body[data-admin-page="settings"] .admin-settings-card > .admin-card-body {
+  border-top: 1px solid var(--border);
+}
+
+body[data-admin-page="settings"] .admin-settings-form {
+  display: grid;
+  gap: 16px;
+}
+
+body[data-admin-page="settings"] .admin-settings-form .admin-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+body[data-admin-page="settings"] .admin-choice-group {
+  margin: 0 0 20px;
+  padding: 0;
+  border: 0;
+}
+
+body[data-admin-page="settings"] .admin-choice-group:last-child {
+  margin-bottom: 0;
+}
+
+body[data-admin-page="settings"] .admin-choice-group legend {
+  margin-bottom: 10px;
+  color: var(--text-2);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+body[data-admin-page="settings"] .admin-choice-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+body[data-admin-page="settings"] .admin-choice-card {
+  display: grid;
+  min-height: 104px;
+  align-content: center;
+  place-items: center;
+  gap: 3px;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card-alt);
+  color: var(--text-2);
+  font: inherit;
+  text-align: center;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease, transform 0.12s ease;
+}
+
+body[data-admin-page="settings"] .admin-choice-card i,
+body[data-admin-page="settings"] .admin-choice-card strong {
+  color: var(--orange);
+  font-size: 1.2rem;
+}
+
+body[data-admin-page="settings"] .admin-choice-card span {
+  font-size: 0.8rem;
+  font-weight: 750;
+}
+
+body[data-admin-page="settings"] .admin-choice-card small {
+  color: var(--muted);
+  font-size: 0.67rem;
+}
+
+body[data-admin-page="settings"] .admin-choice-card:hover {
+  border-color: var(--orange-soft);
+  background: var(--orange-light);
+  color: var(--orange);
+  transform: translateY(-1px);
+}
+
+body[data-admin-page="settings"] .admin-choice-card.is-active {
+  border-color: var(--orange);
+  background: var(--orange-light);
+  color: var(--orange);
+  box-shadow: 0 0 0 3px var(--orange-soft);
+}
+
+body[data-admin-page="settings"] .admin-choice-card:focus-visible {
+  border-color: var(--orange);
+  outline: 3px solid var(--orange-soft);
+  outline-offset: 2px;
+}
+
+body[data-admin-page="settings"] .admin-security-panel {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px;
+  border-style: dashed;
+}
+
+body[data-admin-page="settings"] .admin-security-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  background: var(--card-alt);
+  color: var(--muted);
+}
+
+body[data-admin-page="settings"] .admin-security-panel .admin-page-eyebrow {
+  margin-bottom: 5px;
+  color: var(--muted);
+}
+
+body[data-admin-page="settings"] .admin-security-panel h2 {
+  margin: 0 0 6px;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+body[data-admin-page="settings"] .admin-security-panel p:last-child {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+@media (max-width: 1050px) {
+  body[data-admin-page="settings"] .admin-settings-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  body[data-admin-page="settings"] .admin-choice-row {
+    grid-template-columns: 1fr;
+  }
+
+  body[data-admin-page="settings"] .admin-settings-form .admin-form-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body[data-admin-page="settings"] .admin-settings-form .admin-form-actions .admin-button {
+    width: 100%;
+  }
+
+  body[data-admin-page="settings"] .admin-security-panel {
+    display: grid;
+  }
+}

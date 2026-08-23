@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin dashboard — AM MARKET</title>
+  <meta name="description" content="Frontend-only AM MARKET admin dashboard prototype.">
+  <meta name="robots" content="noindex, nofollow">
+  <script>(function () { if (location.pathname.endsWith('/admin')) { var base = document.createElement('base'); base.href = location.pathname + '/'; document.head.appendChild(base); } })();</script>
+  <script>(function () { var theme = localStorage.getItem('am_theme') === 'dark' ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', theme); document.documentElement.setAttribute('data-bs-theme', theme); })();</script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/common.css">
+  <link rel="stylesheet" href="css/admin-common.css">
+  <link rel="stylesheet" href="css/admin-dashboard.css">
+  <link rel="icon" type="image/png" href="../img/logo-round.png">
+</head>
+
+<body class="admin-page admin-dashboard-page" data-admin="true" data-admin-protected="true" data-admin-page="dashboard" data-page="admin-dashboard">
+  <main id="adminMain" class="admin-main" tabindex="-1">
+    <header class="admin-page-header">
+      <div>
+        <p class="admin-page-eyebrow" data-i18n="admin_dashboard_eyebrow">Browser snapshot</p>
+        <h1 class="admin-page-title" data-i18n="admin_dashboard_title">Store overview</h1>
+        <p class="admin-page-intro" data-i18n="admin_dashboard_intro">Local orders and the read-only AM MARKET catalog at a glance.</p>
+      </div>
+      <button class="admin-button admin-button--secondary" id="adminDashboardRefresh" type="button">
+        <i class="fa-solid fa-rotate" aria-hidden="true"></i>
+        <span data-i18n="admin_dashboard_refresh">Refresh dashboard</span>
+      </button>
+    </header>
+
+    <section class="admin-dashboard-source" id="adminDashboardSource" aria-live="polite"></section>
+
+    <section class="admin-dashboard-metrics" aria-label="Dashboard metrics" data-i18n-aria="admin_dashboard_metrics">
+      <article class="admin-card admin-metric-card">
+        <div class="admin-metric-icon"><i class="fa-solid fa-coins" aria-hidden="true"></i></div>
+        <div>
+          <p data-i18n="admin_dashboard_sales">Sales</p>
+          <strong id="adminMetricSales">—</strong>
+          <small id="adminMetricSalesNote"></small>
+        </div>
+      </article>
+      <article class="admin-card admin-metric-card">
+        <div class="admin-metric-icon"><i class="fa-solid fa-receipt" aria-hidden="true"></i></div>
+        <div>
+          <p data-i18n="admin_dashboard_orders">Orders</p>
+          <strong id="adminMetricOrders">—</strong>
+          <small id="adminMetricOrdersNote"></small>
+        </div>
+      </article>
+      <article class="admin-card admin-metric-card">
+        <div class="admin-metric-icon"><i class="fa-solid fa-users" aria-hidden="true"></i></div>
+        <div>
+          <p data-i18n="admin_dashboard_customers">Customers</p>
+          <strong id="adminMetricCustomers">—</strong>
+          <small id="adminMetricCustomersNote"></small>
+        </div>
+      </article>
+      <article class="admin-card admin-metric-card">
+        <div class="admin-metric-icon"><i class="fa-solid fa-box-open" aria-hidden="true"></i></div>
+        <div>
+          <p data-i18n="admin_dashboard_products">Products</p>
+          <strong id="adminMetricProducts">—</strong>
+          <small id="adminMetricProductsNote"></small>
+        </div>
+      </article>
+    </section>
+
+    <section class="admin-dashboard-chart-grid">
+      <article class="admin-card admin-dashboard-chart-card">
+        <header class="admin-card-header">
+          <div>
+            <h3 class="admin-card-title" data-i18n="admin_dashboard_sales_trend">Sales trend</h3>
+            <p class="admin-card-subtitle" id="adminSalesChartSubtitle"></p>
+          </div>
+          <span class="admin-badge admin-badge--info" id="adminSalesChartBadge"></span>
+        </header>
+        <div class="admin-card-body admin-dashboard-chart" id="adminSalesChart" aria-live="polite"></div>
+      </article>
+
+      <article class="admin-card admin-dashboard-chart-card">
+        <header class="admin-card-header">
+          <div>
+            <h3 class="admin-card-title" data-i18n="admin_dashboard_order_status">Order status</h3>
+            <p class="admin-card-subtitle" id="adminStatusChartSubtitle"></p>
+          </div>
+          <span class="admin-badge admin-badge--info" id="adminStatusChartBadge"></span>
+        </header>
+        <div class="admin-card-body admin-dashboard-status-chart" id="adminStatusChart" aria-live="polite"></div>
+      </article>
+    </section>
+
+    <section class="admin-dashboard-detail-grid">
+      <article class="admin-card admin-dashboard-orders-card">
+        <header class="admin-card-header">
+          <div>
+            <h3 class="admin-card-title" data-i18n="admin_dashboard_recent_orders">Recent orders</h3>
+            <p class="admin-card-subtitle" data-i18n="admin_dashboard_recent_intro">The newest orders stored in this browser.</p>
+          </div>
+          <a class="admin-button admin-button--secondary" href="orders.html"><span data-i18n="admin_nav_orders">Orders</span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
+        </header>
+        <div class="admin-card-body admin-dashboard-orders-body" id="adminRecentOrders"></div>
+      </article>
+
+      <article class="admin-card admin-dashboard-catalog-card">
+        <header class="admin-card-header">
+          <div>
+            <h3 class="admin-card-title" data-i18n="admin_dashboard_catalog">Catalog snapshot</h3>
+            <p class="admin-card-subtitle" data-i18n="admin_dashboard_catalog_intro">Local product statuses, availability sample, and top-level categories.</p>
+          </div>
+        </header>
+        <div class="admin-card-body" id="adminCatalogSnapshot"></div>
+      </article>
+    </section>
+
+    <aside class="admin-inline-notice admin-dashboard-local-note">
+      <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+      <div>
+        <strong data-i18n="admin_dashboard_local_only_title">What this prototype can do</strong>
+        <p data-i18n="admin_dashboard_local_only_body">It can inspect storefront orders saved in this browser and read the public catalog. Admin changes elsewhere in this prototype remain local and are never sent to a server.</p>
+      </div>
+    </aside>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+  <script src="../js/i18n.js"></script>
+  <script src="../js/core.js"></script>
+  <script src="js/admin-auth.js"></script>
+  <script src="js/admin-core.js"></script>
+  <script src="js/admin-dashboard.js"></script>
+</body>
+
+</html>

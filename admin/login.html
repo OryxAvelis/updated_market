@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin sign in — AM MARKET</title>
+  <meta name="description" content="Frontend-only AM MARKET admin prototype sign-in.">
+  <meta name="robots" content="noindex, nofollow">
+  <script>(function () { var theme = localStorage.getItem('am_theme') === 'dark' ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', theme); document.documentElement.setAttribute('data-bs-theme', theme); })();</script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/common.css">
+  <link rel="stylesheet" href="css/admin-common.css">
+  <link rel="stylesheet" href="css/admin-login.css">
+  <link rel="icon" type="image/png" href="../img/logo-round.png">
+</head>
+
+<body class="admin-page admin-login-page" data-admin="true" data-admin-public="true" data-admin-page="login" data-page="admin-login">
+  <a class="admin-skip-link" href="#adminMain" data-i18n="admin_skip_content">Skip to admin content</a>
+
+  <header class="admin-login-toolbar" aria-label="Display settings" data-i18n-aria="admin_display_settings">
+    <a class="admin-login-back" href="../index.html">
+      <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+      <span data-i18n="admin_login_storefront">Return to storefront</span>
+    </a>
+    <div class="admin-login-controls">
+      <button type="button" class="admin-icon-button" data-admin-theme aria-label="Toggle color theme" data-i18n-aria="admin_toggle_theme" title="Toggle color theme" data-i18n-title="admin_toggle_theme">
+        <i class="fa-solid fa-moon" data-admin-theme-icon aria-hidden="true"></i>
+      </button>
+      <button type="button" class="admin-icon-button admin-language-button" data-admin-lang aria-label="Change language" data-i18n-aria="admin_change_language" title="Change language" data-i18n-title="admin_change_language">
+        <i class="fa-solid fa-globe" aria-hidden="true"></i><span data-admin-lang-label>EN</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="admin-login-main" id="adminMain" tabindex="-1">
+    <section class="admin-login-panel" aria-labelledby="adminLoginTitle">
+      <div class="admin-login-brand" aria-hidden="true">
+        <img src="../img/logo-round.png" alt="" width="66" height="66">
+        <div><strong>AM MARKET</strong><span data-i18n="admin_panel">Admin panel</span></div>
+      </div>
+
+      <div class="admin-login-heading">
+        <p class="admin-login-eyebrow" data-i18n="admin_login_eyebrow">AM MARKET administration</p>
+        <h1 id="adminLoginTitle" data-i18n="admin_login_title">Welcome back</h1>
+        <p data-i18n="admin_login_intro">Sign in to open the local admin prototype.</p>
+      </div>
+
+      <div class="admin-login-alert" id="adminLoginAlert" role="alert" tabindex="-1" hidden>
+        <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+        <span data-admin-login-alert></span>
+      </div>
+
+      <form class="admin-login-form" id="adminLoginForm" novalidate>
+        <div class="admin-login-field">
+          <label class="admin-form-label" for="adminEmail">
+            <span data-i18n="admin_login_email">Admin email</span>
+            <span class="admin-required" aria-hidden="true">*</span>
+            <span class="visually-hidden" data-i18n="admin_required">Required</span>
+          </label>
+          <div class="admin-login-input-wrap">
+            <i class="fa-regular fa-envelope" aria-hidden="true"></i>
+            <input class="admin-input" id="adminEmail" name="email" type="email" inputmode="email" autocomplete="username" required aria-describedby="adminEmailError" placeholder="name@example.com" data-i18n-ph="admin_login_email_placeholder">
+          </div>
+          <p class="admin-field-error" id="adminEmailError" data-admin-field-error="email" aria-live="polite"></p>
+        </div>
+
+        <div class="admin-login-field">
+          <label class="admin-form-label" for="adminPassword">
+            <span data-i18n="admin_login_password">Password</span>
+            <span class="admin-required" aria-hidden="true">*</span>
+            <span class="visually-hidden" data-i18n="admin_required">Required</span>
+          </label>
+          <div class="admin-login-input-wrap">
+            <i class="fa-solid fa-lock" aria-hidden="true"></i>
+            <input class="admin-input" id="adminPassword" name="password" type="password" autocomplete="current-password" required aria-describedby="adminPasswordError" placeholder="Enter your password" data-i18n-ph="admin_login_password_placeholder">
+          </div>
+          <p class="admin-field-error" id="adminPasswordError" data-admin-field-error="password" aria-live="polite"></p>
+        </div>
+
+        <button class="admin-button admin-button--primary admin-login-submit" id="adminLoginSubmit" type="submit">
+          <span data-i18n="admin_login_submit">Sign in</span>
+          <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+        </button>
+      </form>
+
+      <div class="admin-inline-notice admin-login-notice">
+        <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
+        <div>
+          <strong data-i18n="admin_login_notice_title">Prototype access only</strong>
+          <p data-i18n="admin_login_notice">This sign-in runs entirely in your browser. It is not secure authentication and does not connect to a backend.</p>
+        </div>
+      </div>
+    </section>
+
+    <aside class="admin-login-visual" aria-hidden="true">
+      <div class="admin-login-orbit admin-login-orbit--one"></div>
+      <div class="admin-login-orbit admin-login-orbit--two"></div>
+      <div class="admin-login-visual-card admin-login-visual-card--main">
+        <span><i class="fa-solid fa-chart-line"></i></span>
+        <div><strong>AM MARKET</strong><small data-i18n="admin_prototype">Frontend prototype</small></div>
+      </div>
+      <div class="admin-login-visual-card admin-login-visual-card--small admin-login-visual-card--top"><i class="fa-solid fa-box-open"></i></div>
+      <div class="admin-login-visual-card admin-login-visual-card--small admin-login-visual-card--bottom"><i class="fa-solid fa-receipt"></i></div>
+    </aside>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+  <script src="../js/i18n.js"></script>
+  <script src="../js/core.js"></script>
+  <script src="js/admin-auth.js"></script>
+  <script src="js/admin-core.js"></script>
+  <script src="js/admin-login.js"></script>
+</body>
+
+</html>

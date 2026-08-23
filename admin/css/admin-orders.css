@@ -1,0 +1,299 @@
+/* Orders page only. Shared admin layout and mobile table stacking live in admin-common.css. */
+.admin-orders-page .admin-orders-toolbar {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(170px, 220px) auto;
+  align-items: end;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.admin-orders-page .admin-orders-search {
+  min-width: 0;
+}
+
+.admin-orders-page .admin-input-icon {
+  position: relative;
+}
+
+.admin-orders-page .admin-input-icon > i {
+  position: absolute;
+  top: 50%;
+  left: 0.85rem;
+  z-index: 1;
+  color: var(--muted);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.admin-orders-page .admin-input-icon .admin-input {
+  padding-inline-start: 2.45rem;
+}
+
+.admin-orders-page .admin-list-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0.85rem 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.admin-orders-page .admin-list-summary p {
+  margin: 0;
+}
+
+.admin-orders-page .admin-local-note {
+  max-width: 620px;
+  text-align: end;
+}
+
+.admin-orders-page .admin-list-state {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+
+.admin-orders-page .admin-orders-clear {
+  white-space: nowrap;
+}
+
+.admin-orders-page .admin-order-id {
+  display: block;
+  color: var(--text);
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.admin-orders-page .admin-order-payment,
+.admin-orders-page .admin-order-customer-meta {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.admin-orders-page .admin-order-customer-name {
+  display: block;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.admin-orders-page .admin-order-items-count {
+  white-space: nowrap;
+}
+
+.admin-orders-page .admin-status-badge,
+body[data-admin-page="orders"] .admin-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 30px;
+  padding: 0.28rem 0.62rem;
+  border: 1px solid var(--orange-soft);
+  border-radius: 999px;
+  background: var(--orange-light);
+  color: var(--orange);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.admin-orders-page .admin-order-view {
+  white-space: nowrap;
+}
+
+body[data-admin-page="orders"] .admin-detail-dialog {
+  width: min(760px, calc(100% - 2rem));
+  max-height: calc(100dvh - 2rem);
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--text);
+  box-shadow: var(--shadow-lg);
+}
+
+body[data-admin-page="orders"] .admin-detail-dialog::backdrop {
+  background: color-mix(in srgb, var(--text) 42%, transparent);
+}
+
+body[data-admin-page="orders"] .admin-dialog-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+
+body[data-admin-page="orders"] .admin-dialog-head h2 {
+  margin: 0;
+  font-size: clamp(1.15rem, 3vw, 1.45rem);
+  overflow-wrap: anywhere;
+}
+
+body[data-admin-page="orders"] #adminOrderDetail {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+body[data-admin-page="orders"] .admin-order-detail-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+body[data-admin-page="orders"] .admin-order-detail-card {
+  min-width: 0;
+  padding: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card-alt);
+}
+
+body[data-admin-page="orders"] .admin-order-detail-card dt {
+  margin-bottom: 0.3rem;
+  color: var(--muted);
+  font-size: 0.73rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+body[data-admin-page="orders"] .admin-order-detail-card dd {
+  margin: 0;
+  color: var(--text);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+body[data-admin-page="orders"] .admin-order-section-title {
+  margin: 0 0 0.65rem;
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+body[data-admin-page="orders"] .admin-order-contact,
+body[data-admin-page="orders"] .admin-order-totals,
+body[data-admin-page="orders"] .admin-order-item-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+body[data-admin-page="orders"] .admin-order-contact li,
+body[data-admin-page="orders"] .admin-order-totals li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.42rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+body[data-admin-page="orders"] .admin-order-contact li:last-child,
+body[data-admin-page="orders"] .admin-order-totals li:last-child {
+  border-bottom: 0;
+}
+
+body[data-admin-page="orders"] .admin-order-contact span,
+body[data-admin-page="orders"] .admin-order-totals span {
+  color: var(--muted);
+}
+
+body[data-admin-page="orders"] .admin-order-contact strong,
+body[data-admin-page="orders"] .admin-order-totals strong {
+  text-align: end;
+  overflow-wrap: anywhere;
+}
+
+body[data-admin-page="orders"] .admin-order-item-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+body[data-admin-page="orders"] .admin-order-item-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+body[data-admin-page="orders"] .admin-order-item-list small {
+  display: block;
+  color: var(--muted);
+}
+
+body[data-admin-page="orders"] .admin-order-status-form {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  align-items: end;
+  gap: 1rem;
+  padding: 1.25rem;
+  border-top: 1px solid var(--border);
+  background: var(--card-alt);
+}
+
+body[data-admin-page="orders"] .admin-order-status-form .admin-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  align-self: end;
+}
+
+@media (max-width: 760px) {
+  .admin-orders-page .admin-orders-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-orders-page .admin-orders-clear {
+    justify-self: start;
+  }
+
+  .admin-orders-page .admin-list-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-orders-page .admin-local-note {
+    text-align: start;
+  }
+
+  body[data-admin-page="orders"] .admin-order-detail-summary,
+  body[data-admin-page="orders"] .admin-order-status-form {
+    grid-template-columns: 1fr;
+  }
+
+  body[data-admin-page="orders"] .admin-order-status-form .admin-dialog-actions {
+    width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  body[data-admin-page="orders"] .admin-order-contact li,
+  body[data-admin-page="orders"] .admin-order-totals li {
+    display: grid;
+    gap: 0.2rem;
+  }
+
+  body[data-admin-page="orders"] .admin-order-contact strong,
+  body[data-admin-page="orders"] .admin-order-totals strong {
+    text-align: start;
+  }
+}

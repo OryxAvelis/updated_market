@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="AM MARKET frontend-only admin prototype">
+  <title>Orders — AM MARKET Admin</title>
+  <script>
+    document.documentElement.setAttribute('data-theme', localStorage.getItem('am_theme') === 'dark' ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-bs-theme', localStorage.getItem('am_theme') === 'dark' ? 'dark' : 'light');
+  </script>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link rel="stylesheet" href="../css/common.css">
+  <link rel="stylesheet" href="css/admin-common.css">
+  <link rel="stylesheet" href="css/admin-orders.css">
+</head>
+<body data-admin="true" data-page="admin-orders" data-admin-page="orders">
+  <main id="adminMain" class="admin-main" tabindex="-1">
+    <section class="admin-page admin-orders-page" aria-labelledby="adminOrdersTitle">
+      <header class="admin-page-header">
+        <div>
+          <p class="admin-page-eyebrow" data-i18n="admin_orders_kicker">Local order operations</p>
+          <h1 id="adminOrdersTitle" class="admin-page-title" data-i18n="admin_orders_title">Orders</h1>
+          <p class="admin-page-intro" data-i18n="admin_orders_intro">Review browser-local orders and update their local workflow status.</p>
+        </div>
+        <span class="admin-badge admin-local-badge"><i class="fa-solid fa-laptop" aria-hidden="true"></i> <span data-i18n="admin_local_only">Local only</span></span>
+      </header>
+
+      <div class="admin-orders-toolbar" role="search">
+        <div class="admin-field admin-orders-search">
+          <label class="admin-form-label" for="adminOrderSearch" data-i18n="admin_orders_search_label">Search orders</label>
+          <div class="admin-input-icon">
+            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+            <input id="adminOrderSearch" class="admin-input" type="search" autocomplete="off" data-i18n-ph="admin_orders_search_placeholder" placeholder="Order, customer, phone or email">
+          </div>
+        </div>
+        <div class="admin-field">
+          <label class="admin-form-label" for="adminOrderStatus" data-i18n="admin_orders_filter_label">Status</label>
+          <select id="adminOrderStatus" class="admin-select">
+            <option value="all" data-i18n="admin_orders_all_statuses">All statuses</option>
+            <option value="Processing" data-i18n="admin_status_processing">Processing</option>
+            <option value="Confirmed" data-i18n="admin_status_confirmed">Confirmed</option>
+            <option value="Preparing" data-i18n="admin_status_preparing">Preparing</option>
+            <option value="Shipping" data-i18n="admin_status_shipping">Shipping</option>
+            <option value="Delivered" data-i18n="admin_status_delivered">Delivered</option>
+          </select>
+        </div>
+        <button class="admin-button admin-button--secondary admin-orders-clear" id="adminOrdersClear" type="button">
+          <i class="fa-solid fa-filter-circle-xmark" aria-hidden="true"></i>
+          <span data-i18n="admin_clear_filters">Clear filters</span>
+        </button>
+      </div>
+
+      <div class="admin-list-summary">
+        <p id="adminOrdersCount" aria-live="polite"></p>
+        <p class="admin-local-note" data-i18n="admin_orders_local_note">Status changes are stored in this browser only and are not sent to a server.</p>
+      </div>
+
+      <div id="adminOrdersState" class="admin-list-state" role="status" aria-live="polite">
+        <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+        <span data-i18n="admin_orders_loading">Loading local orders…</span>
+      </div>
+
+      <div id="adminOrdersTableWrap" class="admin-table-wrap" hidden>
+        <table class="admin-table admin-orders-table">
+          <caption class="visually-hidden" data-i18n="admin_orders_table_caption">Local order list</caption>
+          <thead>
+            <tr>
+              <th scope="col" data-i18n="admin_orders_col_order">Order</th>
+              <th scope="col" data-i18n="admin_orders_col_customer">Customer</th>
+              <th scope="col" data-i18n="admin_orders_col_date">Date</th>
+              <th scope="col" data-i18n="admin_orders_col_items">Items</th>
+              <th scope="col" data-i18n="admin_orders_col_total">Total</th>
+              <th scope="col" data-i18n="admin_orders_col_status">Status</th>
+              <th scope="col" data-i18n="admin_actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="adminOrdersBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <dialog id="adminOrderDialog" class="admin-detail-dialog" aria-labelledby="adminOrderDialogTitle">
+      <div class="admin-dialog-head">
+        <div>
+          <p class="admin-page-eyebrow" data-i18n="admin_orders_detail_kicker">Order detail</p>
+          <h2 id="adminOrderDialogTitle"></h2>
+        </div>
+        <button id="adminOrderDialogClose" class="admin-icon-button" type="button" data-i18n-aria="admin_close" aria-label="Close">
+          <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div id="adminOrderDetail"></div>
+      <form id="adminOrderStatusForm" class="admin-order-status-form" novalidate>
+        <div class="admin-field">
+          <label class="admin-form-label" for="adminOrderStatusEdit"><span data-i18n="admin_orders_new_status">New status</span> <span class="admin-required" aria-hidden="true">*</span></label>
+          <select id="adminOrderStatusEdit" class="admin-select" required>
+            <option value="Processing" data-i18n="admin_status_processing">Processing</option>
+            <option value="Confirmed" data-i18n="admin_status_confirmed">Confirmed</option>
+            <option value="Preparing" data-i18n="admin_status_preparing">Preparing</option>
+            <option value="Shipping" data-i18n="admin_status_shipping">Shipping</option>
+            <option value="Delivered" data-i18n="admin_status_delivered">Delivered</option>
+          </select>
+          <p id="adminOrderStatusError" class="admin-field-error" role="alert"></p>
+        </div>
+        <div class="admin-dialog-actions">
+          <button id="adminOrderStatusCancel" class="admin-button admin-button--secondary" type="button" data-i18n="admin_cancel">Cancel</button>
+          <button id="adminOrderStatusSave" class="admin-button admin-button--primary" type="submit">
+            <i class="fa-solid fa-rotate" aria-hidden="true"></i>
+            <span data-i18n="admin_orders_update_status">Update local status</span>
+          </button>
+        </div>
+      </form>
+    </dialog>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" defer></script>
+  <script src="../js/i18n.js" defer></script>
+  <script src="../js/core.js" defer></script>
+  <script src="js/admin-auth.js" defer></script>
+  <script src="js/admin-core.js" defer></script>
+  <script src="js/admin-orders.js" defer></script>
+</body>
+</html>

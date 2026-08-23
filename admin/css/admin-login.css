@@ -1,0 +1,320 @@
+/* AM MARKET admin login — page-specific presentation. */
+
+body[data-admin="true"].admin-login-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 10% 10%, var(--orange-light), transparent 32%),
+    var(--bg);
+}
+
+body[data-admin="true"] .admin-login-toolbar {
+  position: fixed;
+  inset: 18px 22px auto;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+body[data-admin="true"] .admin-login-back {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--text-2);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+body[data-admin="true"] .admin-login-back:hover {
+  background: var(--card);
+  color: var(--orange);
+}
+
+body[data-admin="true"] .admin-login-controls {
+  display: flex;
+  gap: 8px;
+}
+
+body[data-admin="true"] .admin-login-main {
+  display: grid;
+  min-height: 100vh;
+  grid-template-columns: minmax(360px, 520px) minmax(380px, 1fr);
+  align-items: center;
+  gap: clamp(44px, 7vw, 110px);
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 92px clamp(24px, 5vw, 72px) 50px;
+}
+
+body[data-admin="true"] .admin-login-panel {
+  width: 100%;
+  padding: clamp(26px, 4vw, 42px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: var(--shadow-lg);
+}
+
+body[data-admin="true"] .admin-login-brand {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-bottom: 32px;
+}
+
+body[data-admin="true"] .admin-login-brand img {
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+}
+
+body[data-admin="true"] .admin-login-brand strong,
+body[data-admin="true"] .admin-login-brand span {
+  display: block;
+}
+
+body[data-admin="true"] .admin-login-brand strong {
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+body[data-admin="true"] .admin-login-brand span {
+  color: var(--muted);
+  font-size: 0.73rem;
+  font-weight: 650;
+}
+
+body[data-admin="true"] .admin-login-heading {
+  margin-bottom: 24px;
+}
+
+body[data-admin="true"] .admin-login-eyebrow {
+  margin: 0 0 7px;
+  color: var(--orange);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+body[data-admin="true"] .admin-login-heading h1 {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(1.85rem, 4vw, 2.55rem);
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 1.05;
+}
+
+body[data-admin="true"] .admin-login-heading > p:last-child {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+body[data-admin="true"] .admin-login-alert {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--bs-danger-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bs-danger-bg-subtle);
+  color: var(--bs-danger-text-emphasis);
+  font-size: 0.76rem;
+  font-weight: 650;
+}
+
+body[data-admin="true"] .admin-login-alert[hidden] {
+  display: none;
+}
+
+body[data-admin="true"] .admin-login-form {
+  display: grid;
+  gap: 4px;
+}
+
+body[data-admin="true"] .admin-login-field {
+  min-width: 0;
+}
+
+body[data-admin="true"] .admin-login-input-wrap {
+  position: relative;
+}
+
+body[data-admin="true"] .admin-login-input-wrap > i {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  z-index: 1;
+  color: var(--muted);
+  font-size: 0.83rem;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+body[data-admin="true"] .admin-login-input-wrap .admin-input {
+  padding-left: 42px;
+}
+
+body[data-admin="true"] .admin-login-submit {
+  width: 100%;
+  margin-top: 8px;
+}
+
+body[data-admin="true"] .admin-login-notice {
+  margin-top: 24px;
+}
+
+body[data-admin="true"] .admin-login-visual {
+  position: relative;
+  display: grid;
+  min-height: 540px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(135deg, var(--orange-light), var(--card) 58%, var(--card-alt));
+  box-shadow: var(--shadow-lg);
+}
+
+body[data-admin="true"] .admin-login-visual::before {
+  content: '';
+  position: absolute;
+  inset: 9%;
+  border: 1px dashed var(--orange-soft);
+  border-radius: 50%;
+}
+
+body[data-admin="true"] .admin-login-orbit {
+  position: absolute;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+}
+
+body[data-admin="true"] .admin-login-orbit--one {
+  width: 72%;
+  aspect-ratio: 1;
+}
+
+body[data-admin="true"] .admin-login-orbit--two {
+  width: 48%;
+  aspect-ratio: 1;
+}
+
+body[data-admin="true"] .admin-login-visual-card {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  box-shadow: var(--shadow-lg);
+}
+
+body[data-admin="true"] .admin-login-visual-card--main {
+  gap: 14px;
+  padding: 18px 22px;
+  border-radius: var(--radius);
+}
+
+body[data-admin="true"] .admin-login-visual-card--main > span {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  background: var(--orange-light);
+  color: var(--orange);
+  font-size: 1.25rem;
+}
+
+body[data-admin="true"] .admin-login-visual-card--main strong,
+body[data-admin="true"] .admin-login-visual-card--main small {
+  display: block;
+}
+
+body[data-admin="true"] .admin-login-visual-card--main strong {
+  font-size: 1.02rem;
+  font-weight: 800;
+}
+
+body[data-admin="true"] .admin-login-visual-card--main small {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+body[data-admin="true"] .admin-login-visual-card--small {
+  width: 58px;
+  height: 58px;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--orange);
+  font-size: 1rem;
+}
+
+body[data-admin="true"] .admin-login-visual-card--top {
+  top: 21%;
+  right: 19%;
+}
+
+body[data-admin="true"] .admin-login-visual-card--bottom {
+  bottom: 19%;
+  left: 18%;
+}
+
+@media (max-width: 991.98px) {
+  body[data-admin="true"] .admin-login-main {
+    grid-template-columns: minmax(0, 560px);
+    justify-content: center;
+  }
+
+  body[data-admin="true"] .admin-login-visual {
+    display: none;
+  }
+}
+
+@media (max-width: 575.98px) {
+  body[data-admin="true"] .admin-login-toolbar {
+    inset: 10px 12px auto;
+  }
+
+  body[data-admin="true"] .admin-login-back span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  body[data-admin="true"] .admin-login-back {
+    width: 44px;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid var(--border);
+    background: var(--card);
+  }
+
+  body[data-admin="true"] .admin-login-main {
+    align-items: flex-start;
+    padding: 76px 12px 24px;
+  }
+
+  body[data-admin="true"] .admin-login-panel {
+    padding: 24px 18px;
+  }
+
+  body[data-admin="true"] .admin-login-brand {
+    margin-bottom: 25px;
+  }
+}

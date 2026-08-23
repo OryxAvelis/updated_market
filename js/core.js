@@ -183,8 +183,9 @@ async function fetchCategories() {
     .filter(c => c.id !== EXCLUDE_CAT && c.parent_id == null);
 }
 
-async function fetchProducts(page = 1, categoryId = null, search = '', ordering = '') {
-  let url = `${API}/products/?include_descendants=true&page=${page}&page_size=12`;
+async function fetchProducts(page = 1, categoryId = null, search = '', ordering = '', pageSize = 12) {
+  const safePageSize = Math.min(100, Math.max(1, Math.floor(Number(pageSize) || 12)));
+  let url = `${API}/products/?include_descendants=true&page=${page}&page_size=${safePageSize}`;
   if (categoryId) url += `&category=${categoryId}`;
   if (search) url += `&search=${encodeURIComponent(search)}`;
   if (ordering) url += `&ordering=${encodeURIComponent(ordering)}`;
@@ -785,11 +786,16 @@ const TABBAR_HTML = `
 
 // Inject the shared chrome around the page's <main> (this script runs at the
 // end of <body>, so the DOM is ready and i18n can translate right after).
-document.body.insertAdjacentHTML('afterbegin', HEADER_HTML);
-document.body.insertAdjacentHTML('beforeend', FOOTER_HTML + TABBAR_HTML);
-const mainContent = document.querySelector('main');
-if (mainContent && !mainContent.id) mainContent.id = 'mainContent';
-if (typeof applyI18n === 'function') applyI18n();
+// Admin pages reuse the read-only catalog helpers from this file but render
+// their own isolated shell. Customer pages do not set this data attribute.
+const STORE_CORE_ADMIN_CONTEXT = document.body?.dataset.admin === 'true';
+if (!STORE_CORE_ADMIN_CONTEXT) {
+  document.body.insertAdjacentHTML('afterbegin', HEADER_HTML);
+  document.body.insertAdjacentHTML('beforeend', FOOTER_HTML + TABBAR_HTML);
+  const mainContent = document.querySelector('main');
+  if (mainContent && !mainContent.id) mainContent.id = 'mainContent';
+  if (typeof applyI18n === 'function') applyI18n();
+}
 
 function initHeaderSearch() {
   const input = $('searchInput');

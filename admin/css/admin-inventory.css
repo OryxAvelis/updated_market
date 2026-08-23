@@ -1,0 +1,207 @@
+/* Inventory page only. Shared admin layout and mobile table stacking live in admin-common.css. */
+.admin-inventory-page .admin-inventory-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--orange-soft);
+  border-radius: var(--radius);
+  background: var(--orange-light);
+  color: var(--text-2);
+}
+
+.admin-inventory-page .admin-inventory-notice i {
+  margin-top: 0.2rem;
+  color: var(--orange);
+}
+
+.admin-inventory-page .admin-inventory-notice p {
+  margin: 0;
+}
+
+.admin-inventory-page .admin-inventory-toolbar {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(170px, 220px) auto;
+  align-items: end;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.admin-inventory-page .admin-inventory-search {
+  min-width: 0;
+}
+
+.admin-inventory-page .admin-input-icon {
+  position: relative;
+}
+
+.admin-inventory-page .admin-input-icon > i {
+  position: absolute;
+  top: 50%;
+  left: 0.85rem;
+  z-index: 1;
+  color: var(--muted);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.admin-inventory-page .admin-input-icon .admin-input {
+  padding-inline-start: 2.45rem;
+}
+
+.admin-inventory-page .admin-list-summary {
+  margin: 0.85rem 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.admin-inventory-page .admin-list-summary p {
+  margin: 0;
+}
+
+.admin-inventory-page .admin-list-state {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+
+.admin-inventory-page .admin-inventory-product {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 210px;
+}
+
+.admin-inventory-page .admin-inventory-product-image {
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card-alt);
+  object-fit: contain;
+}
+
+.admin-inventory-page .admin-inventory-product-name {
+  display: block;
+  color: var(--text);
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.admin-inventory-page .admin-inventory-product-meta {
+  display: block;
+  margin-top: 0.18rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.admin-inventory-page .admin-inventory-state-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0.28rem 0.62rem;
+  border: 1px solid var(--orange-soft);
+  border-radius: 999px;
+  background: var(--orange-light);
+  color: var(--orange);
+  font-size: 0.76rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.admin-inventory-page .admin-inventory-state-badge[data-state="not-tracked"] {
+  border-color: var(--border);
+  background: var(--card-alt);
+  color: var(--muted);
+}
+
+.admin-inventory-page .admin-inventory-edit {
+  min-width: 150px;
+}
+
+.admin-inventory-page .admin-inventory-edit select,
+.admin-inventory-page .admin-inventory-quantity input {
+  width: 100%;
+  min-height: 40px;
+}
+
+.admin-inventory-page .admin-inventory-quantity {
+  min-width: 120px;
+}
+
+.admin-inventory-page .admin-inventory-quantity small,
+.admin-inventory-page .admin-inventory-updated small {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.admin-inventory-page .admin-inventory-error {
+  min-height: 1.1em;
+  margin: 0.25rem 0 0;
+  color: var(--orange);
+  font-size: 0.72rem;
+}
+
+.admin-inventory-page .admin-inventory-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  min-width: 150px;
+}
+
+.admin-inventory-page .admin-inventory-actions .admin-button {
+  min-height: 40px;
+  padding: 0.45rem 0.65rem;
+}
+
+.admin-inventory-page .admin-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.admin-inventory-page .admin-pagination[hidden] {
+  display: none;
+}
+
+.admin-inventory-page #adminInventoryPageLabel {
+  min-width: 120px;
+  color: var(--text-2);
+  text-align: center;
+  font-weight: 700;
+}
+
+@media (max-width: 800px) {
+  .admin-inventory-page .admin-inventory-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-inventory-page .admin-inventory-toolbar > .admin-button {
+    justify-self: start;
+  }
+}
+
+@media (max-width: 420px) {
+  .admin-inventory-page .admin-pagination {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-inventory-page #adminInventoryPageLabel {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+}

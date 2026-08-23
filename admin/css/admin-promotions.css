@@ -1,0 +1,207 @@
+/* Promotions page only. Shared admin components live in admin-common.css. */
+body[data-admin-page="promotions"] .admin-promotions-notice {
+  margin-bottom: 18px;
+}
+
+body[data-admin-page="promotions"] .admin-promotions-card {
+  min-width: 0;
+  overflow: hidden;
+}
+
+body[data-admin-page="promotions"] .admin-promotions-toolbar {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(180px, 240px);
+  align-items: end;
+  gap: 14px;
+  border-top: 1px solid var(--border);
+  background: var(--card-alt);
+}
+
+body[data-admin-page="promotions"] .admin-search-control {
+  position: relative;
+}
+
+body[data-admin-page="promotions"] .admin-search-control > i {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  z-index: 1;
+  color: var(--muted);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+body[data-admin-page="promotions"] .admin-search-control .admin-input {
+  padding-left: 42px;
+}
+
+body[data-admin-page="promotions"] .admin-list-region > .admin-table-wrap {
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+}
+
+body[data-admin-page="promotions"] .admin-promotion-code {
+  display: inline-flex;
+  margin-top: 7px;
+  padding: 5px 8px;
+  border: 1px dashed var(--orange);
+  border-radius: 8px;
+  background: var(--orange-light);
+  color: var(--orange);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+body[data-admin-page="promotions"] .admin-promotion-value {
+  color: var(--orange);
+  font-size: 0.96rem;
+  font-weight: 800;
+}
+
+body[data-admin-page="promotions"] .admin-promotion-dates {
+  display: grid;
+  gap: 2px;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+body[data-admin-page="promotions"] .admin-promotion-demo {
+  margin-left: 7px;
+  color: var(--muted);
+  font-size: 0.63rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+body[data-admin-page="promotions"] .admin-status-badge {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card-alt);
+  color: var(--text-2);
+  font-size: 0.68rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+body[data-admin-page="promotions"] .admin-status-badge > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+body[data-admin-page="promotions"] .admin-status-badge.is-active {
+  border-color: var(--bs-success-border-subtle);
+  background: var(--bs-success-bg-subtle);
+  color: var(--bs-success-text-emphasis);
+}
+
+body[data-admin-page="promotions"] .admin-status-badge.is-scheduled {
+  border-color: var(--bs-warning-border-subtle);
+  background: var(--bs-warning-bg-subtle);
+  color: var(--bs-warning-text-emphasis);
+}
+
+body[data-admin-page="promotions"] .admin-status-badge.is-inactive {
+  color: var(--muted);
+}
+
+body[data-admin-page="promotions"] .admin-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+body[data-admin-page="promotions"] .admin-icon-button.is-danger {
+  color: var(--bs-danger-text-emphasis);
+}
+
+body[data-admin-page="promotions"] .admin-icon-button.is-danger:hover {
+  border-color: var(--bs-danger-border-subtle);
+  background: var(--bs-danger-bg-subtle);
+  color: var(--bs-danger-text-emphasis);
+}
+
+body[data-admin-page="promotions"] .admin-modal .modal-content {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--text);
+  box-shadow: var(--shadow-lg);
+}
+
+body[data-admin-page="promotions"] .admin-modal .modal-header,
+body[data-admin-page="promotions"] .admin-modal .modal-footer {
+  border-color: var(--border);
+}
+
+body[data-admin-page="promotions"] .admin-modal .modal-title {
+  color: var(--text);
+  font-weight: 800;
+}
+
+body[data-admin-page="promotions"] .admin-modal .input-group-text {
+  border-color: var(--border);
+  background: var(--card-alt);
+  color: var(--muted);
+}
+
+body[data-admin-page="promotions"] .was-validated .input-group:has(.form-control:invalid) + .invalid-feedback,
+body[data-admin-page="promotions"] .input-group:has(.is-invalid) + .invalid-feedback {
+  display: block;
+}
+
+body[data-admin-page="promotions"] .admin-switch-row {
+  min-height: 46px;
+  padding: 12px 14px 12px 46px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card-alt);
+}
+
+body[data-admin-page="promotions"] .admin-switch-row .form-check-input {
+  margin-left: -32px;
+}
+
+body[data-admin-page="promotions"] .admin-form-note {
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 767.98px) {
+  body[data-admin-page="promotions"] .admin-promotions-toolbar {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 639.98px) {
+  body[data-admin-page="promotions"] .admin-list-region > .admin-table-wrap {
+    border-top: 1px solid var(--border);
+    padding: 12px 0 0;
+  }
+
+  body[data-admin-page="promotions"] .admin-list-region .admin-table td {
+    display: block;
+    min-height: 0;
+    text-align: left;
+  }
+
+  body[data-admin-page="promotions"] .admin-list-region .admin-table td::before {
+    display: block;
+    margin-bottom: 7px;
+  }
+
+  body[data-admin-page="promotions"] .admin-row-actions {
+    justify-content: flex-start;
+  }
+}

@@ -9,6 +9,7 @@ E-commerce storefront front-end for **AM MARKET**, a Moroccan online supermarket
 | Page | Purpose | Own assets |
 |---|---|---|
 | `index.html` | Home — hero carousel, categories, recently viewed, products | `js/home.js`, `css/home.css` |
+| `all-categories.html` | Category directory | `js/all-categories.js`, `css/all-categories.css` |
 | `categories.html` | Catalog — filters, sorting, pagination (`?cat=`, `?q=`, `?page=`) | `js/categories.js`, `css/categories.css` |
 | `product.html` | Product detail (`?id=`) + related products | `js/product.js`, `css/product.css` |
 | `cart.html` | Cart with quantity management and order summary | `js/cart.js`, `css/cart.css` |
@@ -20,6 +21,14 @@ E-commerce storefront front-end for **AM MARKET**, a Moroccan online supermarket
 | `login.html` | Sign in / create account (demo) | `css/login.css` |
 
 Shared infrastructure lives in **`js/core.js`** (API client, localStorage state, header/footer/mobile-toolbar injection, product-card rendering) and **`css/common.css`**. Translations (EN/FR) live in **`js/i18n.js`**.
+
+## Frontend admin prototype
+
+The separate admin experience starts at **`admin/login.html`**. Its dashboard, products, categories, orders, customers, inventory, promotions, delivery, analytics, and settings sections are plain HTML/CSS/JS and reuse the storefront design tokens, theme, language, and read-only catalog utilities.
+
+Demo credential and session handling is isolated in **`admin/js/admin-auth.js`**. This is a frontend UX prototype, not secure authentication: there is no backend, API write, database, role enforcement, or server persistence.
+
+All admin mutations are deliberately browser-local. Product/category edits are local overlays, order statuses modify the existing `am_orders` browser data, customers and analytics are derived from local orders, and inventory/promotions/delivery/store settings use separate `am_admin_*_v1` localStorage records. These mutations do not publish to or alter the storefront catalog.
 
 ## Running locally
 
@@ -48,5 +57,6 @@ python -m http.server 8000
 ## Notes & limitations
 
 - Authentication and orders are client-side demos — nothing is written back to the API.
+- The admin area is also a frontend-only prototype; every write is local to the current browser origin.
 - Delivery is free over 200 DH, otherwise 20 DH.
 - The smoking category is excluded on purpose (`EXCLUDE_CAT` in `js/core.js`).

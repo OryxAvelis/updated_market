@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings — AM MARKET Admin</title>
+  <meta name="description" content="Frontend-only AM MARKET admin settings prototype.">
+  <script>(function(){var t=localStorage.getItem('am_theme')==='dark'?'dark':'light';document.documentElement.setAttribute('data-theme',t);document.documentElement.setAttribute('data-bs-theme',t);}());</script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/common.css">
+  <link rel="stylesheet" href="css/admin-common.css">
+  <link rel="stylesheet" href="css/admin-settings.css">
+  <link rel="icon" type="image/png" href="../img/logo-round.png">
+</head>
+<body class="admin-app admin-shell-pending" data-admin="true" data-page="admin-settings" data-admin-page="settings">
+  <main class="admin-main" id="adminMain" tabindex="-1">
+    <section class="admin-page admin-settings-page" aria-labelledby="settingsPageTitle">
+    <header class="admin-page-header"><div><p class="admin-page-eyebrow" data-i18n="admin_configuration">Configuration</p><h1 class="admin-page-title" id="settingsPageTitle" data-i18n="admin_settings_title">Settings</h1><p class="admin-page-intro" data-i18n="admin_settings_intro">Manage local prototype store information and interface preferences.</p></div></header>
+    <aside class="admin-inline-notice admin-settings-notice" role="note"><i class="fa-solid fa-laptop" aria-hidden="true"></i><div><p data-i18n="admin_settings_local_note">Store details below are saved only in this browser and are not published.</p></div></aside>
+
+    <div class="admin-settings-grid">
+      <section class="admin-card admin-settings-card" aria-labelledby="storeInfoTitle">
+        <header class="admin-card-header"><div><h2 class="admin-card-title" id="storeInfoTitle" data-i18n="admin_store_information">Store information</h2><p class="admin-card-subtitle" data-i18n="admin_store_information_sub">Local prototype contact and identity fields.</p></div></header>
+        <form id="storeSettingsForm" class="admin-card-body admin-settings-form" novalidate>
+          <div><label class="form-label admin-form-label" for="storeName"><span data-i18n="admin_store_name">Store name</span> <span class="admin-required" aria-hidden="true">*</span></label><input class="form-control admin-input" id="storeName" required maxlength="80"><div class="invalid-feedback" data-i18n="admin_name_required">Enter a name.</div></div>
+          <div><label class="form-label admin-form-label" for="storeEmail" data-i18n="admin_contact_email">Contact email</label><input class="form-control admin-input" id="storeEmail" type="email" autocomplete="email"><div class="invalid-feedback" data-i18n="admin_valid_email">Enter a valid email address.</div></div>
+          <div><label class="form-label admin-form-label" for="storePhone" data-i18n="admin_contact_phone">Contact phone</label><input class="form-control admin-input" id="storePhone" type="tel" autocomplete="tel"></div>
+          <div><label class="form-label admin-form-label" for="storeAddress" data-i18n="admin_store_address">Store address</label><textarea class="form-control admin-textarea" id="storeAddress" rows="3" maxlength="240"></textarea></div>
+          <div class="admin-form-actions"><button class="admin-button admin-button--secondary" id="storeSettingsCancel" type="button" data-i18n="admin_cancel">Cancel</button><button class="admin-button admin-button--primary" id="storeSettingsSubmit" type="submit"><span data-i18n="admin_save_local">Save locally</span></button></div>
+        </form>
+      </section>
+
+      <div class="admin-settings-stack">
+        <section class="admin-card admin-settings-card" aria-labelledby="appearanceTitle">
+          <header class="admin-card-header"><div><h2 class="admin-card-title" id="appearanceTitle" data-i18n="admin_appearance_language">Appearance & language</h2><p class="admin-card-subtitle" data-i18n="admin_preferences_browser_note">Preferences use the same browser settings as the storefront.</p></div></header>
+          <div class="admin-card-body admin-preferences-body">
+            <fieldset class="admin-choice-group"><legend data-i18n="admin_theme">Theme</legend><div class="admin-choice-row"><button class="admin-choice-card" type="button" data-admin-theme-choice="light"><i class="fa-regular fa-sun" aria-hidden="true"></i><span data-i18n="admin_light">Light</span><small data-i18n="admin_light_sub">Bright interface</small></button><button class="admin-choice-card" type="button" data-admin-theme-choice="dark"><i class="fa-regular fa-moon" aria-hidden="true"></i><span data-i18n="admin_dark">Dark</span><small data-i18n="admin_dark_sub">Low-light interface</small></button></div></fieldset>
+            <fieldset class="admin-choice-group"><legend data-i18n="admin_language">Language</legend><div class="admin-choice-row"><button class="admin-choice-card" type="button" data-admin-lang-choice="en"><strong>EN</strong><span>English</span></button><button class="admin-choice-card" type="button" data-admin-lang-choice="fr"><strong>FR</strong><span>Français</span></button></div></fieldset>
+          </div>
+        </section>
+
+        <section class="admin-card admin-security-panel" aria-labelledby="securityTitle">
+          <div class="admin-security-icon"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i></div>
+          <div><p class="admin-page-eyebrow" data-i18n="admin_requires_backend">Requires backend</p><h2 id="securityTitle" data-i18n="admin_security_title">Security</h2><p data-i18n="admin_security_inert">This prototype cannot provide password changes, roles, two-factor authentication, or audit logs. No controls are shown because those features require a real backend.</p></div>
+        </section>
+      </div>
+    </div>
+    </section>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="../js/i18n.js"></script>
+  <script src="../js/core.js"></script>
+  <script src="js/admin-auth.js"></script>
+  <script src="js/admin-core.js"></script>
+  <script src="js/admin-settings.js"></script>
+</body>
+</html>

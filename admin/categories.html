@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AM MARKET Admin — Categories</title>
+  <meta name="description" content="Frontend-only AM MARKET category administration prototype." />
+  <meta name="robots" content="noindex, nofollow" />
+  <script>(function () { var t = localStorage.getItem('am_theme') === 'dark' ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', t); document.documentElement.setAttribute('data-bs-theme', t); })();</script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/common.css" />
+  <link rel="stylesheet" href="css/admin-common.css" />
+  <link rel="stylesheet" href="css/admin-categories.css" />
+  <link rel="icon" type="image/png" href="../img/logo-round.png" />
+</head>
+
+<body class="admin-app admin-shell-pending" data-admin="true" data-admin-protected="true" data-page="admin-categories" data-admin-page="categories">
+  <main id="adminMain" class="admin-main admin-categories-page" tabindex="-1">
+    <header class="admin-categories-heading">
+      <div>
+        <p class="admin-categories-eyebrow mb-1" data-i18n="admin_categories_catalog_label">Catalog workspace</p>
+        <h1 class="admin-categories-title" data-i18n="admin_categories_title">Categories</h1>
+        <p class="admin-categories-subtitle mb-0" data-i18n="admin_categories_subtitle">Explore the live hierarchy and prototype category changes locally.</p>
+      </div>
+      <button class="btn btn-primary admin-categories-add" id="addCategoryButton" type="button">
+        <i class="fa-solid fa-plus" aria-hidden="true"></i>
+        <span data-i18n="admin_categories_add">Add category</span>
+      </button>
+    </header>
+
+    <aside class="admin-categories-local-note" role="note" aria-labelledby="categoriesLocalNoteTitle">
+      <i class="fa-solid fa-laptop-file" aria-hidden="true"></i>
+      <div>
+        <strong id="categoriesLocalNoteTitle" data-i18n="admin_categories_local_note_title">Frontend prototype</strong>
+        <span data-i18n="admin_categories_local_note">Category changes stay in this browser's admin overlay and never update the live API or storefront.</span>
+      </div>
+    </aside>
+
+    <section class="admin-categories-card" aria-labelledby="categoriesListTitle">
+      <div class="admin-categories-card-head">
+        <div>
+          <h2 id="categoriesListTitle" data-i18n="admin_categories_list_title">Catalog categories</h2>
+          <p id="categorySummary" class="admin-categories-summary mb-0" aria-live="polite"></p>
+        </div>
+      </div>
+
+      <form id="categoryFilters" class="admin-categories-filters" role="search">
+        <div class="admin-categories-search">
+          <label class="visually-hidden" for="categorySearch" data-i18n="admin_categories_search_label">Search categories</label>
+          <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+          <input class="form-control" id="categorySearch" name="search" type="search" autocomplete="off"
+            data-i18n-ph="admin_categories_search_placeholder" placeholder="Search by category name" />
+        </div>
+
+        <div>
+          <label class="visually-hidden" for="categoryScopeFilter" data-i18n="admin_categories_scope_filter">Filter hierarchy level</label>
+          <select class="form-select" id="categoryScopeFilter" name="scope">
+            <option value="all" data-i18n="admin_categories_all_levels">All levels</option>
+            <option value="root" data-i18n="admin_categories_root_only">Top-level only</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="visually-hidden" for="categoryStatusFilter" data-i18n="admin_categories_status_filter">Filter by status</label>
+          <select class="form-select" id="categoryStatusFilter" name="status">
+            <option value="" data-i18n="admin_categories_all_statuses">All statuses</option>
+            <option value="enabled" data-i18n="admin_categories_enabled">Enabled</option>
+            <option value="disabled" data-i18n="admin_categories_disabled">Disabled</option>
+          </select>
+        </div>
+
+        <button class="btn btn-outline-secondary" id="resetCategoryFilters" type="button">
+          <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
+          <span data-i18n="admin_categories_reset">Reset</span>
+        </button>
+        <button class="visually-hidden" type="submit" data-i18n="admin_categories_search_button">Search</button>
+      </form>
+
+      <div id="categoryListState" class="admin-categories-state" aria-live="polite"></div>
+
+      <div id="categoryTableWrap" class="admin-categories-table-wrap" hidden>
+        <table class="admin-categories-table">
+          <caption class="visually-hidden" data-i18n="admin_categories_table_caption">Categories from the live catalog with browser-local admin changes applied</caption>
+          <thead>
+            <tr>
+              <th scope="col" data-i18n="admin_categories_col_category">Category</th>
+              <th scope="col" data-i18n="admin_categories_col_parent">Parent</th>
+              <th scope="col" data-i18n="admin_categories_col_products">Catalog products</th>
+              <th scope="col" data-i18n="admin_categories_col_status">Status</th>
+              <th scope="col" data-i18n="admin_categories_col_source">Source</th>
+              <th scope="col" class="text-end" data-i18n="admin_categories_col_actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="categoryTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal fade admin-categories-modal" id="categoryEditorModal" tabindex="-1" aria-labelledby="categoryEditorTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <form id="categoryEditorForm" novalidate>
+          <div class="modal-header">
+            <div>
+              <p class="admin-categories-modal-eyebrow mb-1" data-i18n="admin_categories_local_edit">Browser-local change</p>
+              <h2 class="modal-title fs-5" id="categoryEditorTitle">Add category</h2>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" data-i18n-aria="admin_categories_close"></button>
+          </div>
+
+          <div class="modal-body">
+            <input id="categoryEditId" type="hidden" />
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label" for="categoryName">
+                  <span data-i18n="admin_categories_field_name">Category name</span>
+                  <span class="admin-categories-required" aria-hidden="true">*</span>
+                </label>
+                <input class="form-control" id="categoryName" name="name" type="text" maxlength="100" required aria-describedby="categoryNameError" />
+                <div class="invalid-feedback" id="categoryNameError"></div>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label" for="categoryParent" data-i18n="admin_categories_field_parent">Parent category</label>
+                <select class="form-select" id="categoryParent" name="parent" aria-describedby="categoryParentHelp categoryParentError">
+                  <option value="" data-i18n="admin_categories_no_parent">No parent (top level)</option>
+                </select>
+                <div class="form-text" id="categoryParentHelp" data-i18n="admin_categories_parent_help">A category cannot be placed inside itself or one of its descendants.</div>
+                <div class="invalid-feedback" id="categoryParentError"></div>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label" for="categoryIcon" data-i18n="admin_categories_field_icon">Icon or emoji (optional)</label>
+                <input class="form-control" id="categoryIcon" name="icon" type="text" maxlength="12" aria-describedby="categoryIconHelp categoryIconError" />
+                <div class="form-text" id="categoryIconHelp" data-i18n="admin_categories_icon_help">For this local admin view only.</div>
+                <div class="invalid-feedback" id="categoryIconError"></div>
+              </div>
+
+              <div class="col-12">
+                <div class="form-check form-switch admin-categories-enabled">
+                  <input class="form-check-input" id="categoryEnabled" name="enabled" type="checkbox" role="switch" checked />
+                  <label class="form-check-label" for="categoryEnabled" data-i18n="admin_categories_field_enabled">Enabled in this admin view</label>
+                </div>
+              </div>
+            </div>
+
+            <p class="admin-categories-form-note mb-0">
+              <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+              <span data-i18n="admin_categories_form_note">Submitting changes only the local admin overlay in this browser.</span>
+            </p>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" id="cancelCategoryEdit" data-bs-dismiss="modal" data-i18n="admin_categories_cancel">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="saveCategoryButton">
+              <i class="fa-solid fa-check" aria-hidden="true"></i>
+              <span data-i18n="admin_categories_apply_local">Apply locally</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+    crossorigin="anonymous"></script>
+  <script src="../js/i18n.js"></script>
+  <script src="../js/core.js"></script>
+  <script src="js/admin-auth.js"></script>
+  <script src="js/admin-core.js"></script>
+  <script src="js/admin-categories.js"></script>
+</body>
+
+</html>
