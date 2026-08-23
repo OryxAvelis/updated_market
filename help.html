@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AM MARKET — Help Center</title>
+  <meta name="description" content="AM MARKET help center for delivery, payment, returns and order questions." />
+  <script>(function () { var t = localStorage.getItem('am_theme') === 'dark' ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', t); document.documentElement.setAttribute('data-bs-theme', t); })();</script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/common.css" />
+  <link rel="stylesheet" href="css/help.css" />
+  <link rel="icon" type="image/png" href="img/logo-round.png" />
+</head>
+<body data-page="help">
+  <main class="container-fluid px-3 px-lg-4 py-3">
+    <section class="help-hero">
+      <span class="help-hero-icon"><i class="fa-regular fa-circle-question"></i></span>
+      <div>
+        <h1 data-i18n="help_title">How can we help?</h1>
+        <p data-i18n="help_intro">Quick answers about shopping, delivery, payment and returns.</p>
+      </div>
+    </section>
+
+    <nav class="help-shortcuts" aria-label="Help topics" data-i18n-aria="help_topics">
+      <a href="#delivery"><i class="fa-solid fa-truck-fast"></i><span data-i18n="delivery_link">Delivery</span></a>
+      <a href="#payment"><i class="fa-regular fa-credit-card"></i><span data-i18n="step_payment">Payment</span></a>
+      <a href="#returns"><i class="fa-solid fa-rotate-left"></i><span data-i18n="returns">Returns</span></a>
+      <a href="#faqs"><i class="fa-regular fa-circle-question"></i><span data-i18n="faqs">FAQs</span></a>
+    </nav>
+
+    <div class="help-grid">
+      <article class="help-card" id="about">
+        <i class="fa-solid fa-store"></i>
+        <h2 data-i18n="about_title">About AM MARKET</h2>
+        <p data-i18n="about_body">AM MARKET is a Moroccan online supermarket for groceries and everyday essentials.</p>
+      </article>
+      <article class="help-card" id="delivery">
+        <i class="fa-solid fa-truck-fast"></i>
+        <h2 data-i18n="delivery_title">Delivery</h2>
+        <p data-i18n="delivery_body">Delivery costs 20 DH and becomes free when your subtotal reaches 200 DH.</p>
+      </article>
+      <article class="help-card" id="payment">
+        <i class="fa-regular fa-credit-card"></i>
+        <h2 data-i18n="payment_title">Payment</h2>
+        <p data-i18n="payment_body">Choose cash on delivery, bank card, Wafacash or CashPlus during checkout.</p>
+      </article>
+      <article class="help-card" id="returns">
+        <i class="fa-solid fa-rotate-left"></i>
+        <h2 data-i18n="returns_title">Returns</h2>
+        <p data-i18n="returns_body">Return eligible items within seven days. Keep the product and packaging in their original condition.</p>
+      </article>
+    </div>
+
+    <section class="orders-help" id="orders-help">
+      <div>
+        <h2 data-i18n="orders_help_title">Need help with an order?</h2>
+        <p data-i18n="orders_help_body">Open your order history to check its status or add the same items to your cart again.</p>
+      </div>
+      <a class="btn btn-orange" href="orders.html"><i class="fa-solid fa-box me-2"></i><span data-i18n="view_orders">View orders</span></a>
+    </section>
+
+    <section class="faq-section" id="faqs">
+      <h2 data-i18n="faq_title">Frequently asked questions</h2>
+      <details>
+        <summary data-i18n="faq_delivery_q">When is delivery free?</summary>
+        <p data-i18n="faq_delivery_a">Delivery is free when the product subtotal is 200 DH or more.</p>
+      </details>
+      <details>
+        <summary data-i18n="faq_guest_q">Do I need an account?</summary>
+        <p data-i18n="faq_guest_a">No. You can browse, add products and complete checkout as a guest.</p>
+      </details>
+      <details>
+        <summary data-i18n="faq_data_q">Where are my cart and orders saved?</summary>
+        <p data-i18n="faq_data_a">This demo stores them only in your current browser.</p>
+      </details>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/core.js"></script>
+</body>
+</html>

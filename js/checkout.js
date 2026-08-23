@@ -23,31 +23,94 @@ async function renderCheckout() {
   $('coTotal').textContent = formatPrice(sub + fee);
 }
 
-function placeOrder() {
+const CHECKOUT_FIELDS = [
+  { id: 'cPhone', key: 'phone_required', valid: value => /^(?:0?[5-7])\d{8}$/.test(value.replace(/\D/g, '')) },
+  { id: 'cName', key: 'name_required', valid: value => value.length >= 2 },
+  { id: 'cCity', key: 'city_required', valid: value => value.length > 0 },
+  { id: 'cQuartier', key: 'quartier_required', valid: value => value.length >= 2 },
+  { id: 'cAddress', key: 'address_required', valid: value => value.length >= 4 }
+];
+
+function fieldErrorElement(input) {
+  const host = input.closest('.co-phone-group, .co-input-wrap') || input;
+  let error = host.parentElement.querySelector(`.co-field-error[data-for="${input.id}"]`);
+  if (!error) {
+    error = document.createElement('div');
+    error.className = 'co-field-error';
+    error.dataset.for = input.id;
+    error.id = input.id + 'Error';
+    error.setAttribute('role', 'alert');
+    host.insertAdjacentElement('afterend', error);
+  }
+  return error;
+}
+
+function setFieldError(input, message) {
+  const error = fieldErrorElement(input);
+  error.textContent = message;
+  input.classList.add('is-invalid');
+  input.setAttribute('aria-invalid', 'true');
+  input.setAttribute('aria-describedby', error.id);
+}
+
+function clearFieldError(input) {
+  const error = input.closest('.col-md-6, .col-12')?.querySelector(`.co-field-error[data-for="${input.id}"]`);
+  if (error) error.textContent = '';
+  input.classList.remove('is-invalid');
+  input.removeAttribute('aria-invalid');
+  input.removeAttribute('aria-describedby');
+}
+
+function validateCheckout() {
+  let firstInvalid = null;
+  CHECKOUT_FIELDS.forEach(({ id, key, valid }) => {
+    const input = $(id);
+    const value = input.value.trim();
+    clearFieldError(input);
+    if (!valid(value)) {
+      setFieldError(input, t(key));
+      if (!firstInvalid) firstInvalid = input;
+    }
+  });
+
+  const email = $('cEmail');
+  clearFieldError(email);
+  if (email.value.trim() && !email.validity.valid) {
+    setFieldError(email, t('email_invalid'));
+    if (!firstInvalid) firstInvalid = email;
+  }
+
+  if (firstInvalid) {
+    firstInvalid.focus({ preventScroll: true });
+    firstInvalid.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+    toast(t('fix_fields'));
+    return false;
+  }
+  return true;
+}
+
+function placeOrder(event) {
+  event?.preventDefault();
+  if (!validateCheckout()) return;
+
   const name = $('cName').value.trim();
   const phone = $('cPhone').value.trim();
   const email = $('cEmail').value.trim();
   const address = $('cAddress').value.trim();
   const city = $('cCity').value.trim();
+  const quartier = $('cQuartier')?.value.trim() || '';
   const note = $('cNote')?.value.trim() || '';
   const payment = document.querySelector('input[name="pay"]:checked')?.value || 'Cash on Delivery';
 
-  const requiredFields = [$('cName'), $('cPhone'), $('cEmail'), $('cAddress'), $('cCity')];
-  const invalid = requiredFields.filter(field => !field.checkValidity());
-  requiredFields.forEach(field => {
-    field.classList.toggle('is-invalid', invalid.includes(field));
-    field.setAttribute('aria-invalid', invalid.includes(field) ? 'true' : 'false');
-  });
-  if (invalid.length) {
-    toast(t('fill_all'));
-    invalid[0].focus();
-    invalid[0].reportValidity();
-    return;
-  }
-
   const items = cart.map(c => {
-    const p = productCache[c.id] || { name: c.name || 'Product', price: c.price || 0 };
-    return { id: c.id, name: p.name, price: parseFloat(p.price), qty: c.qty };
+    const p = productCache[c.id] || { name: c.name || 'Product', price: c.price || 0, image_url: c.image_url || '' };
+    return {
+      id: c.id,
+      name: p.name || c.name,
+      price: parseFloat(p.price ?? c.price) || 0,
+      qty: c.qty,
+      image_url: p.image_url || c.image_url || ''
+    };
   });
 
   const sub = items.reduce((s, i) => s + i.price * i.qty, 0);
@@ -56,7 +119,7 @@ function placeOrder() {
   orders.unshift({
     id: 'AM' + Date.now().toString().slice(-6),
     date: new Date().toISOString(),
-    buyer: { name, phone, email, address, city, note },
+    buyer: { name, phone, email, address, city, quartier, note },
     payment,
     items,
     subtotal: sub,
@@ -70,7 +133,7 @@ function placeOrder() {
   saveCart();
 
   // Remember the delivery details for the next checkout (settings page shows them too)
-  saveDeliveryInfo({ name, phone, email, address, city });
+  saveDeliveryInfo({ name, phone, email, address, city, quartier });
 
   toast(t('order_ok'));
   setTimeout(() => { location.href = 'orders.html'; }, 900);
@@ -79,7 +142,13 @@ function placeOrder() {
 document.addEventListener('DOMContentLoaded', () => {
   prefillCheckout();
   renderCheckout();
-  $('placeOrder')?.addEventListener('click', placeOrder);
+  $('checkoutForm')?.addEventListener('submit', placeOrder);
+
+  CHECKOUT_FIELDS.forEach(({ id }) => {
+    const input = $(id);
+    input?.addEventListener(input.tagName === 'SELECT' ? 'change' : 'input', () => clearFieldError(input));
+  });
+  $('cEmail')?.addEventListener('input', () => clearFieldError($('cEmail')));
 
   // Payment option cards: sync the visual selected state with the radio inputs
   const opts = document.querySelectorAll('.pay-opt');
@@ -101,19 +170,13 @@ function prefillCheckout() {
   fill('cEmail', d.email || (u && u.email) || '');
   fill('cAddress', d.address || '');
   fill('cCity', d.city || '');
+  fill('cQuartier', d.quartier || '');
 
   // Default payment method from settings
-  // Card checkout needs a real payment provider; keep the static demo honest.
-  if ($('pay1')) $('pay1').checked = true;
+  const pay = getDefaultPay();
+  const radio = pay === 'card' ? $('pay2') : $('pay1');
+  if (radio) radio.checked = true;
 }
-
-document.addEventListener('input', e => {
-  if (!e.target.matches('#cName, #cPhone, #cEmail, #cAddress, #cCity')) return;
-  if (e.target.checkValidity()) {
-    e.target.classList.remove('is-invalid');
-    e.target.setAttribute('aria-invalid', 'false');
-  }
-});
 
 // Re-render the summary only (never touches the form fields being filled in)
 window.addEventListener('am:langchange', renderCheckout);

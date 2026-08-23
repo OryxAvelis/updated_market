@@ -62,20 +62,16 @@
           <div class="input-group-custom" id="loginPassWrap">
             <i class="fa-solid fa-lock"></i>
             <input type="password" id="loginPass" placeholder="Password" autocomplete="current-password" data-i18n-ph="password_ph" />
-            <button type="button" class="eye" data-eye="loginPass" title="Show password" data-i18n-title="show_pass"><i class="fa-regular fa-eye"></i></button>
+            <button type="button" class="eye" data-eye="loginPass" title="Show password" aria-label="Show password" aria-controls="loginPass" aria-pressed="false" data-i18n-title="show_pass" data-i18n-aria="show_pass"><i class="fa-regular fa-eye"></i></button>
           </div>
           <div class="row-between">
             <label class="remember"><input type="checkbox" checked /> <span data-i18n="remember">Remember me</span></label>
-            <a href="#" class="forgot" data-i18n="forgot">Forgot password?</a>
+            <button type="button" class="forgot" id="forgotHelp" data-i18n="forgot">Forgot password?</button>
           </div>
           <button class="btn-submit" type="submit" id="loginBtn">
             <span data-i18n="sign_in_btn">Sign In</span><i class="fa-solid fa-arrow-right"></i>
           </button>
         </form>
-        <div class="divider"><span data-i18n="or_continue">or continue with</span></div>
-        <div class="socials">
-          <button class="social-btn" type="button"><i class="fa-brands fa-google"></i> Google</button>
-        </div>
         <p class="switch-line"><span data-i18n="new_to">New to AM Market?</span> <button class="link-btn" id="toSignup" type="button"><span data-i18n="create_account_link">Create an account</span></button></p>
       </div>
 
@@ -95,7 +91,7 @@
           <div class="input-group-custom" id="suPassWrap">
             <i class="fa-solid fa-lock"></i>
             <input type="password" id="suPass" placeholder="Password (6+ characters)" autocomplete="new-password" data-i18n-ph="pass6_ph" />
-            <button type="button" class="eye" data-eye="suPass" title="Show password" data-i18n-title="show_pass"><i class="fa-regular fa-eye"></i></button>
+            <button type="button" class="eye" data-eye="suPass" title="Show password" aria-label="Show password" aria-controls="suPass" aria-pressed="false" data-i18n-title="show_pass" data-i18n-aria="show_pass"><i class="fa-regular fa-eye"></i></button>
           </div>
           <button class="btn-submit mt-3" type="submit" id="signupBtn">
             <span data-i18n="create_btn">Create Account</span><i class="fa-solid fa-user-plus"></i>
@@ -117,7 +113,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-  <script src="js/i18n.js?v=20260817"></script>
+  <script src="js/i18n.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
 
@@ -156,6 +152,7 @@
     }
     $('toSignup').onclick = () => { showBox('signupBox', 'loginBox', false); setBrand('signup'); };
     $('toLogin').onclick  = () => { showBox('loginBox', 'signupBox', true);  setBrand('login'); };
+    $('forgotHelp').onclick = () => toast(t('demo_password_note'));
 
     // ---------- Show / hide password ----------
     document.querySelectorAll('.eye').forEach(btn => {
@@ -163,6 +160,9 @@
         const inp = $(btn.dataset.eye);
         const show = inp.type === 'password';
         inp.type = show ? 'text' : 'password';
+        btn.setAttribute('aria-pressed', String(show));
+        btn.setAttribute('aria-label', t(show ? 'hide_pass' : 'show_pass'));
+        btn.setAttribute('title', t(show ? 'hide_pass' : 'show_pass'));
         btn.innerHTML = show ? '<i class="fa-regular fa-eye-slash"></i>' : '<i class="fa-regular fa-eye"></i>';
       };
     });

@@ -164,10 +164,11 @@ async function fetchCategories() {
     .filter(c => c.id !== EXCLUDE_CAT && c.parent_id == null);
 }
 
-async function fetchProducts(page = 1, categoryId = null, search = '') {
+async function fetchProducts(page = 1, categoryId = null, search = '', ordering = '') {
   let url = `${API}/products/?include_descendants=true&page=${page}&page_size=12`;
   if (categoryId) url += `&category=${categoryId}`;
   if (search) url += `&search=${encodeURIComponent(search)}`;
+  if (ordering) url += `&ordering=${encodeURIComponent(ordering)}`;
   const data = await apiJSON(url); // { count, next, previous, results }
   (data.results || []).forEach(p => { productCache[p.id] = p; });
   return data;
@@ -210,10 +211,10 @@ function getUser() {
 }
 
 function getDefaultPay() {
-  return 'cod';
+  return localStorage.getItem('am_pay') === 'card' ? 'card' : 'cod';
 }
 function setDefaultPay(p) {
-  localStorage.setItem('am_pay', 'cod');
+  localStorage.setItem('am_pay', p === 'card' ? 'card' : 'cod');
 }
 
 function getDeliveryInfo() {
@@ -276,13 +277,21 @@ async function getCartItems() {
   let changed = false;
   for (const c of cart) {
     let p = productCache[c.id];
-    if (!p && c.name != null) {
-      p = { id: String(c.id), name: c.name, price: c.price, image_url: c.image_url, brand_name: c.brand_name || '' };
+    // Prefer full product from API if we only have a thin snapshot (no image)
+    const needsFetch = !p || !p.image_url;
+    if (needsFetch) {
+      try {
+        p = await fetchProduct(c.id);
+      } catch {
+        p = p || {
+          id: String(c.id),
+          name: c.name || 'Product',
+          price: c.price || 0,
+          image_url: c.image_url || '',
+          brand_name: c.brand_name || ''
+        };
+      }
       productCache[c.id] = p;
-    }
-    if (!p) {
-      try { p = await fetchProduct(c.id); }
-      catch { p = { id: String(c.id), name: 'Product', price: 0, image_url: '' }; }
     }
     if (c.name == null || String(c.price) !== String(p.price) || c.image_url !== p.image_url) {
       c.name = p.name; c.price = p.price; c.image_url = p.image_url; c.brand_name = p.brand_name || '';
@@ -384,11 +393,18 @@ async function renderSidebar(activeCat = null) {
   const list = $('categoryList');
   if (!list) return;
   try { await ensureCategories(); } catch { return; }
+  // Prioritize school / office supplies (Fournitures Bureau) during rentrée
+  const RENTREE_CAT = 1363;
+  const sorted = [...categories].sort((a, b) => {
+    if (a.id === RENTREE_CAT) return -1;
+    if (b.id === RENTREE_CAT) return 1;
+    return 0;
+  });
   list.innerHTML = `
     <a class="list-group-item ${activeCat == null ? 'active' : ''}" href="categories.html">
       🏪 ${t('all_categories')}
     </a>
-    ${categories.map(c => `
+    ${sorted.map(c => `
       <a class="list-group-item ${activeCat === c.id ? 'active' : ''}" href="categories.html?cat=${c.id}">
         ${getCatIcon(c)} ${escapeHtml(catName(c.name))}
         <span class="cat-count">${c.product_count || 0}</span>
@@ -405,7 +421,6 @@ function cardHTML(p) {
   const oldPrice = parseFloat(p.original_price);
   const hasOld = oldPrice > 0 && oldPrice > parseFloat(p.price);
   const href = 'product.html?id=' + encodeURIComponent(p.id);
-
   return `
     <div class="col-6 col-md-4 col-xl-3">
       <div class="product-card">
@@ -423,11 +438,13 @@ function cardHTML(p) {
               ${hasOld ? `<span class="old">${formatPrice(oldPrice)}</span>` : ''}
             </div>
             <div class="card-actions">
-              <button class="wish-btn ${inWish ? 'active' : ''}" data-wish="${p.id}" title="${t('wish_title')}" aria-label="${t('wish_title')}">
+              <button class="wish-btn ${inWish ? 'active' : ''}" data-wish="${p.id}" title="${t('wish_title')}"
+                      aria-label="${escapeHtml(t(inWish ? 'remove_named_wish' : 'add_named_wish', { name: p.name }))}">
                 <i class="fa-${inWish ? 'solid' : 'regular'} fa-heart"></i>
               </button>
-              <button class="add-btn" data-id="${p.id}" title="${t('add_to_cart')}" aria-label="${t('add_to_cart')}">
-                <i class="fa-solid fa-plus"></i>
+              <button class="add-btn" data-id="${p.id}" title="${t('add_to_cart')}"
+                      aria-label="${escapeHtml(t('add_named_cart', { name: p.name }))}">
+                <i class="fa-solid fa-cart-plus"></i>
               </button>
             </div>
           </div>
@@ -457,7 +474,7 @@ const HEADER_HTML = `
 <header class="top-header">
   <div class="container-fluid px-3 px-lg-4">
     <div class="header-card d-flex align-items-center gap-3 header-row">
-      <a href="index.html" class="logo">
+      <a href="index.html" class="logo" aria-label="AM MARKET home" data-i18n-aria="home_link">
         <img src="img/logo-round.png" alt="AM MARKET — Shop More, Live Better" class="logo-img">
         <span class="logo-text">
           <span class="brand">AM <span class="text-orange">MARKET</span></span>
@@ -465,44 +482,43 @@ const HEADER_HTML = `
         </span>
       </a>
 
-      <nav class="desktop-shop-nav" aria-label="Primary navigation">
-        <a href="index.html" data-nav="home"><i class="fa-solid fa-house"></i><span data-i18n="nav_home">Home</span></a>
-        <a href="categories.html" data-nav="shop"><i class="fa-solid fa-grid-2"></i><span data-i18n="nav_shop">Shop</span></a>
-      </nav>
-
       <div class="search-box flex-grow-1">
         <div class="input-group">
           <span class="search-lead"><i class="fa-solid fa-magnifying-glass"></i></span>
-          <input type="text" class="form-control" id="searchInput" placeholder="Search for products, brands and more..." data-i18n-ph="search_ph" />
-          <button class="btn btn-orange" id="searchBtn"><i class="fa-solid fa-magnifying-glass"></i> <span class="d-none d-lg-inline" data-i18n="search_btn">Search</span></button>
+          <input type="search" class="form-control" id="searchInput" placeholder="Search for products, brands and more..."
+                 data-i18n-ph="search_ph" aria-label="Search products" data-i18n-aria="search_label" />
+          <button class="btn btn-orange" id="searchBtn" title="Search" data-i18n-title="search_btn"
+                  aria-label="Search" data-i18n-aria="search_btn"><i class="fa-solid fa-magnifying-glass"></i></button>
         </div>
       </div>
 
       <div class="d-flex align-items-center gap-1 gap-lg-2 header-actions">
-        <button class="btn-icon lang-btn" data-lang-toggle title="Français / English">
-          <i class="fa-solid fa-globe"></i> <span class="d-none d-md-inline" id="langLabel">EN</span> <i class="fa-solid fa-chevron-down hdr-chev"></i>
+        <button class="btn-icon lang-btn" data-lang-toggle title="Français / English"
+                aria-label="Change language" data-i18n-aria="change_language">
+          <i class="fa-solid fa-globe"></i>
         </button>
-        <a class="btn-icon labeled" href="wishlist.html" title="Wishlist" data-i18n-title="wish_title">
+        <a class="btn-icon" href="wishlist.html" title="Wishlist" data-i18n-title="wish_title"
+           aria-label="Wishlist" data-i18n-aria="wish_title">
           <i class="fa-regular fa-heart"></i>
           <span class="badge-count" id="wishCount">0</span>
-          <span class="lbl d-none d-xl-block" data-i18n="wish_title">Wishlist</span>
         </a>
-        <a class="btn-icon labeled" href="cart.html" title="Cart" data-i18n-title="cart_title">
+        <a class="btn-icon" href="cart.html" title="Cart" data-i18n-title="cart_title"
+           aria-label="Cart" data-i18n-aria="cart_title">
           <i class="fa-solid fa-cart-shopping"></i>
           <span class="badge-count" id="cartCount">0</span>
-          <span class="lbl d-none d-xl-block" data-i18n="cart_title">Cart</span>
         </a>
         <div class="dropdown">
-          <button class="btn-icon labeled dropdown-toggle" data-bs-toggle="dropdown" title="Notifications" data-i18n-title="notif_title">
+          <button class="btn-icon dropdown-toggle" data-bs-toggle="dropdown" title="Notifications" data-i18n-title="notif_title"
+                  aria-label="Notifications" data-i18n-aria="notif_title">
             <i class="fa-regular fa-bell"></i>
             <span class="badge-count" id="notifCount">0</span>
-            <span class="lbl d-none d-xl-block" data-i18n="notif_title">Notifications</span>
           </button>
           <ul class="dropdown-menu dropdown-menu-end notif-menu" id="notifMenu"></ul>
         </div>
         <div class="dropdown">
-          <button class="account-pill dropdown-toggle" data-bs-toggle="dropdown">
-            <i class="fa-regular fa-user"></i> <span class="d-none d-lg-inline" id="accountLabel" data-i18n="my_account">My Account</span> <i class="fa-solid fa-chevron-down hdr-chev"></i>
+          <button class="btn-icon account-pill dropdown-toggle" data-bs-toggle="dropdown" title="Account"
+                  aria-label="Account" data-i18n-aria="account_label">
+            <i class="fa-regular fa-user"></i>
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
             <li id="ddUserRow" style="display:none"><span class="dropdown-item-text small fw-semibold" id="ddUserName"></span></li>
@@ -533,22 +549,17 @@ const FOOTER_HTML = `
             <img src="img/logo.png" alt="AM MARKET" class="footer-logo-img">
           </div>
           <p class="footer-desc" data-i18n="footer_desc">Votre marketplace marocaine pour tous les produits du quotidien.</p>
-          <div class="footer-socials">
-            <a href="#" aria-label="WhatsApp" data-soon><i class="fa-brands fa-whatsapp"></i></a>
-            <a href="#" aria-label="Facebook" data-soon><i class="fa-brands fa-facebook-f"></i></a>
-            <a href="#" aria-label="Messenger" data-soon><i class="fa-brands fa-facebook-messenger"></i></a>
-            <a href="#" aria-label="Instagram" data-soon><i class="fa-brands fa-instagram"></i></a>
-          </div>
+          <a class="footer-help-link" href="help.html"><i class="fa-regular fa-circle-question"></i> <span data-i18n="help_center">Help Center</span></a>
         </div>
 
         <!-- Categories -->
         <div class="col-lg-3 col-md-6">
           <h6 class="footer-heading" data-i18n="footer_cats">Catégories</h6>
           <ul class="footer-nav-list">
+            <li><a href="categories.html?cat=1363"><i class="fa-solid fa-pen"></i> <span data-i18n="fcat_school">Fournitures</span></a></li>
             <li><a href="categories.html"><i class="fa-solid fa-basket-shopping"></i> <span data-i18n="fcat_food">Alimentation</span></a></li>
             <li><a href="categories.html"><i class="fa-solid fa-bottle-water"></i> <span data-i18n="fcat_drinks">Boissons</span></a></li>
             <li><a href="categories.html"><i class="fa-solid fa-soap"></i> <span data-i18n="fcat_hygiene">Hygiène</span></a></li>
-            <li><a href="categories.html"><i class="fa-solid fa-house"></i> <span data-i18n="fcat_home">Maison</span></a></li>
           </ul>
         </div>
 
@@ -556,24 +567,21 @@ const FOOTER_HTML = `
         <div class="col-lg-3 col-md-6">
           <h6 class="footer-heading" data-i18n="footer_help">Aide</h6>
           <ul class="footer-nav-list">
-            <li><a href="#" data-soon><i class="fa-solid fa-circle-info"></i> <span data-i18n="about">À propos</span></a></li>
-            <li><a href="#" data-soon><i class="fa-solid fa-phone"></i> <span data-i18n="contact">Contact</span></a></li>
-            <li><a href="#" data-soon><i class="fa-regular fa-circle-question"></i> <span data-i18n="faqs">FAQs</span></a></li>
-            <li><a href="#" data-soon><i class="fa-solid fa-truck"></i> <span data-i18n="delivery_link">Livraison</span></a></li>
+            <li><a href="help.html#about"><i class="fa-solid fa-circle-info"></i> <span data-i18n="about">À propos</span></a></li>
+            <li><a href="help.html#orders-help"><i class="fa-solid fa-headset"></i> <span data-i18n="orders_help">Order help</span></a></li>
+            <li><a href="help.html#faqs"><i class="fa-regular fa-circle-question"></i> <span data-i18n="faqs">FAQs</span></a></li>
+            <li><a href="help.html#delivery"><i class="fa-solid fa-truck"></i> <span data-i18n="delivery_link">Livraison</span></a></li>
           </ul>
         </div>
 
-        <!-- Newsletter -->
+        <!-- Help center -->
         <div class="col-lg-3 col-md-6">
-          <h6 class="footer-heading" data-i18n="newsletter">Newsletter</h6>
-          <p class="footer-desc mb-3" data-i18n="newsletter_sub">Get updates on latest products.</p>
-          <form class="footer-newsletter" id="footerNewsletter">
-            <div class="newsletter-input-wrap">
-              <i class="fa-regular fa-envelope"></i>
-              <input type="email" id="newsletterEmail" placeholder="Email" aria-label="Email" required />
-            </div>
-            <button type="submit" class="btn btn-blue" data-i18n="go">Go</button>
-          </form>
+          <h6 class="footer-heading" data-i18n="help_center">Help Center</h6>
+          <p class="footer-desc mb-3" data-i18n="help_center_sub">Delivery, payment and return answers in one place.</p>
+          <a class="footer-support-cta" href="help.html">
+            <i class="fa-solid fa-arrow-right"></i>
+            <span data-i18n="open_help_center">Open Help Center</span>
+          </a>
         </div>
 
       </div>
@@ -593,15 +601,13 @@ const FOOTER_HTML = `
         <span class="payment-text-badge" style="color:#c8102e;font-weight:800;font-size:0.82rem;letter-spacing:-0.3px;">Wafa<span style="color:#1a1a1a;">cash</span></span>
         <!-- CashPlus -->
         <span class="payment-text-badge" style="color:#e8000d;font-weight:800;font-size:0.82rem;">Cash<span style="color:#f7a800;">Plus</span></span>
-        <!-- PayPal -->
-        <span class="payment-text-badge" style="font-style:italic;font-weight:800;font-size:0.85rem;color:#003087;">Pay<span style="color:#009cde;">Pal</span></span>
       </div>
     </div>
   </div>
 </footer>`;
 
 const TABBAR_HTML = `
-<nav class="mobile-tabbar" aria-label="Mobile navigation">
+<nav class="mobile-tabbar" aria-label="Mobile navigation" data-i18n-aria="mobile_nav">
   <a class="tab-item" data-tab="home" href="index.html">
     <i class="fa-solid fa-house"></i>
     <span data-i18n="tab_home">Home</span>
@@ -654,28 +660,9 @@ function initHeaderSearch() {
   if (input) input.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
 }
 
-function initHeaderNav() {
-  const page = document.body.dataset.page;
-  const active = ['categories', 'product'].includes(page) ? 'shop' : 'home';
-  document.querySelectorAll('.desktop-shop-nav [data-nav]').forEach(link => {
-    link.classList.toggle('active', link.dataset.nav === active);
-  });
-}
-
-function initFooterNewsletter() {
-  const form = $('footerNewsletter');
-  const input = $('newsletterEmail');
-  if (!form || !input) return;
-  form.addEventListener('submit', e => {
-    e.preventDefault();
-    if (!input.checkValidity()) { input.reportValidity(); return; }
-    toast(t('newsletter_pending'));
-  });
-}
-
 // Sync the mobile bottom toolbar active tab with the current page
 function initTabbar() {
-  const map = { home: 'home', categories: 'home', product: 'home', cart: 'cart', checkout: 'cart', wishlist: 'wishlist', orders: 'account', settings: 'account' };
+  const map = { home: 'home', categories: 'home', product: 'home', cart: 'cart', checkout: 'cart', wishlist: 'wishlist', orders: 'account', settings: 'account', help: 'account' };
   const active = map[document.body.dataset.page] || '';
   document.querySelectorAll('.mobile-tabbar [data-tab]').forEach(el => {
     el.classList.toggle('active', el.dataset.tab === active);
@@ -686,7 +673,7 @@ function initTabbar() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
         setTimeout(() => $('searchInput')?.focus({ preventScroll: true }), 350);
       } else if (tab === 'account') {
-        location.href = localStorage.getItem('am_user') ? 'orders.html' : 'login.html';
+        location.href = 'settings.html';
       }
     });
   });
@@ -723,8 +710,6 @@ document.addEventListener('click', e => {
   renderAccountPanel();
   updateAccountUI();
   initHeaderSearch();
-  initHeaderNav();
-  initFooterNewsletter();
   initTabbar();
   initBackToTop();
 })();

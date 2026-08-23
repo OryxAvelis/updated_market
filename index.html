@@ -1,17 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AM MARKET — Shop More, Live Better</title>
-  <meta name="description" content="AM MARKET — your Moroccan online supermarket. Groceries, beverages, dairy, hygiene and household products delivered all over Morocco." />
+  <meta name="description"
+    content="AM MARKET — your Moroccan online supermarket. Groceries, beverages, dairy, hygiene and household products delivered all over Morocco." />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="AM MARKET" />
   <meta property="og:title" content="AM MARKET — Shop More, Live Better" />
-  <meta property="og:description" content="Your Moroccan online supermarket. Groceries, beverages, dairy, hygiene and household products delivered all over Morocco." />
-  <meta property="og:image" content="https://raw.githubusercontent.com/OryxAvelis/updated_market/main/img/logo-round.png" />
+  <meta property="og:description"
+    content="Your Moroccan online supermarket. Groceries, beverages, dairy, hygiene and household products delivered all over Morocco." />
+  <meta property="og:image"
+    content="https://raw.githubusercontent.com/OryxAvelis/updated_market/main/img/logo-round.png" />
   <meta name="twitter:card" content="summary" />
-  <script>(function(){var t=localStorage.getItem('am_theme')==='dark'?'dark':'light';document.documentElement.setAttribute('data-theme',t);document.documentElement.setAttribute('data-bs-theme',t);})();</script>
+  <script>(function () { var t = localStorage.getItem('am_theme') === 'dark' ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', t); document.documentElement.setAttribute('data-bs-theme', t); })();</script>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -19,102 +23,139 @@
   <link rel="stylesheet" href="css/home.css" />
   <link rel="icon" type="image/png" href="img/logo-round.png" />
 </head>
+
 <body data-page="home">
 
   <main class="container-fluid px-3 px-lg-4 py-3">
     <section>
-          <div class="row g-3 mb-3 home-top">
-            <div class="col-xl-9">
-              <div class="hero-banner">
-                <div class="hero-bubbles">
-                  <span></span><span></span><span></span><span></span><span></span>
+      <div class="row g-3 mb-3 home-top">
+        <div class="col-12">
+          <div class="hero-banner">
+            <div class="hero-bubbles">
+              <span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <div class="hero-slides" id="heroSlides">
+              <div class="hero-slide s1 active hero-rentree">
+                <div class="hero-text">
+                  <span class="hero-season-tag" data-i18n="season_rentree_tag">Back to School</span>
+                  <h1 data-i18n-html="hero_rentree_title">Ready for<br>the new school year</h1>
+                  <p data-i18n="hero_rentree_sub">Office supplies, breakfast & everyday essentials for the rentrée.</p>
+                  <a class="btn btn-light hero-cta" href="categories.html?cat=1363"><span data-i18n="shop_school">Shop
+                      school supplies</span> <i class="fa-solid fa-arrow-right"></i></a>
                 </div>
-                <div class="hero-slides" id="heroSlides">
-                  <div class="hero-slide s1 active">
-                    <div class="hero-text">
-                      <h1 data-i18n-html="hero_title">Big Deals<br>For Your Home!</h1>
-                      <p data-i18n="hero_sub">We have the products you love at the prices you'll love.</p>
-                      <a class="btn btn-light hero-cta" href="categories.html"><span data-i18n="shop_now">Shop Now</span> <i class="fa-solid fa-arrow-right"></i></a>
-                    </div>
-                    <img class="hero-img" src="img/hero-cart.png" alt="" draggable="false">
-                  </div>
-                  <div class="hero-slide s2">
-                    <div class="hero-text">
-                      <h1 data-i18n="hero2_title">Fresh Groceries Every Day</h1>
-                      <p data-i18n="hero2_sub">Fruits, dairy & essentials delivered fast.</p>
-                      <a class="btn btn-light hero-cta" href="categories.html"><span data-i18n="shop_now">Shop Now</span> <i class="fa-solid fa-arrow-right"></i></a>
-                    </div>
-                  </div>
-                  <div class="hero-slide s3">
-                    <div class="hero-text">
-                      <h1 data-i18n="hero3_title">Up to 50% OFF Snacks</h1>
-                      <p data-i18n="hero3_sub">Stock up on your favorites for less.</p>
-                      <a class="btn btn-light hero-cta" href="categories.html"><span data-i18n="shop_now">Shop Now</span> <i class="fa-solid fa-arrow-right"></i></a>
-                    </div>
-                  </div>
-                  <div class="hero-slide s4">
-                    <div class="hero-text">
-                      <h1 data-i18n="hero4_title">Free Delivery over 200 DH</h1>
-                      <p data-i18n="hero4_sub">Fast & safe delivery all over Morocco.</p>
-                      <a class="btn btn-light hero-cta" href="categories.html"><span data-i18n="shop_now">Shop Now</span> <i class="fa-solid fa-arrow-right"></i></a>
-                    </div>
-                  </div>
+                <img class="hero-img" src="img/hero-cart.png" alt="" draggable="false">
+              </div>
+              <div class="hero-slide s2">
+                <div class="hero-text">
+                  <h1 data-i18n="hero2_title">Fresh Groceries Every Day</h1>
+                  <p data-i18n="hero2_sub">Fruits, dairy & essentials delivered fast.</p>
+                  <a class="btn btn-light hero-cta" href="categories.html"><span data-i18n="shop_now">Shop Now</span> <i
+                      class="fa-solid fa-arrow-right"></i></a>
                 </div>
-                <div class="hero-dots" id="heroDots"></div>
+                <img class="hero-img" src="img/hero-cart.png" alt="" draggable="false">
+              </div>
+              <div class="hero-slide s3">
+                <div class="hero-text">
+                  <h1 data-i18n="hero4_title">Free Delivery over 200 DH</h1>
+                  <p data-i18n="hero4_sub">Fast & safe delivery all over Morocco.</p>
+                  <a class="btn btn-light hero-cta" href="categories.html"><span data-i18n="shop_now">Shop Now</span> <i
+                      class="fa-solid fa-arrow-right"></i></a>
+                </div>
+                <img class="hero-img" src="img/hero-cart.png" alt="" draggable="false">
+              </div>
+              <div class="hero-slide s4">
+                <div class="hero-text">
+                  <h1 data-i18n-html="hero_title">Shop more,<br>live better</h1>
+                  <p data-i18n="hero_sub">Your Moroccan supermarket — delivered to your door.</p>
+                  <a class="btn btn-light hero-cta" href="categories.html"><span data-i18n="shop_now">Shop Now</span> <i
+                      class="fa-solid fa-arrow-right"></i></a>
+                </div>
+                <img class="hero-img" src="img/hero-cart.png" alt="" draggable="false">
               </div>
             </div>
+            <div class="hero-dots" id="heroDots"></div>
+            <button class="hero-pause" id="heroPause" type="button" aria-label="Pause carousel" data-i18n-aria="pause_carousel">
+              <i class="fa-solid fa-pause"></i>
+            </button>
+          </div>
+        </div>
+      </div>
 
-            <div class="col-xl-3 d-none d-xl-block">
-              <aside class="home-ad" aria-labelledby="adTitle">
-                <div class="ad-grid"></div>
-                <span class="ad-label" data-i18n="ad_label">AM MARKET PLUS</span>
-                <div class="ad-orbit ad-orbit-one"></div>
-                <div class="ad-orbit ad-orbit-two"></div>
-                <div class="ad-icon"><i class="fa-solid fa-bag-shopping"></i></div>
-                <p class="ad-eyebrow" data-i18n="ad_eyebrow">THIS WEEK'S PERK</p>
-                <h2 id="adTitle" data-i18n="ad_title">More in your cart.<br>Less at checkout.</h2>
-                <p class="ad-copy" data-i18n="ad_copy">Enjoy free delivery when your basket reaches 200 DH.</p>
-                <a class="ad-link" href="categories.html">
-                  <span data-i18n="ad_cta">Start shopping</span><i class="fa-solid fa-arrow-right"></i>
-                </a>
-                <div class="ad-foot"><i class="fa-solid fa-truck-fast"></i><span data-i18n="ad_note">Delivery across Morocco</span></div>
-              </aside>
-            </div>
+      <div class="trust-bar mb-4">
+        <div class="trust-item"><i class="fa-solid fa-shield-halved"></i>
+          <div><strong data-i18n="trust4_t">Secure Payment</strong><small data-i18n="trust4_s">100% protected</small>
           </div>
+        </div>
+        <div class="trust-item"><i class="fa-solid fa-truck-fast"></i>
+          <div><strong data-i18n="trust1_t">Fast Delivery</strong><small data-i18n="trust1_s">All over Morocco</small>
+          </div>
+        </div>
+        <div class="trust-item"><i class="fa-solid fa-rotate"></i>
+          <div><strong data-i18n="trust3_t">Easy Returns</strong><small data-i18n="trust3_s">Within 7 days</small></div>
+        </div>
+        <div class="trust-item"><i class="fa-solid fa-headset"></i>
+          <div><strong data-i18n="trust5_t">24/7 Support</strong><small data-i18n="trust5_s">We're here for you</small>
+          </div>
+        </div>
+      </div>
 
-          <div class="trust-bar mb-4">
-            <div class="trust-item"><i class="fa-solid fa-shield-halved"></i><div><strong data-i18n="trust4_t">Secure Payment</strong><small data-i18n="trust4_s">100% protected</small></div></div>
-            <div class="trust-item"><i class="fa-solid fa-truck-fast"></i><div><strong data-i18n="trust1_t">Fast Delivery</strong><small data-i18n="trust1_s">All over Morocco</small></div></div>
-            <div class="trust-item"><i class="fa-solid fa-rotate"></i><div><strong data-i18n="trust3_t">Easy Returns</strong><small data-i18n="trust3_s">Within 7 days</small></div></div>
-            <div class="trust-item"><i class="fa-solid fa-headset"></i><div><strong data-i18n="trust5_t">24/7 Support</strong><small data-i18n="trust5_s">We're here for you</small></div></div>
+      <!-- Seasonal catalogue: Rentrée -->
+      <div class="season-strip mb-4" id="seasonStrip">
+        <div class="season-strip-head">
+          <div>
+            <span class="season-badge" data-i18n="season_rentree_tag">Back to School</span>
+            <h4 class="fw-bold mb-1" data-i18n="season_rentree_title">Rentrée scolaire</h4>
+            <p class="text-muted small mb-0" data-i18n="season_rentree_sub">Office supplies and essentials for the new
+              school year</p>
           </div>
+          <a href="categories.html?cat=1363" class="btn btn-orange btn-sm" data-i18n="view_catalogue">View catalogue</a>
+        </div>
+        <div class="season-chips">
+          <a class="season-chip" href="categories.html?cat=1363"><i class="fa-solid fa-pen"></i> <span
+              data-i18n="chip_supplies">Office supplies</span></a>
+          <a class="season-chip" href="categories.html?cat=1349"><i class="fa-solid fa-mug-saucer"></i> <span
+              data-i18n="chip_breakfast">Breakfast</span></a>
+          <a class="season-chip" href="categories.html?cat=1355"><i class="fa-solid fa-cookie"></i> <span
+              data-i18n="chip_snacks">Snacks</span></a>
+          <a class="season-chip" href="categories.html?cat=1813"><i class="fa-solid fa-bottle-water"></i> <span
+              data-i18n="chip_drinks">Drinks</span></a>
+          <a class="season-chip" href="categories.html?q=stylo"><i class="fa-solid fa-pen-nib"></i> Stylo</a>
+          <a class="season-chip" href="categories.html?q=cahier"><i class="fa-solid fa-book"></i> Cahier</a>
+        </div>
+        <div class="row g-3 mt-2" id="seasonProducts">
+          <div class="col-12 text-center py-3 text-muted small" data-i18n="loading_products">Loading products...</div>
+        </div>
+      </div>
 
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h4 class="fw-bold mb-0" data-i18n="shop_by_cats">Shop by Categories</h4>
-            <a href="all-categories.html" class="text-orange small fw-semibold" data-i18n="view_all">Voir tout</a>
-          </div>
-          <div class="categories-grid mb-4" id="homeCategories"></div>
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="fw-bold mb-0" data-i18n="shop_by_cats">Shop by Categories</h4>
+        <a href="all-categories.html" class="text-orange small fw-semibold" data-i18n="view_all">Voir tout</a>
+      </div>
+      <div class="categories-grid mb-4" id="homeCategories"></div>
 
-          <div id="recentSection" style="display:none">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-              <h4 class="fw-bold mb-0" data-i18n="recently_viewed">Recently Viewed</h4>
-            </div>
-            <div class="row g-3 mb-4" id="recentProducts"></div>
-          </div>
+      <div id="recentSection" style="display:none">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h4 class="fw-bold mb-0" data-i18n="recently_viewed">Recently Viewed</h4>
+        </div>
+        <div class="row g-3 mb-4" id="recentProducts"></div>
+      </div>
 
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h4 class="fw-bold mb-0" data-i18n="products">Products</h4>
-            <a href="categories.html" class="text-orange small fw-semibold" data-i18n="view_all">View all</a>
-          </div>
-          <div class="row g-3" id="homeProducts">
-            <div class="col-12 text-center py-5 text-muted" data-i18n="loading_products">Loading products...</div>
-          </div>
-        </section>
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="fw-bold mb-0" data-i18n="products">Products</h4>
+        <a href="categories.html" class="text-orange small fw-semibold" data-i18n="view_all">View all</a>
+      </div>
+      <div class="row g-3" id="homeProducts">
+        <div class="col-12 text-center py-5 text-muted" data-i18n="loading_products">Loading products...</div>
+      </div>
+    </section>
   </main>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-  <script src="js/i18n.js?v=20260817"></script>
-  <script src="js/core.js?v=20260817"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+    crossorigin="anonymous"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/core.js"></script>
   <script src="js/home.js"></script>
 </body>
+
 </html>

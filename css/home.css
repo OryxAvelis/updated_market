@@ -5,12 +5,10 @@
 
 /* ========== HERO ========== */
 .hero-banner {
-  /* prefer global --hero-height token; explicit height keeps slides consistent */
-  height: var(--hero-height);
-  min-height: var(--hero-height);
+  height: 310px;
   position: relative;
   overflow: hidden;
-  border-radius: 16px;
+  border-radius: 2%;
   box-shadow: 0 8px 28px rgba(26,111,212,0.25);
   color: #fff;
 }
@@ -19,9 +17,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  min-height: var(--hero-height);
-  height: 100%;
-  padding: 2rem 2rem;
+  height: 310px;
+  padding: 1.8rem 2.5rem;
   position: relative;
   z-index: 2;
 }
@@ -35,14 +32,15 @@
 .hero-slide.s3 { background: linear-gradient(125deg, #ff9f43 0%, #f97316 45%, #d95d09 100%); }
 .hero-slide.s4 { background: linear-gradient(125deg, #7c6ff0 0%, #5b4fd8 45%, #4338ca 100%); }
 .hero-img {
-  width: min(46%, 430px);
-  aspect-ratio: 1;
-  object-fit: cover;
-  border-radius: var(--radius-sm);
+  width: min(40%, 300px);
+  height: 245px;
+  object-fit: contain;
+  border-radius: 2%;
   mask-image: radial-gradient(ellipse at 60% 50%, #000 52%, transparent 76%);
   -webkit-mask-image: radial-gradient(ellipse at 60% 50%, #000 52%, transparent 76%);
   animation: heroFloat 6s ease-in-out infinite;
   pointer-events: none;
+  flex-shrink: 0;
 }
 .hero-dots {
   position: absolute;
@@ -64,6 +62,21 @@
 }
 .hero-dot:hover { background: rgba(255,255,255,0.8); }
 .hero-dot.active { background: var(--card); transform: scale(1.3); }
+.hero-pause {
+  position: absolute;
+  right: 16px;
+  bottom: 12px;
+  z-index: 4;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.45);
+  background: rgba(0,0,0,0.2);
+  color: #fff;
+  display: grid;
+  place-items: center;
+}
+.hero-pause:hover, .hero-pause:focus-visible { background: rgba(0,0,0,0.38); outline: 2px solid #fff; }
 .hero-text {
   position: relative;
   z-index: 2;
@@ -71,21 +84,20 @@
 }
 .hero-text h1 {
   font-weight: 800;
-  /* reduced max size and smoother scaling across breakpoints */
-  font-size: clamp(1.25rem, 1rem + 2.2vw, 2.6rem);
-  line-height: 1.06;
-  margin-bottom: 0.6rem;
-  letter-spacing: -0.02em;
+  font-size: 2.15rem;
+  line-height: 1.15;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.5px;
 }
 .hero-text p {
   opacity: 0.92;
-  margin-bottom: 1.05rem;
-  font-size: clamp(0.95rem, 1.2vw, 1.15rem);
+  margin-bottom: 1.25rem;
+  font-size: 1.05rem;
 }
 .hero-cta {
   font-weight: 700;
   color: var(--orange);
-  border-radius: 12px;
+  border-radius: 2%;
   padding: 0.7rem 1.6rem;
   display: inline-flex;
   align-items: center;
@@ -125,17 +137,10 @@
   to   { opacity: 1; transform: none; }
 }
 
-/* Slides without an image (2–4): center the text instead of leaving the
-   right half empty */
-.hero-slide:not(:has(.hero-img)) .hero-text {
-  margin-left: auto;
-  margin-right: auto;
-}
-
 /* ========== TRUST BAR ========== */
 .trust-bar {
   background: var(--card);
-  border-radius: 16px;
+  border-radius: 2%;
   box-shadow: var(--shadow);
   border: 1px solid rgba(0,0,0,0.03);
   display: grid;
@@ -183,7 +188,7 @@
     gap: 8px;
     padding: 14px 8px;
     background: var(--card-alt);
-    border-radius: 12px;
+    border-radius: 2%;
   }
   .trust-item i { font-size: 1.45rem; }
   .trust-item strong { font-size: 0.85rem; }
@@ -192,7 +197,7 @@
 /* ========== ACCOUNT PANEL ========== */
 .account-panel {
   background: var(--card);
-  border-radius: 16px;
+  border-radius: 2%;
   box-shadow: var(--shadow);
   border: 1px solid rgba(0,0,0,0.03);
   overflow: hidden;
@@ -260,7 +265,7 @@
 .cat-card {
   display: block;
   background: var(--card);
-  border-radius: var(--radius);
+  border-radius: 2%;
   padding: 16px 10px 14px;
   text-align: center;
   cursor: pointer;
@@ -278,7 +283,7 @@
   height: 52px;
   margin: 0 auto 10px;
   background: linear-gradient(145deg, #eaf2ff, #d0e6ff);
-  border-radius: 14px;
+  border-radius: 2%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -293,32 +298,22 @@
 }
 
 /* ========== RESPONSIVE ========== */
-/* responsive hero heights tuned per breakpoint — uses --hero-height token */
-@media (max-width: 374.98px) {
-  .hero-banner { --hero-height: 220px; padding: 1rem; }
-  .hero-text h1 { font-size: clamp(1.1rem, 1rem + 1.5vw, 1.5rem); }
+@media (max-width: 991.98px) {
+  .hero-banner,
+  .hero-slide { height: 260px; }
+  .hero-slide { padding: 1.5rem 1.75rem; }
+  .hero-img { width: min(40%, 220px); height: 200px; }
+  .hero-text h1 { font-size: 1.7rem; }
 }
-@media (min-width: 375px) and (max-width: 767.98px) {
-  .hero-banner { --hero-height: 300px; padding: 1.25rem; }
-  .hero-text h1 { font-size: clamp(1.25rem, 1rem + 1.8vw, 1.9rem); }
-}
-@media (min-width: 768px) and (max-width: 991.98px) {
-  .hero-banner { --hero-height: 340px; padding: 1.75rem; }
-  .hero-text h1 { font-size: clamp(1.5rem, 1rem + 2.2vw, 2.2rem); }
-}
-@media (min-width: 992px) and (max-width: 1365.98px) {
-  .hero-banner { --hero-height: 380px; padding: 2rem; }
-  .hero-text h1 { font-size: clamp(1.6rem, 1rem + 2.6vw, 2.6rem); }
-}
-@media (min-width: 1366px) {
-  .hero-banner { --hero-height: 420px; padding: 2rem; }
-  .hero-text h1 { font-size: clamp(1.8rem, 1rem + 3vw, 2.6rem); }
-}
-/* fallback/compat: center slides that have no image — also add .no-img class from JS */
-.hero-slide.no-img { justify-content: center; }
-.hero-slide.no-img .hero-text { margin-left: auto; margin-right: auto; }
-/* small adjustments retained for categories grid */
 @media (max-width: 575.98px) {
+  .hero-banner,
+  .hero-slide { height: 220px; }
+  .hero-slide { padding: 1.25rem 1.5rem; }
+  .hero-img { display: none; }
+  .hero-text h1 { font-size: 1.45rem; }
+  .hero-text p { font-size: 0.9rem; margin-bottom: 0.9rem; }
+  .hero-cta { padding: 0.58rem 1rem; }
+  .hero-pause { width: 36px; height: 36px; right: 10px; bottom: 8px; }
   .categories-grid {
     grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
     gap: 8px;
@@ -327,76 +322,105 @@
   .cat-card .icon { width: 42px; height: 42px; font-size: 1.15rem; }
 }
 
-/* ========== BLUE CAMPAIGN SYSTEM ========== */
-.hero-banner { border-radius: var(--radius); box-shadow: 0 18px 38px rgba(10, 55, 126, .24); }
-.hero-slide.s1 { background: linear-gradient(128deg, #071a3a 0%, #0c3f92 50%, #1677e8 100%); }
-.hero-slide.s2 { background: linear-gradient(128deg, #061d40 0%, #0756be 52%, #1c93f5 100%); }
-.hero-slide.s3 { background: linear-gradient(128deg, #0b1220 0%, #173e8c 52%, #287ee0 100%); }
-.hero-slide.s4 { background: linear-gradient(128deg, #0a2455 0%, #175fc4 52%, #54b8ff 100%); }
-.hero-cta { color: #0b4aa5; border-radius: 10px; }
-.hero-bubbles span { background: rgba(172, 218, 255, .14); }
-.trust-bar { border-radius: var(--radius); border-color: rgba(23,105,224,.08); box-shadow: 0 10px 26px rgba(17,55,109,.07); }
-.trust-item i { color: var(--orange); }
-.cat-card { border-color: rgba(23,105,224,.07); }
-.cat-card .icon { background: linear-gradient(145deg, #eff7ff, #dbeeff); border-radius: var(--radius-sm); }
-.cat-card:hover { border-color: rgba(23,105,224,.38); }
-.cat-card span { color: var(--text-2); }
+@media (max-width: 767.98px) {
+  .trust-bar { gap: 8px; padding: 8px; }
+  .trust-item {
+    flex-direction: row;
+    text-align: left;
+    gap: 9px;
+    padding: 10px;
+    min-height: 68px;
+  }
+  .trust-item i { font-size: 1.15rem; }
+  .trust-item strong { font-size: 0.76rem; }
+  .trust-item small { font-size: 0.68rem; }
+}
 
-/* The home side panel is an intentional ad placement, not a duplicate profile. */
-.home-ad {
-  height: var(--hero-height);
-  min-height: var(--hero-height);
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  padding: 28px;
-  border: 1px solid rgba(69,157,255,.55);
-  border-radius: var(--radius);
-  color: #fff;
-  background: radial-gradient(circle at 89% 8%, rgba(115,202,255,.52), transparent 26%), linear-gradient(145deg, #07152d 4%, #0a3d8d 58%, #1769e0 100%);
-  box-shadow: 0 18px 38px rgba(10,55,126,.22);
-  animation: panelIn .65s .1s ease both;
+@media (prefers-reduced-motion: reduce) {
+  .hero-slide.active,
+  .hero-img,
+  .hero-bubbles span,
+  .hero-text h1,
+  .hero-text p,
+  .hero-text .hero-cta { animation: none !important; }
 }
-.home-ad::before,
-.home-ad::after {
-  content: '';
-  position: absolute;
-  border: 1px solid rgba(210,235,255,.28);
-  border-radius: 50%;
-  pointer-events: none;
-}
-.home-ad::before { width: 300px; height: 300px; right: -164px; bottom: -145px; }
-.home-ad::after { width: 180px; height: 180px; right: -75px; bottom: -60px; border-color: rgba(210,235,255,.36); }
-.ad-grid {
-  position: absolute;
-  inset: 0;
-  opacity: .22;
-  background-image: linear-gradient(rgba(255,255,255,.12) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.12) 1px, transparent 1px);
-  background-size: 22px 22px;
-  mask-image: linear-gradient(135deg, #000, transparent 66%);
-}
-.ad-label,
-.ad-eyebrow,
-.ad-copy,
-.ad-link,
-.ad-foot,
-.ad-icon,
-.home-ad h2 { position: relative; z-index: 1; }
-.ad-label { display: inline-flex; padding: 5px 9px; border: 1px solid rgba(255,255,255,.28); border-radius: 999px; font-size: .62rem; font-weight: 800; letter-spacing: .12em; background: rgba(255,255,255,.1); }
-.ad-icon { width: 50px; height: 50px; margin: 24px 0 18px; display: grid; place-items: center; border-radius: 14px; background: #fff; color: var(--orange); box-shadow: 0 10px 22px rgba(4,19,49,.22); font-size: 1.25rem; animation: adFloat 4s ease-in-out infinite; }
-.ad-eyebrow { margin: 0 0 7px; color: #b9ddff; font-weight: 800; font-size: .68rem; letter-spacing: .1em; }
-.home-ad h2 { margin: 0; max-width: 260px; font-size: clamp(1.45rem, 1.75vw, 2rem); font-weight: 800; line-height: 1.08; letter-spacing: -.035em; }
-.ad-copy { margin: 13px 0 18px; max-width: 250px; color: rgba(255,255,255,.82); font-size: .86rem; line-height: 1.55; }
-.ad-link { display: inline-flex; position: relative; z-index: 1; align-items: center; gap: 9px; padding: 10px 13px; border-radius: 10px; background: #fff; color: #0b4aa5; font-size: .82rem; font-weight: 800; transition: transform .2s ease, box-shadow .2s ease; }
-.ad-link:hover { color: #0b4aa5; transform: translateY(-2px); box-shadow: 0 9px 22px rgba(4,19,49,.23); }
-.ad-link i { transition: transform .2s ease; }
-.ad-link:hover i { transform: translateX(3px); }
-.ad-foot { position: absolute; z-index: 1; left: 28px; bottom: 22px; display: flex; align-items: center; gap: 8px; color: #cce7ff; font-size: .72rem; font-weight: 650; }
-.ad-foot i { color: #fff; }
-.ad-orbit { position: absolute; z-index: 0; border-radius: 50%; border: 1px solid rgba(209,236,255,.38); }
-.ad-orbit-one { width: 96px; height: 96px; top: 36px; right: 22px; animation: adOrbit 8s linear infinite; }
-.ad-orbit-two { width: 35px; height: 35px; top: 99px; right: 100px; background: rgba(188,226,255,.25); animation: adFloat 5s 1s ease-in-out infinite; }
-@keyframes adFloat { 50% { transform: translateY(-9px); } }
-@keyframes adOrbit { to { transform: rotate(360deg); } }
 
-[data-theme="dark"] .cat-card .icon { background: #1b3152; }
+/* ========== SEASONAL / RENTRÉE ========== */
+.hero-season-tag {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: rgba(255,255,255,0.22);
+  padding: 4px 10px;
+  border-radius: 999px;
+  margin-bottom: 10px;
+}
+.hero-slide.s1.hero-rentree {
+  background: linear-gradient(125deg, #1e3a8a 0%, #2563eb 45%, #3b82f6 100%);
+}
+
+.season-strip {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 20px;
+  box-shadow: 0 2px 14px rgba(0,0,0,0.04);
+}
+.season-strip-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.season-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #1d4ed8;
+  background: #dbeafe;
+  padding: 3px 10px;
+  border-radius: 999px;
+  margin-bottom: 6px;
+}
+[data-theme="dark"] .season-badge {
+  background: #1e3a5f;
+  color: #93c5fd;
+}
+.season-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.season-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: var(--orange-light, #eff6ff);
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: border-color 0.2s, transform 0.15s;
+}
+.season-chip:hover {
+  border-color: var(--orange);
+  color: var(--orange);
+  transform: translateY(-1px);
+}
+.season-chip i { color: var(--orange); font-size: 0.85rem; }
+
+.cat-card.cat-highlight {
+  border: 1.5px solid var(--orange);
+  box-shadow: 0 4px 14px rgba(26,111,212,0.12);
+}
+.cat-card.cat-highlight .icon {
+  background: var(--orange-light);
+}

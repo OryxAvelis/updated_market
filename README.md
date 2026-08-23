@@ -16,6 +16,7 @@ E-commerce storefront front-end for **AM MARKET**, a Moroccan online supermarket
 | `orders.html` | Order history | `js/orders.js`, `css/orders.css` |
 | `wishlist.html` | Saved products | `js/wishlist.js`, `css/wishlist.css` |
 | `settings.html` | Profile, dark mode, language, payment & delivery preferences | `js/settings.js`, `css/settings.css` |
+| `help.html` | Help center — delivery, payment, returns and order guidance | `css/help.css` |
 | `login.html` | Sign in / create account (demo) | `css/login.css` |
 
 Shared infrastructure lives in **`js/core.js`** (API client, localStorage state, header/footer/mobile-toolbar injection, product-card rendering) and **`css/common.css`**. Translations (EN/FR) live in **`js/i18n.js`**.

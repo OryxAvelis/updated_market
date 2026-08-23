@@ -7,6 +7,29 @@
 const productId = new URLSearchParams(location.search).get('id');
 if (!productId) location.replace('index.html');
 
+function extractPackSize(product) {
+  const explicit = product.package_size || product.pack_size || product.size || product.weight || product.volume;
+  if (explicit) return String(explicit);
+  const match = String(product.name || '').match(/\b\d+(?:[.,]\d+)?\s?(?:kg|g|mg|l|cl|ml)\b/i);
+  return match ? match[0] : '';
+}
+
+function productSpecsHTML(product) {
+  const specs = [
+    [t('spec_brand'), product.brand_name],
+    [t('spec_category'), product.category_name ? catName(product.category_name) : ''],
+    [t('spec_pack'), extractPackSize(product)],
+    [t('spec_reference'), product.sku || product.barcode || product.ean]
+  ].filter(([, value]) => value != null && String(value).trim());
+  if (!specs.length) return '';
+  return `<div class="detail-specs" aria-label="${escapeHtml(t('product_details'))}">
+    <h2>${t('product_details')}</h2>
+    <dl>${specs.map(([label, value]) => `
+      <div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(String(value))}</dd></div>`).join('')}
+    </dl>
+  </div>`;
+}
+
 async function renderDetail(id) {
   const box = $('detailContent');
   const relatedBox = $('relatedSection');
@@ -21,58 +44,60 @@ async function renderDetail(id) {
     const inWish = wishlist.includes(String(p.id));
     const available = p.is_available !== false;
 
+    const hasOld = parseFloat(p.original_price) > parseFloat(p.price);
+    const disc = parseInt(p.discount_percent) || 0;
+
     box.innerHTML = `
-      <div class="col-md-5">
+      <div class="col-lg-5">
         <div class="detail-img">
           <img src="${p.image_url || ''}" alt="${escapeHtml(p.name)}"
                onerror="this.onerror=null;this.src='img/placeholder.svg'">
         </div>
       </div>
-      <div class="col-md-7">
-        <div class="bg-white p-4 p-lg-4 rounded-3 shadow-sm h-100">
-          ${p.brand_name ? `<div class="text-orange fw-semibold small mb-1">${escapeHtml(p.brand_name)}</div>` : ''}
-          <h3 class="fw-bold mb-2">${escapeHtml(p.name)}</h3>
+      <div class="col-lg-7">
+        <div class="detail-panel">
+          ${p.brand_name ? `<div class="detail-brand">${escapeHtml(p.brand_name)}</div>` : ''}
+          <h1 class="detail-title">${escapeHtml(p.name)}</h1>
 
-          <div class="d-flex flex-wrap gap-2 mb-3">
-            ${p.category_name ? `<span class="badge bg-body-tertiary border">${escapeHtml(catName(p.category_name))}</span>` : ''}
-            ${p.weight_volume ? `<span class="badge bg-body-tertiary border">${escapeHtml(p.weight_volume)}</span>` : ''}
-            <span class="badge ${available ? 'bg-success' : 'bg-secondary'}">${available ? t('in_stock') : t('out_stock')}</span>
+          <div class="detail-meta">
+            ${p.category_name ? `<span class="detail-chip">${escapeHtml(catName(p.category_name))}</span>` : ''}
+            <span class="detail-chip ${available ? 'in-stock' : 'out-stock'}">${available ? t('in_stock') : t('out_stock')}</span>
           </div>
 
-          <div class="d-flex align-items-baseline gap-2 mb-3 flex-wrap">
-            <span class="fs-2 fw-bold text-orange">${formatPrice(p.price)}</span>
-            ${(parseFloat(p.original_price) > parseFloat(p.price)) ? `<span class="fs-5 text-muted text-decoration-line-through">${formatPrice(p.original_price)}</span>` : ''}
-            ${(parseInt(p.discount_percent) > 0) ? `<span class="badge bg-danger fs-6">${t('off_badge', { n: p.discount_percent })}</span>` : ''}
+          <div class="detail-price-row">
+            <span class="detail-price">${formatPrice(p.price)}</span>
+            ${hasOld ? `<span class="detail-old">${formatPrice(p.original_price)}</span>` : ''}
+            ${disc > 0 ? `<span class="detail-disc">-${disc}%</span>` : ''}
           </div>
 
-          <p class="text-muted mb-4">${escapeHtml(p.description) || t('no_desc')}</p>
+          <p class="detail-desc ${p.description ? '' : 'detail-desc-empty'}">${escapeHtml(p.description) || t('no_desc')}</p>
 
-          <div class="d-flex align-items-center gap-3 mb-4">
-            <span class="fw-semibold">${t('quantity')}</span>
-            <div class="qty-box">
+          ${productSpecsHTML(p)}
+
+          <div class="detail-qty">
+            <span class="detail-qty-label">${t('quantity')}</span>
+            <div class="qty-box detail-qty-box">
               <button type="button" id="dMinus" aria-label="-">−</button>
               <input type="number" id="dQty" value="1" min="1" aria-label="Quantity">
               <button type="button" id="dPlus" aria-label="+">+</button>
             </div>
           </div>
 
-          <div class="d-flex flex-wrap gap-2 mb-3">
-            <button class="btn btn-orange btn-lg px-4" id="dAdd" ${!available ? 'disabled' : ''}>
-              <i class="fa-solid fa-cart-shopping me-2"></i> ${t('add_to_cart')}
+          <div class="detail-actions">
+            <button class="detail-btn-primary" id="dAdd" ${!available ? 'disabled' : ''}>
+              <i class="fa-solid fa-cart-shopping"></i> ${t('add_to_cart')}
             </button>
-            <button class="btn btn-outline-orange btn-lg" id="dBuy" ${!available ? 'disabled' : ''}>${t('buy_now')}</button>
+            <button class="detail-btn-secondary" id="dBuy" ${!available ? 'disabled' : ''}>${t('buy_now')}</button>
+            <button class="detail-wish ${inWish ? 'active' : ''}" id="dWish" type="button">
+              <i class="fa-${inWish ? 'solid' : 'regular'} fa-heart"></i>
+              <span>${inWish ? t('remove_wish') : t('add_wish')}</span>
+            </button>
           </div>
 
-          <button class="btn btn-link text-decoration-none p-0 ${inWish ? 'text-danger' : 'text-muted'}" id="dWish">
-            <i class="fa-${inWish ? 'solid' : 'regular'} fa-heart me-1"></i>
-            ${inWish ? t('remove_wish') : t('add_wish')}
-          </button>
-
-          <hr class="my-4">
-          <div class="row g-2 small text-muted">
-            <div class="col-sm-4"><i class="fa-solid fa-truck text-orange me-1"></i> ${t('free_del_over')}</div>
-            <div class="col-sm-4"><i class="fa-solid fa-rotate-left text-orange me-1"></i> ${t('easy_returns')}</div>
-            <div class="col-sm-4"><i class="fa-solid fa-shield-halved text-orange me-1"></i> ${t('secure_payment')}</div>
+          <div class="detail-trust">
+            <div class="detail-trust-item"><i class="fa-solid fa-truck-fast"></i><span>${t('free_del_over')}</span></div>
+            <div class="detail-trust-item"><i class="fa-solid fa-rotate-left"></i><span>${t('easy_returns')}</span></div>
+            <div class="detail-trust-item"><i class="fa-solid fa-shield-halved"></i><span>${t('secure_payment')}</span></div>
           </div>
         </div>
       </div>`;
@@ -80,9 +105,31 @@ async function renderDetail(id) {
     const qty = $('dQty');
     $('dMinus').onclick = () => { qty.value = Math.max(1, +qty.value - 1); };
     $('dPlus').onclick = () => { qty.value = +qty.value + 1; };
-    $('dAdd').onclick = () => addToCart(p.id, +qty.value || 1, p);
-    $('dBuy').onclick = () => { addToCart(p.id, +qty.value || 1, p); location.href = 'checkout.html'; };
+    const doAdd = () => addToCart(p.id, +qty.value || 1, p);
+    $('dAdd').onclick = doAdd;
+    $('dBuy').onclick = () => { doAdd(); location.href = 'checkout.html'; };
     $('dWish').onclick = () => { toggleWish(p.id); renderDetail(p.id); };
+
+    // Sticky mobile add-to-cart bar
+    let bar = document.getElementById('stickyAtc');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'stickyAtc';
+      bar.className = 'sticky-atc';
+      bar.innerHTML = `
+        <div class="sticky-atc-inner">
+          <span class="sticky-atc-price" id="stickyPrice"></span>
+          <button type="button" class="sticky-atc-btn" id="stickyAdd">
+            <i class="fa-solid fa-cart-shopping"></i>
+            <span data-i18n="add_to_cart">${t('add_to_cart')}</span>
+          </button>
+        </div>`;
+      document.body.appendChild(bar);
+    }
+    $('stickyPrice').textContent = formatPrice(p.price);
+    const stickyBtn = $('stickyAdd');
+    stickyBtn.disabled = !available;
+    stickyBtn.onclick = doAdd;
 
     loadRelated(p);
   } catch (e) {
@@ -90,24 +137,20 @@ async function renderDetail(id) {
   }
 }
 
-// Related products: same category from the API, padded with generic picks
+// Related products stay within the same category. Fewer relevant items are
+// better than padding the section with unrelated catalogue products.
 async function loadRelated(product) {
   const section = $('relatedSection');
   const box = $('relatedProducts');
   if (!section || !box) return;
 
   try {
-    let list = [];
-    if (product.category) {
-      const data = await fetchProducts(1, product.category, '');
-      list = (data.results || []).filter(p => String(p.id) !== String(product.id));
-    }
-    if (list.length < 4) {
-      const data = await fetchProducts(1);
-      const extra = (data.results || []).filter(p =>
-        String(p.id) !== String(product.id) && !list.find(x => String(x.id) === String(p.id)));
-      list = list.concat(extra);
-    }
+    const categoryId = typeof product.category === 'object'
+      ? product.category.id
+      : (product.category || product.category_id);
+    if (!categoryId) { section.style.display = 'none'; return; }
+    const data = await fetchProducts(1, categoryId, '');
+    let list = (data.results || []).filter(p => String(p.id) !== String(product.id));
     list = list.slice(0, 4);
 
     if (list.length === 0) {

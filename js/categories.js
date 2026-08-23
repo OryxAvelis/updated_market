@@ -16,16 +16,13 @@ let totalCount = 0;
 let pageProducts = [];   // current page products from API
 let sortBy = 'default';
 let maxPrice = 1000;
-let onlyAvailable = true;
-let onlyPromo = false;
 let selectedBrand = null;
 
-function setFiltersOpen(open) {
-  $('filtersPanel')?.classList.toggle('is-open', open);
-  $('filterBackdrop')?.classList.toggle('is-open', open);
-  document.body.classList.toggle('filters-open', open);
-  if (open) $('filterClose')?.focus();
-}
+const ORDERING = {
+  'price-asc': 'price',
+  'price-desc': '-price',
+  'name': 'name'
+};
 
 // ---------- URL helpers ----------
 function shopURL({ page = currentPage, cat = currentCat, q = searchQ } = {}) {
@@ -48,14 +45,6 @@ function applyClientFilters(list) {
 
   result = result.filter(p => parseFloat(p.price) <= maxPrice);
 
-  if (onlyAvailable) {
-    result = result.filter(p => p.is_available !== false);
-  }
-
-  if (onlyPromo) {
-    result = result.filter(p => p.is_promo || (parseInt(p.discount_percent) > 0));
-  }
-
   if (selectedBrand) {
     result = result.filter(p => p.brand_name === selectedBrand);
   }
@@ -65,6 +54,72 @@ function applyClientFilters(list) {
   else if (sortBy === 'name') result.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
   return result;
+}
+
+function activeFilterCount() {
+  return [currentCat, searchQ, selectedBrand, maxPrice < +($('priceRange')?.max || 1000)].filter(Boolean).length;
+}
+
+function renderActiveFilters() {
+  const box = $('activeFilters');
+  if (!box) return;
+  const cat = categories.find(c => c.id === currentCat);
+  const maxDefault = +($('priceRange')?.max || 1000);
+  const chips = [];
+  if (cat) chips.push({ key: 'cat', label: catName(cat.name) });
+  if (searchQ) chips.push({ key: 'search', label: `${t('search_filter')}: ${searchQ}` });
+  if (selectedBrand) chips.push({ key: 'brand', label: selectedBrand });
+  if (maxPrice < maxDefault) chips.push({ key: 'price', label: `${t('under_price')} ${maxPrice} DH` });
+
+  box.innerHTML = chips.map(c => `
+    <span class="filter-chip">
+      ${escapeHtml(c.label)}
+      <button type="button" data-clear-filter="${c.key}" aria-label="${escapeHtml(t('remove_filter', { name: c.label }))}">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </span>`).join('');
+
+  const count = activeFilterCount();
+  const countEl = $('filterCount');
+  if (countEl) {
+    countEl.textContent = count;
+    countEl.hidden = count === 0;
+  }
+
+  box.querySelectorAll('[data-clear-filter]').forEach(btn => {
+    btn.onclick = () => {
+      const key = btn.dataset.clearFilter;
+      if (key === 'cat') currentCat = null;
+      if (key === 'search') {
+        searchQ = '';
+        const input = $('searchInput');
+        if (input) input.value = '';
+      }
+      if (key === 'brand') selectedBrand = null;
+      if (key === 'price') {
+        maxPrice = +($('priceRange')?.max || 1000);
+        $('priceRange').value = maxPrice;
+        $('priceMaxInput').value = maxPrice;
+      }
+      currentPage = 1;
+      syncURL();
+      renderSidebar(currentCat);
+      updateShopTitle();
+      loadShopPage(1);
+    };
+  });
+}
+
+function setFiltersOpen(open) {
+  const column = $('filterColumn');
+  const toggle = $('filterToggle');
+  if (!column || !toggle) return;
+  column.classList.toggle('open', open);
+  column.setAttribute('aria-hidden', String(!open && matchMedia('(max-width: 767.98px)').matches));
+  toggle.setAttribute('aria-expanded', String(open));
+  document.body.classList.toggle('filters-open', open);
+  if (open) $('closeFilters')?.focus();
+  else toggle.focus({ preventScroll: true });
 }
 
 // ---------- Filter panel ----------
@@ -92,7 +147,7 @@ function renderFilterPanel(list) {
         renderSidebar(currentCat);
         updateShopTitle();
         loadShopPage(1);
-        setFiltersOpen(false);
+        if (matchMedia('(max-width: 767.98px)').matches) setFiltersOpen(false);
       };
     });
   }
@@ -116,7 +171,7 @@ function renderFilterPanel(list) {
       r.onchange = () => {
         selectedBrand = r.value || null;
         renderPageProducts();
-        setFiltersOpen(false);
+        renderActiveFilters();
       };
     });
   }
@@ -243,7 +298,7 @@ async function loadShopPage(page = 1) {
   box.innerHTML = `<div class="col-12 text-center py-5 text-muted"><div class="spinner-border spinner-border-sm text-warning" role="status"></div><div class="mt-2 small">${t('loading')}</div></div>`;
 
   try {
-    let data = await fetchProducts(currentPage, currentCat, searchQ);
+    let data = await fetchProducts(currentPage, currentCat, searchQ, ORDERING[sortBy] || '');
     pageProducts = data.results || [];
     totalCount = data.count || 0;
 
@@ -252,7 +307,7 @@ async function loadShopPage(page = 1) {
     if (searchQ && totalCount === 0) {
       const firstWord = searchQ.split(/\s+/)[0].replace(/['’]/g, '');
       if (firstWord && firstWord.length >= 3 && firstWord.toLowerCase() !== searchQ.toLowerCase()) {
-        const fallback = await fetchProducts(1, currentCat, firstWord);
+        const fallback = await fetchProducts(1, currentCat, firstWord, ORDERING[sortBy] || '');
         if ((fallback.count || 0) > 0) {
           suggestion = firstWord;
           pageProducts = fallback.results || [];
@@ -272,11 +327,18 @@ async function loadShopPage(page = 1) {
       const newMax = Math.ceil(topPrice * 1.1 / 10) * 10;
       const wasAtMax = +range.value === +range.max;
       range.max = newMax;
-      if (wasAtMax) { range.value = newMax; maxPrice = newMax; $('priceLabel').textContent = newMax + ' DH'; }
+      const maxInput = $('priceMaxInput');
+      if (maxInput) maxInput.max = newMax;
+      if (wasAtMax) {
+        range.value = newMax;
+        maxPrice = newMax;
+        if (maxInput) maxInput.value = newMax;
+      }
     }
 
     renderFilterPanel(pageProducts);
     renderPageProducts(suggestion);
+    renderActiveFilters();
     renderPagination();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   } catch (e) {
@@ -296,37 +358,41 @@ async function initCategories() {
   } catch { /* sidebar/filters simply stay empty */ }
   renderSidebar(currentCat);
   updateShopTitle();
+  if (matchMedia('(max-width: 767.98px)').matches) $('filterColumn')?.setAttribute('aria-hidden', 'true');
 
   $('sortSelect')?.addEventListener('change', e => {
     sortBy = e.target.value;
-    renderPageProducts();
+    currentPage = 1;
+    loadShopPage(1);
   });
-
-  $('filterToggle')?.addEventListener('click', () => setFiltersOpen(true));
-  $('filterClose')?.addEventListener('click', () => setFiltersOpen(false));
-  $('filterBackdrop')?.addEventListener('click', () => setFiltersOpen(false));
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') setFiltersOpen(false); });
 
   $('priceRange')?.addEventListener('input', e => {
     maxPrice = +e.target.value;
-    $('priceLabel').textContent = maxPrice + ' DH';
+    $('priceMaxInput').value = maxPrice;
     renderPageProducts();
+    renderActiveFilters();
   });
 
-  $('filterAvailable')?.addEventListener('change', e => {
-    onlyAvailable = e.target.checked;
+  $('priceMaxInput')?.addEventListener('change', e => {
+    const range = $('priceRange');
+    maxPrice = Math.max(0, Math.min(+range.max, +e.target.value || 0));
+    e.target.value = maxPrice;
+    range.value = maxPrice;
     renderPageProducts();
+    renderActiveFilters();
   });
 
-  $('filterPromo')?.addEventListener('change', e => {
-    onlyPromo = e.target.checked;
-    renderPageProducts();
+  $('filterToggle')?.addEventListener('click', () => setFiltersOpen(true));
+  $('closeFilters')?.addEventListener('click', () => setFiltersOpen(false));
+  $('filterColumn')?.addEventListener('click', e => {
+    if (e.target === $('filterColumn')) setFiltersOpen(false);
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && $('filterColumn')?.classList.contains('open')) setFiltersOpen(false);
   });
 
   $('clearFilters')?.addEventListener('click', () => {
     maxPrice = 1000;
-    onlyAvailable = true;
-    onlyPromo = false;
     selectedBrand = null;
     searchQ = '';
     currentCat = null;
@@ -335,17 +401,12 @@ async function initCategories() {
     if (input) input.value = '';
     const range = $('priceRange');
     if (range) range.value = 1000;
-    const lbl = $('priceLabel');
-    if (lbl) lbl.textContent = '1000 DH';
-    const fa = $('filterAvailable');
-    if (fa) fa.checked = true;
-    const fp = $('filterPromo');
-    if (fp) fp.checked = false;
+    const maxInput = $('priceMaxInput');
+    if (maxInput) maxInput.value = 1000;
     syncURL();
     renderSidebar(null);
     updateShopTitle();
     loadShopPage(1);
-    setFiltersOpen(false);
   });
 
   await loadShopPage(currentPage);
@@ -358,4 +419,5 @@ window.addEventListener('am:langchange', () => {
   renderSidebar(currentCat);
   renderFilterPanel(pageProducts);
   renderPageProducts();
+  renderActiveFilters();
 });

@@ -1,17 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AM MARKET — Checkout</title>
-  <meta name="description" content="Complete your AM MARKET order — delivery information, cash on delivery or card payment. Free delivery over 200 DH." />
+  <meta name="description"
+    content="Complete your AM MARKET order — delivery information, cash on delivery or card payment. Free delivery over 200 DH." />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="AM MARKET" />
   <meta property="og:title" content="AM MARKET — Checkout" />
-  <meta property="og:description" content="Complete your order — delivery information, cash on delivery or card payment." />
-  <meta property="og:image" content="https://raw.githubusercontent.com/OryxAvelis/updated_market/main/img/logo-round.png" />
+  <meta property="og:description"
+    content="Complete your order — delivery information, cash on delivery or card payment." />
+  <meta property="og:image"
+    content="https://raw.githubusercontent.com/OryxAvelis/updated_market/main/img/logo-round.png" />
   <meta name="twitter:card" content="summary" />
-  <script>(function(){var t=localStorage.getItem('am_theme')==='dark'?'dark':'light';document.documentElement.setAttribute('data-theme',t);document.documentElement.setAttribute('data-bs-theme',t);})();</script>
+  <script>(function () { var t = localStorage.getItem('am_theme') === 'dark' ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', t); document.documentElement.setAttribute('data-bs-theme', t); })();</script>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -19,34 +23,31 @@
   <link rel="stylesheet" href="css/checkout.css" />
   <link rel="icon" type="image/png" href="img/logo-round.png" />
 </head>
+
 <body data-page="checkout">
 
   <main class="container-fluid px-3 px-lg-4 py-3">
     <h4 class="fw-bold mb-4" data-i18n="checkout">Checkout</h4>
 
-    <!-- Steps -->
-    <div class="co-steps">
-      <div class="co-step active">
+    <!-- Checkout progress -->
+    <div class="co-steps" role="list" aria-label="Checkout progress" data-i18n-aria="checkout_progress">
+      <div class="co-step completed" role="listitem">
         <span class="step-dot"><i class="fa-solid fa-cart-shopping"></i></span>
         <span data-i18n="step_cart">Cart</span>
       </div>
       <span class="co-step-line"></span>
-      <div class="co-step">
+      <div class="co-step active" role="listitem" aria-current="step">
         <span class="step-dot"><i class="fa-solid fa-truck-fast"></i></span>
-        <span data-i18n="step_delivery">Delivery</span>
+        <span data-i18n="step_details">Delivery & Payment</span>
       </div>
       <span class="co-step-line"></span>
-      <div class="co-step">
-        <span class="step-dot"><i class="fa-regular fa-credit-card"></i></span>
-        <span data-i18n="step_payment">Payment</span>
-      </div>
-      <span class="co-step-line"></span>
-      <div class="co-step">
+      <div class="co-step" role="listitem">
         <span class="step-dot"><i class="fa-solid fa-circle-check"></i></span>
         <span data-i18n="step_confirm">Confirmation</span>
       </div>
     </div>
 
+    <form id="checkoutForm" novalidate>
     <div class="row g-4">
       <div class="col-lg-7">
 
@@ -71,24 +72,25 @@
               </div>
               <div class="row g-3">
                 <div class="col-md-6">
+                  <label class="form-label" data-i18n="phone">Phone *</label>
+                  <div class="input-group co-phone-group">
+                    <span class="input-group-text fw-semibold">🇲🇦 +212</span>
+                    <input type="tel" class="form-control co-input" id="cPhone" placeholder="06 12 34 56 78"
+                      data-i18n-ph="phone_ph" required autocomplete="tel">
+                  </div>
+                </div>
+                <div class="col-md-6">
                   <label class="form-label" data-i18n="full_name">Full Name *</label>
                   <div class="co-input-wrap">
                     <i class="fa-regular fa-user co-input-icon"></i>
                     <input type="text" class="form-control co-input" id="cName" required autocomplete="name">
                   </div>
                 </div>
-                <div class="col-md-6">
-                  <label class="form-label" data-i18n="phone">Phone *</label>
-                  <div class="input-group co-phone-group">
-                    <span class="input-group-text fw-semibold">🇲🇦 +212</span>
-                    <input type="tel" class="form-control co-input" id="cPhone" placeholder="06 12 34 56 78" data-i18n-ph="phone_ph" required autocomplete="tel">
-                  </div>
-                </div>
                 <div class="col-12">
-                  <label class="form-label" data-i18n="email_label">Email *</label>
+                  <label class="form-label" data-i18n="email_optional">Email (optional)</label>
                   <div class="co-input-wrap">
                     <i class="fa-regular fa-envelope co-input-icon"></i>
-                    <input type="email" class="form-control co-input" id="cEmail" required autocomplete="email">
+                    <input type="email" class="form-control co-input" id="cEmail" autocomplete="email">
                   </div>
                 </div>
               </div>
@@ -101,34 +103,76 @@
                 <span data-i18n="address_info">Address</span>
               </div>
               <div class="row g-3">
-                <div class="col-12">
-                  <label class="form-label" data-i18n="address">Address *</label>
-                  <div class="co-input-wrap">
-                    <i class="fa-solid fa-map-location-dot co-input-icon"></i>
-                    <textarea class="form-control co-input" id="cAddress" rows="2" required autocomplete="street-address"></textarea>
-                  </div>
-                </div>
                 <div class="col-md-6">
                   <label class="form-label" data-i18n="city">City *</label>
                   <div class="co-input-wrap">
                     <i class="fa-solid fa-city co-input-icon"></i>
-                    <input type="text" class="form-control co-input" id="cCity" list="maCities" required autocomplete="address-level2">
+                    <select class="form-select co-input" id="cCity" required>
+                      <option value="" disabled selected data-i18n="select_city">Select city</option>
+                      <optgroup label="Casablanca–Settat">
+                        <option value="Casablanca">Casablanca</option>
+                        <option value="Mohammedia">Mohammedia</option>
+                        <option value="El Jadida">El Jadida</option>
+                        <option value="Settat">Settat</option>
+                      </optgroup>
+                      <optgroup label="Rabat–Salé–Kénitra">
+                        <option value="Rabat">Rabat</option>
+                        <option value="Salé">Salé</option>
+                        <option value="Kénitra">Kénitra</option>
+                      </optgroup>
+                      <optgroup label="Marrakech–Safi">
+                        <option value="Marrakech">Marrakech</option>
+                        <option value="Safi">Safi</option>
+                        <option value="Essaouira">Essaouira</option>
+                      </optgroup>
+                      <optgroup label="Fès–Meknès">
+                        <option value="Fès">Fès</option>
+                        <option value="Meknès">Meknès</option>
+                      </optgroup>
+                      <optgroup label="Tanger–Tétouan">
+                        <option value="Tanger">Tanger</option>
+                        <option value="Tétouan">Tétouan</option>
+                      </optgroup>
+                      <optgroup label="Oriental">
+                        <option value="Oujda">Oujda</option>
+                        <option value="Nador">Nador</option>
+                      </optgroup>
+                      <optgroup label="Souss–Massa">
+                        <option value="Agadir">Agadir</option>
+                      </optgroup>
+                      <optgroup label="Béni Mellal–Khénifra">
+                        <option value="Beni Mellal">Beni Mellal</option>
+                        <option value="Khouribga">Khouribga</option>
+                      </optgroup>
+                      <optgroup label="Laâyoune–Sakia El Hamra">
+                        <option value="Laâyoune">Laâyoune</option>
+                      </optgroup>
+                    </select>
                   </div>
-                  <datalist id="maCities">
-                    <option value="Casablanca"></option><option value="Rabat"></option><option value="Marrakech"></option>
-                    <option value="Fès"></option><option value="Tanger"></option><option value="Agadir"></option>
-                    <option value="Meknès"></option><option value="Oujda"></option><option value="Kénitra"></option>
-                    <option value="Tétouan"></option><option value="Salé"></option><option value="Safi"></option>
-                    <option value="El Jadida"></option><option value="Beni Mellal"></option><option value="Nador"></option>
-                    <option value="Khouribga"></option><option value="Settat"></option><option value="Essaouira"></option>
-                    <option value="Mohammedia"></option><option value="Laâyoune"></option>
-                  </datalist>
                 </div>
                 <div class="col-md-6">
-                  <label class="form-label" data-i18n="note_label">Delivery note (optional)</label>
+                  <label class="form-label" data-i18n="quartier">Quartier *</label>
+                  <div class="co-input-wrap">
+                    <i class="fa-solid fa-map-pin co-input-icon"></i>
+                    <input type="text" class="form-control co-input" id="cQuartier" required
+                      placeholder="Hay Riad, Maarif, Agdal..." data-i18n-ph="quartier_ph" autocomplete="address-level2">
+                  </div>
+                </div>
+                <div class="col-12">
+                  <label class="form-label" data-i18n="address">Street / Building *</label>
+                  <div class="co-input-wrap">
+                    <i class="fa-solid fa-map-location-dot co-input-icon"></i>
+                    <textarea class="form-control co-input" id="cAddress" rows="2" required
+                      placeholder="Rue, numéro, immeuble..." data-i18n-ph="address_ph"
+                      autocomplete="street-address"></textarea>
+                  </div>
+                </div>
+                <div class="col-12">
+                  <label class="form-label" data-i18n="note_label">Landmark / Floor (optional)</label>
                   <div class="co-input-wrap">
                     <i class="fa-regular fa-comment-dots co-input-icon"></i>
-                    <textarea class="form-control co-input" id="cNote" rows="1" placeholder="Landmark, floor, instructions..." data-i18n-ph="note_ph"></textarea>
+                    <textarea class="form-control co-input" id="cNote" rows="1"
+                      placeholder="Près de la mosquée, 3ème étage, digicode..." data-i18n-ph="note_ph"></textarea>
                   </div>
                 </div>
               </div>
@@ -146,21 +190,40 @@
             </div>
 
             <div class="pay-options">
-              <label class="pay-opt selected">
+              <label class="pay-opt pay-opt-cod selected">
                 <input type="radio" name="pay" id="pay1" value="Cash on Delivery" checked>
                 <span class="pay-icon"><i class="fa-solid fa-money-bill-wave"></i></span>
                 <span class="pay-text">
                   <strong data-i18n="cod">Cash on Delivery</strong>
-                  <small data-i18n="cod_sub">Pay at your door</small>
+                  <small data-i18n="cod_sub">Pay at your door — most popular</small>
                 </span>
+                <span class="pay-badge" data-i18n="recommended">Recommended</span>
                 <span class="pay-check"><i class="fa-solid fa-check"></i></span>
               </label>
-              <label class="pay-opt is-disabled">
-                <input type="radio" name="pay" id="pay2" value="Card" disabled>
+              <label class="pay-opt">
+                <input type="radio" name="pay" id="pay2" value="Card">
                 <span class="pay-icon"><i class="fa-regular fa-credit-card"></i></span>
                 <span class="pay-text">
                   <strong data-i18n="card_label">Credit / Debit Card</strong>
                   <small data-i18n="card_sub">Secure online payment</small>
+                </span>
+                <span class="pay-check"><i class="fa-solid fa-check"></i></span>
+              </label>
+              <label class="pay-opt">
+                <input type="radio" name="pay" id="pay3" value="Wafacash">
+                <span class="pay-icon"><i class="fa-solid fa-building-columns"></i></span>
+                <span class="pay-text">
+                  <strong>Wafacash</strong>
+                  <small data-i18n="wafacash_sub">Pay at any agency</small>
+                </span>
+                <span class="pay-check"><i class="fa-solid fa-check"></i></span>
+              </label>
+              <label class="pay-opt">
+                <input type="radio" name="pay" id="pay4" value="CashPlus">
+                <span class="pay-icon"><i class="fa-solid fa-store"></i></span>
+                <span class="pay-text">
+                  <strong>CashPlus</strong>
+                  <small data-i18n="cashplus_sub">Pay at partner shops</small>
                 </span>
                 <span class="pay-check"><i class="fa-solid fa-check"></i></span>
               </label>
@@ -180,28 +243,48 @@
             <h6 class="fw-bold mb-3" data-i18n="order_summary">Order Summary</h6>
             <div id="coItems"></div>
             <hr>
-            <div class="d-flex justify-content-between mb-1"><span class="text-muted" data-i18n="subtotal">Subtotal</span><span id="coSub">0 DH</span></div>
-            <div class="d-flex justify-content-between mb-1"><span class="text-muted" data-i18n="delivery">Delivery</span><span id="coFee">0 DH</span></div>
-            <div class="d-flex justify-content-between fw-bold fs-5 mt-2"><span data-i18n="total">Total</span><span class="text-orange" id="coTotal">0 DH</span></div>
-            <div class="co-secure"><i class="fa-solid fa-lock me-1"></i><span data-i18n="secure_checkout">Secure checkout</span></div>
-            <button class="co-btn" id="placeOrder"><i class="fa-solid fa-bag-shopping me-1"></i> <span data-i18n="place_order">Place Order</span></button>
+            <div class="d-flex justify-content-between mb-1"><span class="text-muted"
+                data-i18n="subtotal">Subtotal</span><span id="coSub">0 DH</span></div>
+            <div class="d-flex justify-content-between mb-1"><span class="text-muted"
+                data-i18n="delivery">Delivery</span><span id="coFee">0 DH</span></div>
+            <div class="d-flex justify-content-between fw-bold fs-5 mt-2"><span data-i18n="total">Total</span><span
+                class="text-orange" id="coTotal">0 DH</span></div>
+            <div class="co-secure"><i class="fa-solid fa-lock me-1"></i><span data-i18n="secure_checkout">Secure
+                checkout</span></div>
+            <button class="co-btn" id="placeOrder" type="submit"><i class="fa-solid fa-bag-shopping me-1"></i> <span
+                data-i18n="place_order">Place Order</span></button>
           </div>
         </div>
       </div>
     </div>
+    </form>
 
     <!-- Trust strip -->
     <div class="co-trust">
-      <div class="t-item"><i class="fa-solid fa-shield-halved"></i><div><strong data-i18n="trust4_t">Secure Payment</strong><small data-i18n="trust4_s">100% protected</small></div></div>
-      <div class="t-item"><i class="fa-solid fa-truck-fast"></i><div><strong data-i18n="trust1_t">Fast Delivery</strong><small data-i18n="trust1_s">All over Morocco</small></div></div>
-      <div class="t-item"><i class="fa-solid fa-rotate"></i><div><strong data-i18n="trust3_t">Easy Returns</strong><small data-i18n="trust3_s">Within 7 days</small></div></div>
-      <div class="t-item"><i class="fa-solid fa-headset"></i><div><strong data-i18n="trust5_t">24/7 Support</strong><small data-i18n="trust5_s">We're here for you</small></div></div>
+      <div class="t-item"><i class="fa-solid fa-shield-halved"></i>
+        <div><strong data-i18n="trust4_t">Secure Payment</strong><small data-i18n="trust4_s">100% protected</small>
+        </div>
+      </div>
+      <div class="t-item"><i class="fa-solid fa-truck-fast"></i>
+        <div><strong data-i18n="trust1_t">Fast Delivery</strong><small data-i18n="trust1_s">All over Morocco</small>
+        </div>
+      </div>
+      <div class="t-item"><i class="fa-solid fa-rotate"></i>
+        <div><strong data-i18n="trust3_t">Easy Returns</strong><small data-i18n="trust3_s">Within 7 days</small></div>
+      </div>
+      <div class="t-item"><i class="fa-solid fa-headset"></i>
+        <div><strong data-i18n="trust5_t">24/7 Support</strong><small data-i18n="trust5_s">We're here for you</small>
+        </div>
+      </div>
     </div>
   </main>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-  <script src="js/i18n.js?v=20260817"></script>
-  <script src="js/core.js?v=20260817"></script>
-  <script src="js/checkout.js?v=20260817"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+    crossorigin="anonymous"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/core.js"></script>
+  <script src="js/checkout.js"></script>
 </body>
+
 </html>
