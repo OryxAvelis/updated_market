@@ -32,6 +32,9 @@ const schema = z.object({
   ALLOWED_ORIGINS: z.string().default('https://localhost:3443'),
   TRUST_PROXY: z.coerce.number().int().min(0).max(5).default(0),
   TLS_TERMINATED_BY_PROXY: boolValue.default(false),
+  HSTS_MAX_AGE_SECONDS: z.coerce.number().int().min(0).max(63072000).default(300),
+  HSTS_INCLUDE_SUBDOMAINS: boolValue.default(false),
+  HSTS_PRELOAD: boolValue.default(false),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   TLS_CERT_PATH: optionalText,
   TLS_KEY_PATH: optionalText,
@@ -112,6 +115,9 @@ if (isProduction && new URL(env.PASSWORD_RESET_URL).protocol !== 'https:') {
 if (isProduction && env.TLS_TERMINATED_BY_PROXY && env.TRUST_PROXY < 1) {
   throw new Error('TRUST_PROXY must identify the trusted TLS proxy in production.');
 }
+if (env.HSTS_PRELOAD && (!env.HSTS_INCLUDE_SUBDOMAINS || env.HSTS_MAX_AGE_SECONDS < 31536000)) {
+  throw new Error('HSTS_PRELOAD requires HSTS_INCLUDE_SUBDOMAINS=true and HSTS_MAX_AGE_SECONDS of at least 31536000.');
+}
 if (env.SESSION_COOKIE_NAME.startsWith('__Host-') && !secureCookies && !isTest) {
   throw new Error('__Host- cookies require an HTTPS APP_ORIGIN.');
 }
@@ -159,6 +165,11 @@ export const config = Object.freeze({
   allowedOrigins,
   trustProxy: env.TRUST_PROXY,
   tlsTerminatedByProxy: env.TLS_TERMINATED_BY_PROXY,
+  hsts: {
+    maxAge: env.HSTS_MAX_AGE_SECONDS,
+    includeSubDomains: env.HSTS_INCLUDE_SUBDOMAINS,
+    preload: env.HSTS_PRELOAD
+  },
   logLevel: env.LOG_LEVEL,
   tls: {
     certPath: resolveOptionalPath(env.TLS_CERT_PATH),

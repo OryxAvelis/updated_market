@@ -19,8 +19,12 @@
 
   // Deliberately closure-scoped. Do not expose or persist this value.
   let csrfToken = null;
+  // undefined means that this tab has not established which cookie-backed
+  // session it is using; null is the known anonymous session.
+  let sessionIdentity;
   let bootstrapPromise = null;
   let refreshPromise = null;
+  let serverClockOffsetMs = 0;
 
   class StoreAPIError extends Error {
     constructor(message, options = {}) {
@@ -87,7 +91,13 @@
     if (!global.crypto || typeof global.crypto.randomUUID !== 'function') {
       throw clientError('CRYPTO_UNAVAILABLE', 'This browser cannot create a secure idempotency key.');
     }
-    return global.crypto.randomUUID();
+    const estimatedServerTime = Math.max(0, Math.floor(Date.now() + serverClockOffsetMs));
+    return `am1.${estimatedServerTime.toString(36)}.${global.crypto.randomUUID()}`;
+  }
+
+  function observeServerClock(response) {
+    const serverDate = Date.parse(response.headers.get('date') || '');
+    if (Number.isFinite(serverDate)) serverClockOffsetMs = serverDate - Date.now();
   }
 
   function idempotencyKeyFrom(options = {}) {
@@ -164,6 +174,35 @@
     return withoutCsrf(payload);
   }
 
+  function rememberSession(payload) {
+    if (payload?.authenticated === false) {
+      sessionIdentity = null;
+      return;
+    }
+    const userId = String(payload?.user?.id || '').trim();
+    if (payload?.authenticated === true && userId) sessionIdentity = userId;
+  }
+
+  function rememberAuthenticatedResult(payload) {
+    const userId = String(payload?.user?.id || '').trim();
+    if (!userId) throw clientError('INVALID_RESPONSE', 'The authenticated response did not identify its user.');
+    sessionIdentity = userId;
+    return payload;
+  }
+
+  function sessionChangedError() {
+    try {
+      global.dispatchEvent(new CustomEvent('am:session-changed', {
+        detail: { reason: 'session-changed' }
+      }));
+    } catch { /* A non-browser test context may not provide DOM events. */ }
+    return new StoreAPIError('The signed-in account changed in another tab. Refresh before trying again.', {
+      status: 409,
+      code: 'SESSION_CHANGED',
+      retryable: false
+    });
+  }
+
   async function parseBody(response) {
     if (response.status === 204 || response.status === 205) return null;
     const text = await response.text();
@@ -233,7 +272,7 @@
       }
 
       if (options.csrf !== false && !SAFE_METHODS.has(method)) {
-        if (!csrfToken) await bootstrap({ signal: options.signal, timeoutMs });
+        if (!csrfToken || sessionIdentity === undefined) await bootstrap({ signal: options.signal, timeoutMs });
         if (!csrfToken) throw clientError('CSRF_TOKEN_MISSING', 'A CSRF token could not be established.');
         headers.set('X-CSRF-Token', csrfToken);
       }
@@ -247,6 +286,7 @@
         signal: bounded.signal,
         cache: options.cache || 'no-store'
       });
+      observeServerClock(response);
       const payload = await parseBody(response);
       if (!response.ok) throw responseError(response, payload);
       return normalizeSuccess(payload);
@@ -277,13 +317,17 @@
   }
 
   async function bootstrap(options = {}) {
-    const load = () => rawRequest('/auth/session', {
-      method: 'GET',
-      csrf: false,
-      cache: 'no-store',
-      signal: options.signal,
-      timeoutMs: options.timeoutMs
-    });
+    const load = async () => {
+      const session = await rawRequest('/auth/session', {
+        method: 'GET',
+        csrf: false,
+        cache: 'no-store',
+        signal: options.signal,
+        timeoutMs: options.timeoutMs
+      });
+      rememberSession(session);
+      return session;
+    };
 
     if (options.force || options.signal) return load();
     if (!bootstrapPromise) {
@@ -295,13 +339,14 @@
   async function refreshCsrf(options = {}) {
     const load = async () => {
       csrfToken = null;
-      await rawRequest('/auth/csrf', {
+      const session = await rawRequest('/auth/session', {
         method: 'GET',
         csrf: false,
         cache: 'no-store',
         signal: options.signal,
         timeoutMs: options.timeoutMs
       });
+      rememberSession(session);
       if (!csrfToken) throw clientError('CSRF_TOKEN_MISSING', 'The server did not provide a CSRF token.');
     };
 
@@ -313,6 +358,12 @@
   }
 
   async function request(path, options = {}) {
+    const method = String(options.method || 'GET').toUpperCase();
+    const protectedMutation = options.csrf !== false && !SAFE_METHODS.has(method);
+    if (protectedMutation && (!csrfToken || sessionIdentity === undefined)) {
+      await bootstrap({ signal: options.signal, timeoutMs: options.timeoutMs });
+    }
+    const requestIdentity = sessionIdentity;
     try {
       return await rawRequest(path, options);
     } catch (error) {
@@ -324,6 +375,7 @@
       // closed after refresh so UI code can ask the customer to submit again
       // with the same caller-owned Idempotency-Key.
       await refreshCsrf({ signal: options.signal, timeoutMs: options.timeoutMs });
+      if (requestIdentity !== sessionIdentity) throw sessionChangedError();
       if (options.retryCsrf === false) throw error;
       return rawRequest(path, { ...options, csrfRetried: true });
     }
@@ -354,17 +406,26 @@
 
   const auth = Object.freeze({
     session: (options) => bootstrap({ ...(options || {}), force: true }),
-    register: (input, options) => write('POST', '/auth/register', input, options),
-    login: (input, options) => write('POST', '/auth/login', input, options),
+    register: async (input, options) => rememberAuthenticatedResult(await write('POST', '/auth/register', input, options)),
+    login: async (input, options) => rememberAuthenticatedResult(await write('POST', '/auth/login', input, options)),
     logout: async (options) => {
+      let completed = false;
       try {
-        return await write('POST', '/auth/logout', {}, options);
+        const result = await write('POST', '/auth/logout', {}, options);
+        sessionIdentity = null;
+        completed = true;
+        return result;
       } finally {
         csrfToken = null;
+        if (!completed) sessionIdentity = undefined;
       }
     },
     requestPasswordReset: (input, options) => write('POST', '/auth/password-reset/request', input, options),
-    confirmPasswordReset: (input, options) => write('POST', '/auth/password-reset/confirm', input, options),
+    confirmPasswordReset: async (input, options) => {
+      const result = await write('POST', '/auth/password-reset/confirm', input, options);
+      sessionIdentity = null;
+      return result;
+    },
     changePassword: (input, options) => write('POST', '/auth/password/change', input, options)
   });
 

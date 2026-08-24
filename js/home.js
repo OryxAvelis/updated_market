@@ -6,6 +6,20 @@
 
 let homeProducts = [];
 let recommendedProducts = [];
+let homeAccountRequestSequence = 0;
+
+function homeStateHtml(messageKey, { error = false, retryId = '' } = {}) {
+  const role = error ? 'alert' : 'status';
+  const tone = error ? 'text-danger' : 'text-muted';
+  return `<div class="col-12 text-center py-4">
+    <p class="${tone} mb-2" role="${role}">${escapeHtml(t(messageKey))}</p>
+    ${retryId ? `<button type="button" class="btn btn-outline-orange btn-sm state-action" id="${escapeHtml(retryId)}">${escapeHtml(t('retry'))}</button>` : ''}
+  </div>`;
+}
+
+function bindHomeRetry(id, handler) {
+  $(id)?.addEventListener('click', handler);
+}
 
 // ---------- Hero carousel ----------
 let heroTimer = null;
@@ -83,11 +97,44 @@ function renderHomeCategories() {
     return 0;
   });
   grid.innerHTML = sorted.slice(0, 12).map(c => `
-    <a class="cat-card${c.id === RENTREE_CAT_ID ? ' cat-highlight' : ''}" href="categories.html?cat=${c.id}">
+    <a class="cat-card${c.id === RENTREE_CAT_ID ? ' cat-highlight' : ''}" href="categories.html?cat=${encodeURIComponent(String(c.id))}">
       <div class="icon">${getCatIcon(c)}</div>
       <span>${escapeHtml(catName(c.name))}</span>
     </a>
   `).join('');
+}
+
+async function loadHomeCategories({ restoreFocus = false } = {}) {
+  const grid = $('homeCategories');
+  if (!grid) return;
+  grid.setAttribute('aria-busy', 'true');
+  try {
+    await ensureCategories();
+    renderHomeCategories();
+    renderSidebar(null);
+    if (restoreFocus) {
+      requestAnimationFrame(() => {
+        const heading = grid.previousElementSibling?.querySelector('h2');
+        if (!heading) return;
+        heading.setAttribute('tabindex', '-1');
+        heading.focus({ preventScroll: true });
+      });
+    }
+  } catch (error) {
+    console.error('Home category load failed', error);
+    grid.innerHTML = `<div class="text-center py-4" style="grid-column:1/-1" role="alert">
+      <p class="text-danger mb-2">${escapeHtml(t('api_error'))}</p>
+      <button type="button" class="btn btn-outline-orange btn-sm state-action" id="retryHomeCategories">${escapeHtml(t('retry'))}</button>
+    </div>`;
+    const retry = $('retryHomeCategories');
+    retry?.addEventListener('click', event => {
+      event.currentTarget.disabled = true;
+      loadHomeCategories({ restoreFocus: true });
+    });
+    if (restoreFocus) requestAnimationFrame(() => retry?.focus({ preventScroll: true }));
+  } finally {
+    grid.removeAttribute('aria-busy');
+  }
 }
 
 // ---------- Seasonal products (real catalogue, no fake promos) ----------
@@ -95,27 +142,36 @@ async function renderSeasonProducts() {
   const box = $('seasonProducts');
   if (!box) return;
   box.setAttribute('aria-busy', 'true');
+  box.innerHTML = skeletonCards(4);
   try {
     let list = [];
+    let requestSucceeded = false;
     try {
       const data = await fetchProducts(1, RENTREE_CAT_ID);
       list = data.results || [];
-    } catch { /* ignore */ }
+      requestSucceeded = true;
+    } catch { /* the search fallback below can still populate the section */ }
     if (list.length < 4) {
-      const extra = await fetchProducts(1, null, 'stylo');
-      const more = (extra.results || []).filter(p => !list.find(x => String(x.id) === String(p.id)));
-      list = list.concat(more);
+      try {
+        const extra = await fetchProducts(1, null, 'stylo');
+        const more = (extra.results || []).filter(p => !list.find(x => String(x.id) === String(p.id)));
+        list = list.concat(more);
+        requestSucceeded = true;
+      } catch { /* retain any products returned by the primary request */ }
     }
     list = list.slice(0, 4);
     if (!list.length) {
-      box.innerHTML = '';
-      box.removeAttribute('aria-busy');
+      if (!requestSucceeded) throw new Error('Seasonal product requests failed');
+      box.innerHTML = homeStateHtml('season_products_empty', { retryId: 'retrySeasonProducts' });
+      bindHomeRetry('retrySeasonProducts', renderSeasonProducts);
       return;
     }
     box.innerHTML = list.map(cardHTML).join('');
     bindCards(box);
-  } catch {
-    box.innerHTML = '';
+  } catch (error) {
+    console.error(error);
+    box.innerHTML = homeStateHtml('season_products_error', { error: true, retryId: 'retrySeasonProducts' });
+    bindHomeRetry('retrySeasonProducts', renderSeasonProducts);
   } finally {
     box.removeAttribute('aria-busy');
   }
@@ -124,57 +180,93 @@ async function renderSeasonProducts() {
 // ---------- Products ----------
 async function renderHomeProducts() {
   const box = $('homeProducts');
+  if (!box) return;
   box.setAttribute('aria-busy', 'true');
   try {
     if (!homeProducts.length) {
+      box.innerHTML = skeletonCards(8);
       const data = await fetchProducts(1);
       homeProducts = data.results || [];
+    }
+    if (!homeProducts.length) {
+      box.innerHTML = homeStateHtml('home_products_empty', { retryId: 'retryHomeProducts' });
+      bindHomeRetry('retryHomeProducts', renderHomeProducts);
+      return;
     }
     box.innerHTML = homeProducts.slice(0, 12).map(cardHTML).join('');
     bindCards(box, renderHomeProducts);
   } catch (e) {
-    box.innerHTML = `<div class="col-12 text-center py-4">
-      <p class="text-danger mb-2">${t('failed_load')}</p>
-      <button type="button" class="btn btn-outline-orange btn-sm state-action" id="retryHomeProducts">${t('retry')}</button>
-    </div>`;
-    $('retryHomeProducts')?.addEventListener('click', renderHomeProducts);
+    console.error(e);
+    box.innerHTML = homeStateHtml('failed_load', { error: true, retryId: 'retryHomeProducts' });
+    bindHomeRetry('retryHomeProducts', renderHomeProducts);
   } finally {
     box.removeAttribute('aria-busy');
   }
 }
 
 // ---------- Recently viewed ----------
-function renderRecent() {
+function renderRecent({ restoreFocus = false } = {}) {
   const section = $('recentSection');
   const box = $('recentProducts');
   if (!section || !box) return;
+  if (getUser() && getAuthenticatedResourceState('recent') === 'error') {
+    section.style.display = 'block';
+    box.innerHTML = `<div class="col-12 text-center py-4" role="alert">
+      <p class="text-danger mb-2">${escapeHtml(accountRecoveryMessage(['recent']))}</p>
+      <button type="button" class="btn btn-outline-orange btn-sm state-action" id="retryAccountRecent">${escapeHtml(t('retry'))}</button>
+    </div>`;
+    $('retryAccountRecent')?.addEventListener('click', async event => {
+      event.currentTarget.disabled = true;
+      await retryAuthenticatedResources();
+      renderRecent({ restoreFocus: true });
+    });
+    if (restoreFocus) requestAnimationFrame(() => $('retryAccountRecent')?.focus({ preventScroll: true }));
+    return;
+  }
   const list = getRecent();
   if (list.length === 0) {
     section.style.display = 'none';
+    box.innerHTML = '';
     return;
   }
   section.style.display = 'block';
   list.forEach(p => { productCache[p.id] = p; }); // snapshots → add-to-cart has price/name
   box.innerHTML = list.slice(0, 4).map(cardHTML).join('');
   bindCards(box);
+  if (restoreFocus) {
+    requestAnimationFrame(() => {
+      const heading = section.querySelector('h2');
+      if (!heading) return;
+      heading.setAttribute('tabindex', '-1');
+      heading.focus({ preventScroll: true });
+    });
+  }
 }
 
 async function renderRecommendations() {
+  const requestSequence = ++homeAccountRequestSequence;
   const section = $('recommendSection');
   const box = $('recommendProducts');
   const heading = $('recommendHeading');
   if (!section || !box || !heading) return;
-  heading.textContent = getLang() === 'fr' ? 'Recommandés pour vous' : 'Recommended for you';
+  heading.textContent = t('recommendations_heading');
   if (!getUser() || currentPreferences?.personalizationEnabled === false) {
     section.style.display = 'none';
+    box.innerHTML = '';
+    box.removeAttribute('aria-busy');
     return;
   }
+  section.style.display = 'block';
   box.setAttribute('aria-busy', 'true');
+  box.innerHTML = skeletonCards(4);
+  const authContext = captureAuthenticatedRequest();
   try {
     const payload = await StoreAPI.recommendations.list({ limit: 4 });
+    if (requestSequence !== homeAccountRequestSequence || !isAuthenticatedRequestCurrent(authContext)) return;
     recommendedProducts = payload.products || [];
     if (!recommendedProducts.length) {
-      section.style.display = 'none';
+      box.innerHTML = homeStateHtml('recommendations_empty', { retryId: 'retryRecommendations' });
+      bindHomeRetry('retryRecommendations', renderRecommendations);
       return;
     }
     recommendedProducts.forEach(product => { productCache[product.id] = product; });
@@ -182,10 +274,13 @@ async function renderRecommendations() {
     bindCards(box, renderRecommendations);
     section.style.display = 'block';
   } catch (error) {
+    if (handleStoreUnauthorized(error)) return;
+    if (requestSequence !== homeAccountRequestSequence || !isAuthenticatedRequestCurrent(authContext)) return;
     console.error(error);
-    section.style.display = 'none';
+    box.innerHTML = homeStateHtml('recommendations_error', { error: true, retryId: 'retryRecommendations' });
+    bindHomeRetry('retryRecommendations', renderRecommendations);
   } finally {
-    box.removeAttribute('aria-busy');
+    if (requestSequence === homeAccountRequestSequence) box.removeAttribute('aria-busy');
   }
 }
 
@@ -197,33 +292,44 @@ async function initHome() {
   if (homeBox) homeBox.innerHTML = skeletonCards(8);
   if (seasonBox) seasonBox.innerHTML = skeletonCards(4);
 
-  try {
-    await ensureCategories();
-    renderHomeCategories();
-    renderSidebar(null);
-  } catch (e) {
-    console.error(e);
-    $('homeProducts').innerHTML =
-      `<div class="col-12 text-center py-5">
-        <p class="text-danger mb-2">${t('api_error')}</p>
-        <button type="button" class="btn btn-outline-orange btn-sm state-action" id="retryHomeLoad">${t('retry')}</button>
-      </div>`;
-    if (seasonBox) seasonBox.innerHTML = '';
-    $('retryHomeLoad')?.addEventListener('click', () => location.reload());
-    return;
-  }
-
   renderRecent();
-  await Promise.all([renderSeasonProducts(), renderHomeProducts(), renderRecommendations()]);
+  await Promise.all([
+    loadHomeCategories(),
+    renderSeasonProducts(),
+    renderHomeProducts(),
+    renderRecommendations()
+  ]);
 }
 
 document.addEventListener('DOMContentLoaded', () => whenStoreReady(initHome));
 
 window.addEventListener('am:langchange', () => {
   refreshHeroControls();
-  renderHomeCategories();
+  if (categories.length) renderHomeCategories();
+  else loadHomeCategories();
   renderRecent();
   renderRecommendations();
   renderSeasonProducts();
   renderHomeProducts();
+});
+
+window.addEventListener('am:account-resources-recovered', event => {
+  if (event.detail?.resources?.includes('recent')) renderRecent({ restoreFocus: true });
+});
+
+window.addEventListener('am:session-expired', () => {
+  homeAccountRequestSequence += 1;
+  recommendedProducts = [];
+  const privateSectionHadFocus = $('recentSection')?.contains(document.activeElement) ||
+    $('recommendSection')?.contains(document.activeElement);
+  renderRecent();
+  renderRecommendations();
+  if (privateSectionHadFocus) {
+    requestAnimationFrame(() => {
+      const heading = document.querySelector('main h1');
+      if (!heading) return;
+      heading.setAttribute('tabindex', '-1');
+      heading.focus({ preventScroll: true });
+    });
+  }
 });

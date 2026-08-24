@@ -13,21 +13,19 @@
   <meta property="og:image" content="https://raw.githubusercontent.com/OryxAvelis/updated_market/main/img/logo-round.png" />
   <meta name="twitter:card" content="summary" />
   <script src="js/theme-init.js"></script>
-  <link rel="stylesheet" href="css/login.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="css/login.css?v=20260824-ui-polish" />
   <link rel="icon" type="image/png" href="img/logo-round.png" />
 </head>
 <body data-page="login">
-  <a href="index.html" class="back-home"><span aria-hidden="true">←</span> <span data-i18n="back_home">Back to Store</span></a>
+  <a href="index.html" class="back-home"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> <span data-i18n="back_home">Back to Store</span></a>
 
   <button class="lang-float" data-lang-toggle type="button" title="Français / English" aria-label="Change language" data-i18n-aria="change_language">
-    <span aria-hidden="true">◎</span> <span id="langLabel">EN</span>
+    <i class="fa-solid fa-language" aria-hidden="true"></i> <span id="langLabel">EN</span>
   </button>
 
   <main class="auth-card" id="mainContent">
     <section class="auth-brand" aria-labelledby="brandTitle">
-      <div class="bubbles" aria-hidden="true">
-        <span></span><span></span><span></span><span></span><span></span><span></span>
-      </div>
       <div class="brand-content">
         <a href="index.html" class="auth-logo-card" aria-label="AM MARKET home">
           <img src="img/logo-round.png" alt="AM MARKET" />
@@ -35,9 +33,9 @@
         <h1 id="brandTitle">Welcome back!</h1>
         <p id="brandText">Sign in to manage your orders, wishlist and get the best deals on everyday products.</p>
         <ul class="perks">
-          <li><span class="perk-icon" aria-hidden="true">✓</span> <span data-i18n="perk1">Free delivery over 200 DH</span></li>
-          <li><span class="perk-icon" aria-hidden="true">↻</span> <span data-i18n="perk2">Easy returns within 7 days</span></li>
-          <li><span class="perk-icon" aria-hidden="true">◆</span> <span data-auth-copy="secureAccount">Secure account sessions</span></li>
+          <li><i class="perk-icon fa-solid fa-truck-fast" aria-hidden="true"></i> <span data-i18n="perk1">Free delivery over 200 DH</span></li>
+          <li><i class="perk-icon fa-solid fa-arrow-rotate-left" aria-hidden="true"></i> <span data-i18n="perk2">Easy returns within 7 days</span></li>
+          <li><i class="perk-icon fa-solid fa-shield-halved" aria-hidden="true"></i> <span data-auth-copy="secureAccount">Secure account sessions</span></li>
         </ul>
       </div>
     </section>
@@ -48,20 +46,20 @@
 
         <div class="form-box anim" id="loginBox" data-auth-panel="login">
           <h2 id="loginTitle" tabindex="-1" data-i18n="sign_in_h">Sign In</h2>
-          <p class="sub" data-i18n="login_sub">Good to see you again 👋</p>
+          <p class="sub" data-auth-copy="loginSubtitle">Good to see you again.</p>
           <form id="loginForm" novalidate>
             <div class="input-group-custom" id="loginEmailWrap">
-              <span class="field-icon" aria-hidden="true">@</span>
+              <i class="field-icon fa-solid fa-envelope" aria-hidden="true"></i>
               <label class="visually-hidden" for="loginEmail" data-i18n="email_ph">Email address</label>
               <input type="email" id="loginEmail" placeholder="Email address" autocomplete="email" data-i18n-ph="email_ph" required maxlength="254" />
             </div>
             <div class="field-error" id="loginEmailError" role="alert"></div>
 
             <div class="input-group-custom" id="loginPassWrap">
-              <span class="field-icon" aria-hidden="true">●</span>
+              <i class="field-icon fa-solid fa-lock" aria-hidden="true"></i>
               <label class="visually-hidden" for="loginPass" data-i18n="password_ph">Password</label>
               <input type="password" id="loginPass" placeholder="Password" autocomplete="current-password" data-i18n-ph="password_ph" required minlength="12" maxlength="128" />
-              <button type="button" class="eye" data-eye="loginPass" title="Show password" aria-label="Show password" aria-controls="loginPass" aria-pressed="false"><span aria-hidden="true">◉</span></button>
+              <button type="button" class="eye" data-eye="loginPass" title="Show password" aria-label="Show password" aria-controls="loginPass" aria-pressed="false"><i class="fa-solid fa-eye" aria-hidden="true"></i></button>
             </div>
             <div class="field-error" id="loginPassError" role="alert"></div>
 
@@ -70,8 +68,8 @@
             </div>
 
             <button class="btn-submit" type="submit" id="loginBtn">
-              <span class="auth-spinner" aria-hidden="true" hidden></span>
-              <span data-submit-label data-i18n="sign_in_btn">Sign In</span><span aria-hidden="true">→</span>
+              <i class="auth-spinner fa-solid fa-circle-notch fa-spin" aria-hidden="true" hidden></i>
+              <span data-submit-label data-i18n="sign_in_btn">Sign In</span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
             </button>
           </form>
           <p class="switch-line"><span data-i18n="new_to">New to AM Market?</span> <button class="link-btn" id="toSignup" type="button"><span data-i18n="create_account_link">Create an account</span></button></p>
@@ -79,34 +77,34 @@
 
         <div class="form-box" id="signupBox" data-auth-panel="signup" hidden>
           <h2 id="signupTitle" tabindex="-1" data-i18n="create_h">Create Account</h2>
-          <p class="sub" data-i18n="signup_sub">Join AM Market in less than a minute 🚀</p>
+          <p class="sub" data-auth-copy="signupSubtitle">Join AM Market in less than a minute.</p>
           <form id="signupForm" novalidate>
             <div class="input-group-custom" id="suNameWrap">
-              <span class="field-icon" aria-hidden="true">◇</span>
+              <i class="field-icon fa-solid fa-user" aria-hidden="true"></i>
               <label class="visually-hidden" for="suName" data-i18n="full_name_ph">Full name</label>
               <input type="text" id="suName" placeholder="Full name" autocomplete="name" data-i18n-ph="full_name_ph" required minlength="2" maxlength="100" />
             </div>
             <div class="field-error" id="suNameError" role="alert"></div>
 
             <div class="input-group-custom" id="suEmailWrap">
-              <span class="field-icon" aria-hidden="true">@</span>
+              <i class="field-icon fa-solid fa-envelope" aria-hidden="true"></i>
               <label class="visually-hidden" for="suEmail" data-i18n="email_ph">Email address</label>
               <input type="email" id="suEmail" placeholder="Email address" autocomplete="email" data-i18n-ph="email_ph" required maxlength="254" />
             </div>
             <div class="field-error" id="suEmailError" role="alert"></div>
 
             <div class="input-group-custom" id="suPassWrap">
-              <span class="field-icon" aria-hidden="true">●</span>
+              <i class="field-icon fa-solid fa-lock" aria-hidden="true"></i>
               <label class="visually-hidden" for="suPass" data-i18n="password_ph">Password</label>
               <input type="password" id="suPass" autocomplete="new-password" data-auth-copy-placeholder="passwordPlaceholder" required minlength="12" maxlength="128" />
-              <button type="button" class="eye" data-eye="suPass" title="Show password" aria-label="Show password" aria-controls="suPass" aria-pressed="false"><span aria-hidden="true">◉</span></button>
+              <button type="button" class="eye" data-eye="suPass" title="Show password" aria-label="Show password" aria-controls="suPass" aria-pressed="false"><i class="fa-solid fa-eye" aria-hidden="true"></i></button>
             </div>
             <div class="field-error" id="suPassError" role="alert"></div>
             <p class="password-rule" data-auth-copy="passwordRule">Use 12–128 characters.</p>
 
             <button class="btn-submit" type="submit" id="signupBtn">
-              <span class="auth-spinner" aria-hidden="true" hidden></span>
-              <span data-submit-label data-i18n="create_btn">Create Account</span><span aria-hidden="true">＋</span>
+              <i class="auth-spinner fa-solid fa-circle-notch fa-spin" aria-hidden="true" hidden></i>
+              <span data-submit-label data-i18n="create_btn">Create Account</span><i class="fa-solid fa-user-plus" aria-hidden="true"></i>
             </button>
           </form>
           <p class="switch-line"><span data-i18n="have_account">Already have an account?</span> <button class="link-btn" id="toLogin" type="button"><span data-i18n="sign_in_link">Sign in</span></button></p>
@@ -117,24 +115,24 @@
           <p class="sub" data-auth-copy="forgotSubtitle">Enter your account email. If an account exists, we will send a secure reset link.</p>
           <form id="forgotForm" novalidate>
             <div class="input-group-custom" id="forgotEmailWrap">
-              <span class="field-icon" aria-hidden="true">@</span>
+              <i class="field-icon fa-solid fa-envelope" aria-hidden="true"></i>
               <label class="visually-hidden" for="forgotEmail" data-i18n="email_ph">Email address</label>
               <input type="email" id="forgotEmail" placeholder="Email address" autocomplete="email" data-i18n-ph="email_ph" required maxlength="254" />
             </div>
             <div class="field-error" id="forgotEmailError" role="alert"></div>
             <button class="btn-submit" type="submit" id="forgotBtn">
-              <span class="auth-spinner" aria-hidden="true" hidden></span>
-              <span data-submit-label data-auth-copy="sendReset">Send reset link</span><span aria-hidden="true">→</span>
+              <i class="auth-spinner fa-solid fa-circle-notch fa-spin" aria-hidden="true" hidden></i>
+              <span data-submit-label data-auth-copy="sendReset">Send reset link</span><i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
             </button>
           </form>
-          <p class="switch-line"><button class="link-btn" id="forgotToLogin" type="button"><span aria-hidden="true">←</span> <span data-i18n="sign_in_link">Sign in</span></button></p>
+          <p class="switch-line"><button class="link-btn" id="forgotToLogin" type="button"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> <span data-i18n="sign_in_link">Sign in</span></button></p>
         </div>
       </div>
     </section>
   </main>
 
-  <script src="js/i18n.js"></script>
-  <script src="js/store-api.js"></script>
-  <script src="js/login.js"></script>
+  <script src="js/i18n.js?v=20260824-ui-polish"></script>
+  <script src="js/store-api.js?v=20260824-ui-polish"></script>
+  <script src="js/login.js?v=20260824-resilience"></script>
 </body>
 </html>

@@ -20,8 +20,7 @@ market.example.com {
 		-Server
 		X-Content-Type-Options nosniff
 		Referrer-Policy strict-origin-when-cross-origin
-		# Begin with a short value. Increase it only after the HTTPS rollout is proven.
-		Strict-Transport-Security "max-age=300"
+		# Node owns Strict-Transport-Security so there is exactly one policy.
 	}
 
 	log

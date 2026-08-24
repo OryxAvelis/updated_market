@@ -2,6 +2,9 @@
 (function initResetPasswordPage() {
   'use strict';
 
+  const AUTH_SESSION_LOCK = 'am-market-auth-session-v1';
+  const AUTH_STATE_CHANNEL = 'am-market-auth-state-v1';
+
   function consumeFragmentToken() {
     const fragment = location.hash.startsWith('#') ? location.hash.slice(1) : '';
     let token = null;
@@ -24,8 +27,8 @@
       subtitle: 'Choose a strong password that you do not use on another website.',
       newPassword: 'New password',
       confirmPassword: 'Confirm new password',
-      passwordPlaceholder: 'New password (12–128 characters)',
-      confirmPlaceholder: 'Confirm your new password',
+      passwordPlaceholder: 'New password',
+      confirmPlaceholder: 'Confirm password',
       passwordRule: 'Use 12–128 characters.',
       showPassword: 'Show password',
       hidePassword: 'Hide password',
@@ -46,8 +49,8 @@
       subtitle: 'Choisissez un mot de passe fort que vous n’utilisez sur aucun autre site.',
       newPassword: 'Nouveau mot de passe',
       confirmPassword: 'Confirmer le nouveau mot de passe',
-      passwordPlaceholder: 'Nouveau mot de passe (12 à 128 caractères)',
-      confirmPlaceholder: 'Confirmez le nouveau mot de passe',
+      passwordPlaceholder: 'Nouveau mot de passe',
+      confirmPlaceholder: 'Confirmer le mot de passe',
       passwordRule: 'Utilisez entre 12 et 128 caractères.',
       showPassword: 'Afficher le mot de passe',
       hidePassword: 'Masquer le mot de passe',
@@ -89,9 +92,21 @@
     document.querySelectorAll('.field-error[data-reset-error-key]').forEach((element) => {
       element.textContent = copy(element.dataset.resetErrorKey);
     });
+    const alert = $('resetAlert');
+    if (alert && !alert.hidden) {
+      const key = alert.dataset.resetAlertKey;
+      if (key) alert.textContent = copy(key);
+      else {
+        alert.hidden = true;
+        alert.textContent = '';
+      }
+    }
+    if ($('resetForm')?.hasAttribute('aria-busy')) {
+      $('resetSubmit').querySelector('[data-submit-label]').textContent = copy('pending');
+    }
   }
 
-  function showAlert(message, type = 'error', focus = false) {
+  function showAlert(message, type = 'error', focus = false, messageKey = '') {
     const alert = $('resetAlert');
     alert.textContent = message;
     alert.className = `auth-alert auth-alert--${type}`;
@@ -99,7 +114,13 @@
     const success = type === 'success';
     alert.setAttribute('role', success ? 'status' : 'alert');
     alert.setAttribute('aria-live', success ? 'polite' : 'assertive');
+    if (messageKey) alert.dataset.resetAlertKey = messageKey;
+    else delete alert.dataset.resetAlertKey;
     if (focus) requestAnimationFrame(() => alert.focus({ preventScroll: true }));
+  }
+
+  function showCopyAlert(key, type = 'error', focus = false) {
+    showAlert(copy(key), type, focus, key);
   }
 
   function setFieldError(inputId, wrapId, errorId, key) {
@@ -137,7 +158,9 @@
         const showing = input.type === 'text';
         input.type = showing ? 'password' : 'text';
         button.setAttribute('aria-pressed', String(!showing));
-        button.querySelector('[aria-hidden="true"]').textContent = showing ? '◉' : '◎';
+        const icon = button.querySelector('[aria-hidden="true"]');
+        icon?.classList.toggle('fa-eye', showing);
+        icon?.classList.toggle('fa-eye-slash', !showing);
         const key = showing ? 'showPassword' : 'hidePassword';
         button.setAttribute('aria-label', copy(key));
         button.setAttribute('title', copy(key));
@@ -145,10 +168,47 @@
     });
   }
 
-  function resetErrorMessage(error) {
-    if (error?.code === 'RATE_LIMITED') return copy('rateLimited');
-    if (error?.code === 'NETWORK_ERROR' || error?.code === 'REQUEST_TIMEOUT') return copy('networkError');
-    return copy('resetFailed');
+  function resetErrorKey(error) {
+    if (error?.code === 'RATE_LIMITED') return 'rateLimited';
+    if (error?.code === 'NETWORK_ERROR' || error?.code === 'REQUEST_TIMEOUT') return 'networkError';
+    return 'resetFailed';
+  }
+
+  function isRejectedToken(error) {
+    return ['RESET_TOKEN_INVALID', 'RESET_TOKEN_EXPIRED', 'TOKEN_EXPIRED'].includes(error?.code);
+  }
+
+  function exposeSignInRecovery(focus = false) {
+    $('resetForm').hidden = true;
+    $('resetSignIn').hidden = false;
+    if (focus) requestAnimationFrame(() => $('resetSignIn').focus({ preventScroll: true }));
+  }
+
+  async function withAuthSessionLock(work) {
+    const locks = globalThis.navigator?.locks;
+    if (!locks || typeof locks.request !== 'function') {
+      const error = new Error('A cross-tab account lock is unavailable.');
+      error.code = 'AUTH_LOCK_UNAVAILABLE';
+      throw error;
+    }
+    return locks.request(AUTH_SESSION_LOCK, { mode: 'exclusive' }, work);
+  }
+
+  function broadcastPasswordReset() {
+    if (typeof globalThis.BroadcastChannel !== 'function') return false;
+    let channel;
+    try {
+      channel = new globalThis.BroadcastChannel(AUTH_STATE_CHANNEL);
+      channel.postMessage({ version: 1, type: 'session-invalidated', reason: 'password-reset' });
+      globalThis.setTimeout(() => {
+        try { channel.close(); } catch { /* Best effort. */ }
+      }, 0);
+      return true;
+    } catch (error) {
+      try { channel?.close(); } catch { /* Best effort. */ }
+      console.warn('[AM MARKET password reset] Could not notify other tabs', error);
+      return false;
+    }
   }
 
   async function submitReset(event) {
@@ -171,16 +231,17 @@
 
     setPending(true);
     try {
-      await StoreAPI.auth.confirmPasswordReset({ token: resetToken, newPassword: password });
+      await withAuthSessionLock(() => StoreAPI.auth.confirmPasswordReset({ token: resetToken, newPassword: password }));
+      broadcastPasswordReset();
       resetToken = null;
       $('resetForm').reset();
       $('resetForm').hidden = true;
       $('resetSignIn').hidden = false;
-      showAlert(copy('success'), 'success', true);
+      showCopyAlert('success', 'success', true);
     } catch (error) {
-      if (error?.code === 'RESET_TOKEN_INVALID') resetToken = null;
-      showAlert(resetErrorMessage(error), 'error', true);
-      if (!resetToken) $('resetForm').hidden = true;
+      if (isRejectedToken(error)) resetToken = null;
+      showCopyAlert(resetErrorKey(error), 'error', Boolean(resetToken));
+      if (!resetToken) exposeSignInRecovery(true);
     } finally {
       setPending(false);
     }
@@ -193,9 +254,8 @@
     $('confirmPassword').addEventListener('input', () => clearFieldError('confirmPassword', 'confirmPasswordWrap', 'confirmPasswordError'));
     $('resetForm').addEventListener('submit', submitReset);
     if (!resetToken) {
-      $('resetForm').hidden = true;
-      $('resetSignIn').hidden = false;
-      showAlert(copy('invalidLink'), 'error', true);
+      exposeSignInRecovery(true);
+      showCopyAlert('invalidLink', 'error');
     } else {
       StoreAPI.bootstrap().catch(() => { /* Submit reports actionable connection errors. */ });
     }

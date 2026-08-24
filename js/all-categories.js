@@ -22,10 +22,10 @@ async function renderAllCategories() {
       return;
     }
     grid.innerHTML = sorted.map(c => `
-      <a class="all-cat-card${c.id === RENTREE_CAT ? ' cat-highlight' : ''}" href="categories.html?cat=${c.id}">
+      <a class="all-cat-card${c.id === RENTREE_CAT ? ' cat-highlight' : ''}" href="categories.html?cat=${encodeURIComponent(String(c.id))}">
         <div class="cat-icon">${getCatIcon(c)}</div>
         <div class="cat-name">${escapeHtml(catName(c.name))}</div>
-        <div class="cat-count">${c.product_count || 0}</div>
+        <div class="cat-count">${safeNonNegativeCount(c.product_count)}</div>
       </a>
     `).join('');
   } catch (e) {

@@ -252,13 +252,31 @@ export function createAccountRouter() {
 
   router.post('/addresses', async (req, res) => {
     const input = addressSchema.parse(req.body);
-    const publicId = randomUUID();
-    await inTransaction(req.app.locals.db, async (connection) => {
+    const candidatePublicId = randomUUID();
+    const result = await inTransaction(req.app.locals.db, async (connection) => {
+      // Serialize address creation per customer so an ambiguous client retry
+      // can resolve to the identical committed address instead of duplicating it.
+      await connection.execute('SELECT id FROM users WHERE id = ? LIMIT 1 FOR UPDATE', [req.auth.userId]);
       const [countRows] = await connection.execute(
         'SELECT COUNT(*) AS total FROM delivery_addresses WHERE user_id = ? AND deleted_at IS NULL FOR UPDATE',
         [req.auth.userId]
       );
       const makeDefault = input.isDefault || Number(countRows[0].total) === 0;
+      const [existingRows] = await connection.execute(
+        `SELECT public_id FROM delivery_addresses
+          WHERE user_id = ? AND deleted_at IS NULL
+            AND label = ? AND recipient_name = ? AND phone_e164 = ?
+            AND email <=> ? AND address_line1 = ? AND address_line2 <=> ?
+            AND district = ? AND city = ? AND postal_code <=> ?
+            AND delivery_instructions <=> ?
+          LIMIT 1 FOR UPDATE`,
+        [req.auth.userId, input.label, input.recipientName, input.phone, input.email ?? null,
+          input.addressLine1, input.addressLine2 ?? null, input.district, input.city,
+          input.postalCode ?? null, input.deliveryInstructions ?? null]
+      );
+      if (existingRows[0]) {
+        return { publicId: existingRows[0].public_id, replayed: true };
+      }
       if (makeDefault) {
         await connection.execute('UPDATE delivery_addresses SET is_default = 0, default_user_id = NULL WHERE user_id = ? AND deleted_at IS NULL', [req.auth.userId]);
       }
@@ -267,16 +285,17 @@ export function createAccountRouter() {
           (public_id, user_id, label, recipient_name, phone_e164, email, address_line1,
            address_line2, district, city, postal_code, country_code, delivery_instructions, is_default, default_user_id)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'MA', ?, ?, ?)`,
-        [publicId, req.auth.userId, input.label, input.recipientName, input.phone, input.email ?? null,
+        [candidatePublicId, req.auth.userId, input.label, input.recipientName, input.phone, input.email ?? null,
           input.addressLine1, input.addressLine2 ?? null, input.district, input.city, input.postalCode ?? null,
           input.deliveryInstructions ?? null, makeDefault, makeDefault ? req.auth.userId : null]
       );
+      return { publicId: candidatePublicId, replayed: false };
     });
     const [rows] = await req.app.locals.db.execute(
       `${addressSelect} WHERE public_id = ? AND user_id = ? LIMIT 1`,
-      [publicId, req.auth.userId]
+      [result.publicId, req.auth.userId]
     );
-    res.status(201).json({ address: addressDto(rows[0]) });
+    res.status(result.replayed ? 200 : 201).json({ address: addressDto(rows[0]), replayed: result.replayed });
   });
 
   router.patch('/addresses/:addressId', async (req, res) => {

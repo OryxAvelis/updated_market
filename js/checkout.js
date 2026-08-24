@@ -3,8 +3,16 @@
 let checkoutReady = false;
 let checkoutSubmitting = false;
 let checkoutItems = [];
-let checkoutAddressId = 'new';
+let checkoutAddressId = null;
 let checkoutIdempotencyKey = null;
+let checkoutCartSnapshot = null;
+let checkoutConfirmed = false;
+let checkoutErrorState = { key: '', message: '', retry: false, retryDisabled: false };
+let savedAddressLoadFailed = false;
+let checkoutSessionExpired = false;
+let checkoutRedirectStarted = false;
+let checkoutAddressRequestSequence = 0;
+let checkoutCartRequestSequence = 0;
 
 const checkoutCopy = (en, fr) => getLang() === 'fr' ? fr : en;
 const CHECKOUT_FIELDS = [
@@ -15,10 +23,40 @@ const CHECKOUT_FIELDS = [
   { id: 'cAddress', key: 'address_required', valid: value => value.length >= 4 }
 ];
 
-function showCheckoutError(message = '') {
+function showCheckoutError(message = '', { key = '', retry = false, retryDisabled = false } = {}) {
   const box = $('checkoutError');
   if (!box) return;
-  box.textContent = message;
+  const copy = $('checkoutErrorText');
+  const retryButton = $('checkoutRetry');
+  checkoutErrorState = { key, message, retry, retryDisabled };
+  if (copy) copy.textContent = message;
+  if (retryButton) {
+    retryButton.hidden = !retry;
+    retryButton.disabled = retryDisabled;
+  }
+  box.hidden = !message;
+}
+
+function savedAddressErrorMessage() {
+  return checkoutCopy(
+    'Saved addresses could not be loaded. Enter a new address below or try again.',
+    'Impossible de charger vos adresses enregistrées. Saisissez une nouvelle adresse ci-dessous ou réessayez.'
+  );
+}
+
+function checkoutRuntimeErrorKey(error) {
+  if (error?.code === 'CART_SYNC_FAILED') return 'api_error';
+  if (['CART_CHANGED', 'CART_EMPTY', 'CART_NOT_FOUND'].includes(error?.code)) return 'checkout_cart_changed';
+  if (error?.code === 'ADDRESS_NOT_FOUND') return 'checkout_address_missing';
+  if (error?.code === 'AUTH_REQUIRED') return 'checkout_session_expired';
+  return 'api_error';
+}
+
+function showSavedAddressError(message = '') {
+  const box = $('savedAddressError');
+  const copy = $('savedAddressErrorText');
+  if (!box || !copy) return;
+  copy.textContent = message;
   box.hidden = !message;
 }
 
@@ -119,7 +157,7 @@ function fillAddressForm(address) {
   clearFieldError($('cEmail'));
 }
 
-function renderAddressChooser() {
+function renderAddressChooser({ preserveForm = false } = {}) {
   const group = $('savedAddressGroup');
   const select = $('savedAddressSelect');
   if (!group || !select) return;
@@ -127,52 +165,133 @@ function renderAddressChooser() {
   const sorted = [...savedAddresses].sort((a, b) => Number(b.isDefault) - Number(a.isDefault));
   select.innerHTML = `${sorted.map(address => `<option value="${escapeHtml(address.id)}">${escapeHtml(address.label)} — ${escapeHtml(address.addressLine1)}, ${escapeHtml(address.city)}${address.isDefault ? ` (${checkoutCopy('default', 'par défaut')})` : ''}</option>`).join('')}
     <option value="new">${checkoutCopy('Use a new address', 'Utiliser une nouvelle adresse')}</option>`;
+  const usingNewAddress = checkoutAddressId === 'new';
   const selected = sorted.find(address => address.id === checkoutAddressId);
-  const preferred = selected || sorted.find(address => address.isDefault) || sorted[0];
-  checkoutAddressId = preferred?.id || 'new';
+  const preferred = usingNewAddress ? null : (selected || sorted.find(address => address.isDefault) || sorted[0]);
+  checkoutAddressId = usingNewAddress ? 'new' : (preferred?.id || 'new');
   select.value = checkoutAddressId;
-  fillAddressForm(preferred || null);
+  if (!preserveForm) fillAddressForm(preferred || null);
   select.onchange = () => {
     checkoutAddressId = select.value;
     fillAddressForm(savedAddresses.find(address => address.id === checkoutAddressId) || null);
   };
 }
 
-async function renderCheckout() {
+async function loadSavedAddresses({ fromRetry = false } = {}) {
+  const requestSequence = ++checkoutAddressRequestSequence;
+  const authContext = captureAuthenticatedRequest();
+  const group = $('savedAddressGroup');
+  const retry = $('savedAddressRetry');
+  group?.setAttribute('aria-busy', 'true');
+  if (retry) retry.disabled = true;
+  try {
+    const payload = await StoreAPI.addresses.list();
+    if (checkoutSessionExpired || requestSequence !== checkoutAddressRequestSequence ||
+        !isAuthenticatedRequestCurrent(authContext)) return;
+    savedAddresses = payload.addresses || [];
+    savedAddressLoadFailed = false;
+    showSavedAddressError();
+  } catch (error) {
+    if (handleStoreUnauthorized(error)) return;
+    if (checkoutSessionExpired || requestSequence !== checkoutAddressRequestSequence ||
+        !isAuthenticatedRequestCurrent(authContext)) return;
+    savedAddresses = [];
+    checkoutAddressId = 'new';
+    savedAddressLoadFailed = true;
+    showSavedAddressError(savedAddressErrorMessage());
+  } finally {
+    if (checkoutSessionExpired || requestSequence !== checkoutAddressRequestSequence) return;
+    renderAddressChooser({ preserveForm: fromRetry && checkoutAddressId === 'new' });
+    group?.removeAttribute('aria-busy');
+    if (retry) retry.disabled = false;
+    if (fromRetry && savedAddressLoadFailed) retry?.focus({ preventScroll: true });
+  }
+}
+
+function renderCheckoutLoading() {
+  const items = $('coItems');
+  if (items) {
+    items.innerHTML = '<div class="co-summary-skeleton" aria-hidden="true"><span class="skeleton-block skeleton-line"></span><span class="skeleton-block skeleton-line short"></span></div>'
+      + `<span class="visually-hidden">${t('loading')}</span>`;
+  }
+  if ($('coSub')) $('coSub').textContent = '—';
+  if ($('coFee')) $('coFee').textContent = '—';
+  if ($('coTotal')) $('coTotal').textContent = '—';
+}
+
+function renderCheckoutSummary(serverCart = checkoutCartSnapshot) {
+  if (!serverCart) return;
+  checkoutItems = serverCart.items || [];
+  const unavailable = checkoutItems.filter(item => !item.verified || !item.isAvailable || item.quantityAvailable === false);
+  const availabilityKey = unavailable.some(item => !item.verified) ? 'checkout_unverified' : 'checkout_unavailable';
+  $('coItems').innerHTML = `${unavailable.length ? `<div class="alert alert-danger small co-availability-alert" role="alert">${t(availabilityKey)} <a class="alert-link" href="cart.html">${t('review_cart')}</a></div>` : ''}${checkoutItems.map(item => `
+    <div class="co-line-item d-flex justify-content-between small mb-2">
+      <span class="co-line-name">${escapeHtml(item.name)} × ${item.quantity}${(!item.verified || !item.isAvailable || item.quantityAvailable === false)
+        ? ` · ${t(!item.verified ? 'item_unverified' : item.quantityAvailable === false ? 'quantity_unavailable' : 'out_stock', { n: item.stockQuantity })}`
+        : ''}</span>
+      <span class="co-line-price">${formatPrice(Number(item.unitPrice) * item.quantity)}</span>
+    </div>`).join('')}`;
+  $('coSub').textContent = formatPrice(serverCart.subtotal);
+  $('coFee').textContent = Number(serverCart.deliveryFee) === 0 ? t('free') : formatPrice(serverCart.deliveryFee);
+  $('coTotal').textContent = formatPrice(serverCart.total);
+  checkoutReady = Boolean(serverCart.checkoutReady);
+}
+
+function renderCheckoutSubmit() {
+  const button = $('placeOrder');
+  if (!button) return;
+  button.disabled = checkoutConfirmed || checkoutSubmitting || !checkoutReady;
+  button.classList.toggle('is-loading', checkoutSubmitting);
+  button.classList.toggle('is-success', checkoutConfirmed);
+  if (checkoutConfirmed) {
+    button.innerHTML = `<i class="fa-solid fa-check" aria-hidden="true"></i><span>${t('order_confirmed')}</span>`;
+  } else if (checkoutSubmitting) {
+    button.innerHTML = `<span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span>${t('placing_order')}</span>`;
+  } else {
+    button.innerHTML = `<i class="fa-solid fa-bag-shopping me-1" aria-hidden="true"></i><span>${t('place_order')}</span>`;
+  }
+}
+
+async function renderCheckout({ fromRetry = false } = {}) {
+  const requestSequence = ++checkoutCartRequestSequence;
+  const authContext = captureAuthenticatedRequest();
   checkoutReady = false;
   const summary = $('checkoutSummary');
-  const submit = $('placeOrder');
   summary?.setAttribute('aria-busy', 'true');
-  if (submit) submit.disabled = true;
-  showCheckoutError();
+  renderCheckoutLoading();
+  renderCheckoutSubmit();
+  if (fromRetry) showCheckoutError(t('loading'), { key: 'loading', retry: true, retryDisabled: true });
+  else showCheckoutError();
   try {
     const payload = await StoreAPI.cart.get();
+    if (checkoutSessionExpired || requestSequence !== checkoutCartRequestSequence ||
+        !isAuthenticatedRequestCurrent(authContext)) return false;
     const serverCart = payload.cart;
     cart = cartFromApi(payload);
     updateBadges();
-    checkoutItems = serverCart.items || [];
-    if (!checkoutItems.length) {
+    checkoutCartSnapshot = serverCart;
+    if (!(serverCart.items || []).length) {
       location.replace('cart.html');
-      return;
+      return true;
     }
-    const unavailable = checkoutItems.filter(item => !item.verified || !item.isAvailable || item.quantityAvailable === false);
-    $('coItems').innerHTML = `${unavailable.length ? `<div class="alert alert-danger small" role="alert">${t('checkout_unavailable')} <a class="alert-link" href="cart.html">${t('review_cart')}</a></div>` : ''}${checkoutItems.map(item => `
-      <div class="co-line-item d-flex justify-content-between small mb-2">
-        <span class="co-line-name">${escapeHtml(item.name)} × ${item.quantity}${(!item.verified || !item.isAvailable || item.quantityAvailable === false)
-          ? ` · ${t(!item.verified ? 'item_unverified' : item.quantityAvailable === false ? 'quantity_unavailable' : 'out_stock', { n: item.stockQuantity })}`
-          : ''}</span>
-        <span class="co-line-price">${formatPrice(Number(item.unitPrice) * item.quantity)}</span>
-      </div>`).join('')}`;
-    $('coSub').textContent = formatPrice(serverCart.subtotal);
-    $('coFee').textContent = Number(serverCart.deliveryFee) === 0 ? t('free') : formatPrice(serverCart.deliveryFee);
-    $('coTotal').textContent = formatPrice(serverCart.total);
-    checkoutReady = Boolean(serverCart.checkoutReady);
+    renderCheckoutSummary(serverCart);
+    showCheckoutError();
+    if (fromRetry) $('orderSummaryHeading')?.focus({ preventScroll: true });
+    return true;
   } catch (error) {
+    if (handleStoreUnauthorized(error)) return false;
+    if (checkoutSessionExpired || requestSequence !== checkoutCartRequestSequence ||
+        !isAuthenticatedRequestCurrent(authContext)) return false;
+    checkoutCartSnapshot = null;
+    checkoutItems = [];
     $('coItems').innerHTML = '';
-    showCheckoutError(error.message || t('api_error'));
+    showCheckoutError(t('api_error'), { key: 'api_error', retry: true });
+    if (fromRetry) $('checkoutRetry')?.focus({ preventScroll: true });
+    return false;
   } finally {
+    if (checkoutSessionExpired || requestSequence !== checkoutCartRequestSequence) return;
     summary?.removeAttribute('aria-busy');
-    if (submit && !checkoutSubmitting) submit.disabled = !checkoutReady;
+    renderCheckoutSubmit();
   }
 }
 
@@ -183,39 +302,87 @@ function newAddressPayload() {
     phone: `+212${normalizeMoroccanPhone($('cPhone').value)}`,
     email: $('cEmail').value.trim() || null,
     addressLine1: $('cAddress').value.trim(),
+    addressLine2: null,
     district: $('cQuartier').value.trim(),
     city: $('cCity').value.trim(),
+    postalCode: null,
     deliveryInstructions: $('cNote').value.trim() || null,
-    isDefault: savedAddresses.length === 0
+    isDefault: !savedAddressLoadFailed && savedAddresses.length === 0
   };
+}
+
+function normalizedAddressField(value) {
+  return String(value ?? '').trim();
+}
+
+function addressesMatch(left, right) {
+  if (!left || !right) return false;
+  return normalizedAddressField(left.recipientName) === normalizedAddressField(right.recipientName) &&
+    normalizeMoroccanPhone(left.phone) === normalizeMoroccanPhone(right.phone) &&
+    normalizedAddressField(left.email).toLocaleLowerCase() === normalizedAddressField(right.email).toLocaleLowerCase() &&
+    normalizedAddressField(left.addressLine1) === normalizedAddressField(right.addressLine1) &&
+    normalizedAddressField(left.addressLine2) === normalizedAddressField(right.addressLine2) &&
+    normalizedAddressField(left.district) === normalizedAddressField(right.district) &&
+    normalizedAddressField(left.city) === normalizedAddressField(right.city) &&
+    normalizedAddressField(left.postalCode) === normalizedAddressField(right.postalCode) &&
+    normalizedAddressField(left.deliveryInstructions) === normalizedAddressField(right.deliveryInstructions);
+}
+
+function findMatchingSavedAddress(input) {
+  return savedAddresses.find(address => addressesMatch(address, input)) || null;
+}
+
+async function resolveCheckoutAddress(authContext, input = newAddressPayload()) {
+  const existing = findMatchingSavedAddress(input);
+  if (existing) return existing.id;
+
+  try {
+    const created = await StoreAPI.addresses.create(input);
+    assertAuthenticatedRequestCurrent(authContext);
+    const address = created.address;
+    savedAddresses = [...savedAddresses.filter(item => String(item.id) !== String(address.id)), address];
+    return address.id;
+  } catch (createError) {
+    if (Number(createError?.status) === 401) throw createError;
+    try {
+      const payload = await StoreAPI.addresses.list();
+      assertAuthenticatedRequestCurrent(authContext);
+      savedAddresses = payload.addresses || [];
+      savedAddressLoadFailed = false;
+      showSavedAddressError();
+      const reconciled = findMatchingSavedAddress(input);
+      if (reconciled) return reconciled.id;
+    } catch (reconcileError) {
+      if (Number(reconcileError?.status) === 401) throw reconcileError;
+      console.error('Checkout address reconciliation failed', reconcileError);
+    }
+    throw createError;
+  }
 }
 
 function setCheckoutPending(pending) {
   checkoutSubmitting = pending;
+  if (pending) checkoutConfirmed = false;
   const form = $('checkoutForm');
-  const button = $('placeOrder');
   form?.toggleAttribute('aria-busy', pending);
-  if (!button) return;
-  button.disabled = pending || !checkoutReady;
-  button.classList.toggle('is-loading', pending);
-  if (pending) button.innerHTML = `<span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span>${t('placing_order')}</span>`;
-  else button.innerHTML = `<i class="fa-solid fa-bag-shopping me-1"></i><span>${t('place_order')}</span>`;
+  renderCheckoutSubmit();
 }
 
 async function placeOrder(event) {
   event.preventDefault();
-  if (checkoutSubmitting || !checkoutReady || !validateCheckout()) return;
+  if (checkoutConfirmed || checkoutSubmitting || !checkoutReady || !validateCheckout()) return;
   showCheckoutError();
   setCheckoutPending(true);
+  const authContext = captureAuthenticatedRequest();
   try {
     await waitForStoreMutations();
+    if (checkoutSessionExpired || !isAuthenticatedRequestCurrent(authContext)) return;
     let addressId = checkoutAddressId;
     if (addressId === 'new') {
-      const created = await StoreAPI.addresses.create(newAddressPayload());
-      const address = created.address;
-      savedAddresses.push(address);
-      addressId = address.id;
+      addressId = await resolveCheckoutAddress(authContext);
+      if (checkoutSessionExpired || !isAuthenticatedRequestCurrent(authContext)) return;
       checkoutAddressId = addressId;
+      renderAddressChooser();
     }
     checkoutIdempotencyKey ||= StoreAPI.createIdempotencyKey();
     const paymentMethod = document.querySelector('input[name="pay"]:checked')?.value || 'cod';
@@ -224,12 +391,13 @@ async function placeOrder(event) {
       paymentMethod,
       note: $('cNote').value.trim() || null
     }, { idempotencyKey: checkoutIdempotencyKey });
+    if (checkoutSessionExpired || !isAuthenticatedRequestCurrent(authContext)) return;
     cart = [];
     updateBadges();
-    const button = $('placeOrder');
-    button.classList.remove('is-loading');
-    button.classList.add('is-success');
-    button.innerHTML = `<i class="fa-solid fa-check" aria-hidden="true"></i><span>${t('order_confirmed')}</span>`;
+    checkoutSubmitting = false;
+    checkoutConfirmed = true;
+    $('checkoutForm')?.removeAttribute('aria-busy');
+    renderCheckoutSubmit();
     document.querySelectorAll('.co-step').forEach((step, index) => {
       step.classList.toggle('active', index === 2);
       step.classList.toggle('completed', index < 2);
@@ -239,8 +407,20 @@ async function placeOrder(event) {
     toast(t('order_ok'));
     setTimeout(() => { location.href = `orders.html?placed=${encodeURIComponent(result.order.id)}`; }, 650);
   } catch (error) {
-    showCheckoutError(error.message || t('api_error'));
-    if (['CART_CHANGED', 'CART_EMPTY'].includes(error.code)) await renderCheckout();
+    if (handleStoreUnauthorized(error)) return;
+    if (checkoutSessionExpired || !isAuthenticatedRequestCurrent(authContext)) return;
+    const errorKey = checkoutRuntimeErrorKey(error);
+    if (error?.code === 'IDEMPOTENCY_KEY_REUSED') checkoutIdempotencyKey = null;
+    let recoverySucceeded = true;
+    if (['CART_CHANGED', 'CART_EMPTY', 'CART_NOT_FOUND', 'CART_SYNC_FAILED'].includes(error?.code)) {
+      recoverySucceeded = await renderCheckout();
+    }
+    if (checkoutSessionExpired) return;
+    if (!recoverySucceeded) {
+      setCheckoutPending(false);
+      return;
+    }
+    showCheckoutError(t(errorKey), { key: errorKey });
     setCheckoutPending(false);
   }
 }
@@ -255,19 +435,57 @@ function localizeCheckoutDynamicCopy() {
   );
 }
 
+function expireCheckoutPage() {
+  if (checkoutSessionExpired) return;
+  checkoutSessionExpired = true;
+  checkoutAddressRequestSequence += 1;
+  checkoutCartRequestSequence += 1;
+  checkoutReady = false;
+  checkoutSubmitting = false;
+  checkoutConfirmed = false;
+  checkoutItems = [];
+  checkoutCartSnapshot = null;
+  checkoutAddressId = 'new';
+  checkoutIdempotencyKey = null;
+  savedAddresses = [];
+  savedAddressLoadFailed = false;
+
+  const addressSelect = $('savedAddressSelect');
+  if (addressSelect) addressSelect.replaceChildren();
+  if ($('savedAddressGroup')) $('savedAddressGroup').hidden = true;
+  showSavedAddressError();
+  CHECKOUT_FIELDS.forEach(({ id }) => {
+    const input = $(id);
+    if (input) input.value = '';
+  });
+  if ($('cEmail')) $('cEmail').value = '';
+  if ($('cNote')) $('cNote').value = '';
+  const form = $('checkoutForm');
+  form?.removeAttribute('aria-busy');
+  form?.querySelectorAll('input, select, textarea, button').forEach(control => { control.disabled = true; });
+  if ($('coItems')) $('coItems').replaceChildren();
+  if ($('coSub')) $('coSub').textContent = '—';
+  if ($('coFee')) $('coFee').textContent = '—';
+  if ($('coTotal')) $('coTotal').textContent = '—';
+  $('checkoutSummary')?.removeAttribute('aria-busy');
+  showCheckoutError(t('checkout_session_expired'), { key: 'checkout_session_expired' });
+  renderCheckoutSubmit();
+
+  if (!checkoutRedirectStarted) {
+    checkoutRedirectStarted = true;
+    location.replace('login.html?next=checkout.html');
+  }
+}
+
 async function initCheckout() {
   if (!getUser()) {
     location.replace('login.html?next=checkout.html');
     return;
   }
   localizeCheckoutDynamicCopy();
-  try {
-    const payload = await StoreAPI.addresses.list();
-    savedAddresses = payload.addresses || [];
-  } catch (error) {
-    showCheckoutError(error.message || t('api_error'));
-  }
-  renderAddressChooser();
+  $('savedAddressRetry')?.addEventListener('click', () => loadSavedAddresses({ fromRetry: true }));
+  await loadSavedAddresses();
+  if (checkoutSessionExpired) return;
   const preferredPayment = getDefaultPay();
   const radio = $({ cod: 'pay1', card: 'pay2', wafacash: 'pay3', cashplus: 'pay4' }[preferredPayment] || 'pay1');
   if (radio && !radio.disabled) radio.checked = true;
@@ -286,12 +504,30 @@ async function initCheckout() {
     const digits = normalizeMoroccanPhone($('cPhone').value);
     if (/^[5-7]\d{8}$/.test(digits)) $('cPhone').value = digits;
   });
+  $('checkoutRetry')?.addEventListener('click', () => renderCheckout({ fromRetry: true }));
   await renderCheckout();
 }
 
 document.addEventListener('DOMContentLoaded', () => whenStoreReady(initCheckout));
 window.addEventListener('am:langchange', () => {
   localizeCheckoutDynamicCopy();
+  if (checkoutSessionExpired) {
+    showCheckoutError(t('checkout_session_expired'), { key: 'checkout_session_expired' });
+    return;
+  }
+  if (savedAddressLoadFailed) showSavedAddressError(savedAddressErrorMessage());
   document.querySelectorAll('.co-field-error[data-error-key]').forEach(error => { error.textContent = t(error.dataset.errorKey); });
-  if (!checkoutSubmitting) renderAddressChooser();
+  renderAddressChooser({ preserveForm: true });
+  if (checkoutCartSnapshot) renderCheckoutSummary(checkoutCartSnapshot);
+  else if ($('checkoutSummary')?.getAttribute('aria-busy') === 'true') renderCheckoutLoading();
+  if (checkoutErrorState.key) {
+    showCheckoutError(t(checkoutErrorState.key), {
+      key: checkoutErrorState.key,
+      retry: checkoutErrorState.retry,
+      retryDisabled: checkoutErrorState.retryDisabled
+    });
+  }
+  renderCheckoutSubmit();
 });
+
+window.addEventListener('am:session-expired', expireCheckoutPage);

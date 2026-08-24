@@ -10,7 +10,26 @@ async function renderWishlist(focusContext = null) {
   $('wishLabel').textContent = `(${wishlist.length})`;
   const box = $('wishItems');
 
+  if (getAuthenticatedResourceState('wishlist') === 'error') {
+    $('wishLabel').textContent = '(—)';
+    box.removeAttribute('aria-busy');
+    box.innerHTML = `<div class="col-12"><div class="alert alert-warning d-flex flex-wrap align-items-center justify-content-between gap-2" role="alert">
+      <span>${escapeHtml(accountRecoveryMessage(['wishlist']))}</span>
+      <button type="button" class="btn btn-sm btn-outline-orange state-action" id="retryAccountWishlist">${escapeHtml(t('retry'))}</button>
+    </div></div>`;
+    const retry = $('retryAccountWishlist');
+    retry?.addEventListener('click', async event => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      const recovered = await retryAuthenticatedResources();
+      if (!recovered && button.isConnected) button.disabled = false;
+    });
+    if (focusContext?.restoreFocus) requestAnimationFrame(() => retry?.focus({ preventScroll: true }));
+    return;
+  }
+
   if (wishlist.length === 0) {
+    box.removeAttribute('aria-busy');
     box.innerHTML = `<div class="col-12 text-center py-5"><i class="fa-regular fa-heart fa-3x text-muted mb-3"></i><h2 class="h5">${t('wish_empty')}</h2><a class="btn btn-orange mt-2 state-action" href="categories.html">${t('browse_products')}</a></div>`;
     if (focusContext?.restoreFocus) requestAnimationFrame(() => $('wishlistHeading')?.focus({ preventScroll: true }));
     return;
@@ -23,7 +42,7 @@ async function renderWishlist(focusContext = null) {
   if (renderSequence !== wishlistRenderSequence) return;
   const items = results.filter(r => r.status === 'fulfilled').map(r => r.value);
   const failedIds = results.flatMap((r, index) => r.status === 'rejected' ? [requestedIds[index]] : []);
-  const failedState = failedIds.length ? `<div class="col-12"><div class="alert alert-warning d-flex flex-wrap align-items-center justify-content-between gap-2" role="status"><span>${t('wishlist_load_failed', { n: failedIds.length })}</span><span class="d-flex flex-wrap gap-2"><button class="btn btn-sm btn-outline-dark state-action" id="retryWishlist">${t('retry')}</button><button class="btn btn-sm btn-outline-danger state-action" id="removeFailedWishlist">${t('remove_failed_saved')}</button></span></div></div>` : '';
+  const failedState = failedIds.length ? `<div class="col-12"><div class="alert alert-warning d-flex flex-wrap align-items-center justify-content-between gap-2" role="status"><span>${t('wishlist_load_failed', { n: failedIds.length })}</span><span class="d-flex flex-wrap gap-2"><button class="btn btn-sm btn-outline-orange state-action" id="retryWishlist">${t('retry')}</button><button class="btn btn-sm btn-outline-danger state-action" id="removeFailedWishlist">${t('remove_failed_saved')}</button></span></div></div>` : '';
   box.innerHTML = items.map(cardHTML).join('') + failedState;
   box.removeAttribute('aria-busy');
   bindCards(box, renderWishlist);
@@ -52,3 +71,11 @@ async function renderWishlist(focusContext = null) {
 document.addEventListener('DOMContentLoaded', () => whenStoreReady(renderWishlist));
 
 window.addEventListener('am:langchange', renderWishlist);
+window.addEventListener('am:account-resource-error', event => {
+  if (event.detail?.resource === 'wishlist') renderWishlist({ restoreFocus: true });
+});
+window.addEventListener('am:session-expired', () => {
+  const hadPrivateFocus = $('wishItems')?.contains(document.activeElement) === true;
+  renderWishlist({ restoreFocus: hadPrivateFocus });
+});
+window.addEventListener('am:guest-commerce-changed', () => renderWishlist());

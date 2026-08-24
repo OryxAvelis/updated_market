@@ -74,14 +74,14 @@ Caddy obtains a publicly trusted certificate automatically. The development CA a
 
 ## HSTS rollout
 
-HSTS affects future browser navigation and can make a broken TLS deployment difficult to recover from. When `TLS_TERMINATED_BY_PROXY=true`, Node deliberately omits HSTS and Caddy owns the public policy. With direct production HTTPS, Node emits the one-year policy itself. This prevents conflicting duplicate headers.
+HSTS affects future browser navigation and can make a broken TLS deployment difficult to recover from. Node owns the HSTS policy in every production topology, including when Caddy terminates TLS. The example Caddy configuration deliberately does not add a second header, preventing duplicate or conflicting policies. The application starts with `HSTS_MAX_AGE_SECONDS=300`, without subdomains or preload.
 
 Use a staged rollout:
 
 1. Confirm certificate issuance, renewal, HTTP redirects, application links, cookies, and every subresource over HTTPS.
-2. Start with `max-age=300`, as shown in the example, and monitor production.
-3. Increase gradually to one day, one week, and then `max-age=31536000` after successful renewal and rollback exercises.
-4. Add `includeSubDomains` only after every current and delegated subdomain supports HTTPS permanently.
-5. Consider `preload` only after meeting browser preload requirements and understanding that removal can take a long time.
+2. Start with `HSTS_MAX_AGE_SECONDS=300` and monitor production.
+3. Increase the value gradually to one day, one week, and then `31536000` after successful renewal and rollback exercises.
+4. Set `HSTS_INCLUDE_SUBDOMAINS=true` only after every current and delegated subdomain supports HTTPS permanently.
+5. Set `HSTS_PRELOAD=true` only after meeting browser preload requirements and understanding that removal can take a long time. Configuration validation requires subdomains and at least a one-year max age before preload is accepted.
 
 ACME automation still needs monitoring. Alert on failed renewals and certificate expiration instead of assuming automatic renewal can never fail.

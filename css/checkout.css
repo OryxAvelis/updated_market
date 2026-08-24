@@ -293,10 +293,11 @@ textarea.form-control.co-input {
   gap: 10px;
   padding: 4px 0 12px;
 }
-.pay-opt-cod {
+.pay-opt.pay-opt-cod {
   grid-column: 1 / -1;
   min-height: 88px;
   border-width: 2.5px;
+  padding-top: 36px;
 }
 .pay-opt-cod .pay-icon {
   width: 50px;
@@ -306,7 +307,7 @@ textarea.form-control.co-input {
 .pay-badge {
   position: absolute;
   top: 8px;
-  right: 40px;
+  left: 16px;
   font-size: 0.65rem;
   font-weight: 700;
   background: var(--orange);
@@ -314,6 +315,9 @@ textarea.form-control.co-input {
   padding: 2px 8px;
   border-radius: 999px;
   letter-spacing: 0.02em;
+  line-height: 1.35;
+  max-width: calc(100% - 32px);
+  white-space: normal;
 }
 .pay-opt {
   position: relative;
@@ -438,10 +442,11 @@ textarea.form-control.co-input {
 }
 .co-btn:active { transform: scale(0.98); }
 .co-btn:disabled {
-  cursor: wait;
+  cursor: not-allowed;
   opacity: 0.82;
   transform: none;
 }
+.co-btn.is-loading { cursor: wait; }
 .co-btn.is-success {
   background: #15803d;
   box-shadow: 0 6px 18px rgba(21,128,61,0.28);
@@ -470,6 +475,33 @@ textarea.form-control.co-input {
   margin: 14px 0 10px;
   opacity: 0.9;
 }
+
+.checkout-error {
+  overflow-wrap: anywhere;
+}
+.checkout-error:not([hidden]) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.co-retry {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  padding: 0.55rem 0.8rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+}
+.co-retry:hover { background: rgba(220, 53, 69, 0.08); }
+.co-retry:disabled { cursor: wait; opacity: 0.72; }
 
 /* ========== TRUST STRIP ========== */
 .co-trust {
@@ -513,9 +545,10 @@ textarea.form-control.co-input {
 }
 
 /* Keep long product names flexible without allowing prices to wrap. */
-.co-line-item { gap: 12px; }
+.co-line-item { align-items: flex-start; flex-wrap: wrap; gap: 4px 12px; }
 .co-line-name { min-width: 0; overflow-wrap: anywhere; }
-.co-line-price { flex: 0 0 auto; white-space: nowrap; }
+.co-line-price { flex: 0 0 auto; margin-left: auto; white-space: nowrap; }
+.co-availability-alert { overflow-wrap: anywhere; }
 
 /* ========== RESPONSIVE ========== */
 @media (min-width: 992px) {
@@ -543,4 +576,10 @@ textarea.form-control.co-input {
   }
   .co-step-line { min-width: 12px; }
   .co-step .step-dot { width: 30px; height: 30px; }
+}
+@media (max-width: 359.98px) {
+  .pay-opt { gap: 10px; padding: 12px; }
+  .pay-opt-cod { padding-top: 36px; }
+  .pay-opt-cod .pay-icon { width: 44px; height: 44px; }
+  .pay-badge { left: 12px; max-width: calc(100% - 24px); }
 }

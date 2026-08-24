@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../auth/session.js';
@@ -12,6 +13,39 @@ const itemSchema = z.object({
 }).strict();
 const quantitySchema = z.object({ quantity: z.coerce.number().int().min(1).max(99) }).strict();
 const mergeSchema = z.object({ items: z.array(itemSchema).max(100) }).strict();
+const cartMergeIdempotencyRetentionHours = 24;
+const cartMergeIdempotencyRetentionMs = cartMergeIdempotencyRetentionHours * 60 * 60 * 1000;
+const cartMergeClockSkewMs = 5 * 60 * 1000;
+export const cartMergeIdempotencyLedgerRetentionMs = cartMergeIdempotencyRetentionMs + cartMergeClockSkewMs;
+const cartMergeIdempotencyLedgerRetentionMinutes = Math.ceil(cartMergeIdempotencyLedgerRetentionMs / (60 * 1000));
+
+export function cartMergeKeyStatus(key, now = Date.now()) {
+  const match = /^am1\.([0-9a-z]+)\.([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i.exec(String(key || ''));
+  if (!match) return 'invalid';
+  const createdAt = Number.parseInt(match[1], 36);
+  if (!Number.isSafeInteger(createdAt) || createdAt < 0 || createdAt > now + cartMergeClockSkewMs) return 'invalid';
+  if (createdAt < now - cartMergeIdempotencyRetentionMs) return 'expired';
+  return 'valid';
+}
+
+export function cartMergeRequestDigest(input) {
+  const quantities = new Map();
+  input.items.forEach((item) => {
+    quantities.set(item.productId, (quantities.get(item.productId) || 0) + item.quantity);
+  });
+  const items = [...quantities].map(([productId, quantity]) => ({ productId, quantity }))
+    .sort((left, right) => left.productId.localeCompare(right.productId));
+  return createHash('sha256').update(JSON.stringify({ items })).digest();
+}
+
+async function existingMergeForKey(database, userId, keyDigest, { lock = false } = {}) {
+  const [rows] = await database.execute(
+    `SELECT request_digest FROM cart_merge_idempotency
+      WHERE user_id = ? AND key_digest = ? LIMIT 1${lock ? ' FOR UPDATE' : ''}`,
+    [userId, keyDigest]
+  );
+  return rows[0] || null;
+}
 
 async function inTransaction(database, work) {
   const connection = await database.getConnection();
@@ -72,7 +106,16 @@ async function renderCart(database, catalog, userId) {
         verified: true
       };
     } catch (error) {
-      if (error?.code !== 'CATALOG_UNAVAILABLE' && error?.code !== 'CATALOG_RESPONSE_INVALID') throw error;
+      if (!['CATALOG_UNAVAILABLE', 'CATALOG_RESPONSE_INVALID', 'PRODUCT_NOT_FOUND'].includes(error?.code)) throw error;
+      const productRemoved = error?.code === 'PRODUCT_NOT_FOUND';
+      if (productRemoved) {
+        await database.execute(
+          `UPDATE catalog_product_refs
+              SET is_available = 0, stock_quantity = 0, last_verified_at = UTC_TIMESTAMP(3)
+            WHERE id = ?`,
+          [row.product_ref_id]
+        );
+      }
       return {
         productId: row.external_id,
         quantity: row.quantity,
@@ -80,10 +123,10 @@ async function renderCart(database, catalog, userId) {
         imageUrl: row.last_known_image_url,
         brand: row.last_known_brand,
         unitPrice: row.last_verified_price,
-        isAvailable: Boolean(row.is_available),
-        stockQuantity: row.stock_quantity,
-        quantityAvailable: row.stock_quantity == null || row.quantity <= Number(row.stock_quantity),
-        verified: false
+        isAvailable: productRemoved ? false : Boolean(row.is_available),
+        stockQuantity: productRemoved ? 0 : row.stock_quantity,
+        quantityAvailable: productRemoved ? false : row.stock_quantity == null || row.quantity <= Number(row.stock_quantity),
+        verified: productRemoved
       };
     }
   }));
@@ -196,14 +239,59 @@ export function createCartRouter(catalog) {
 
   router.post('/merge', async (req, res) => {
     const input = mergeSchema.parse(req.body);
+    const idempotencyKey = req.get('idempotency-key');
+    if (!idempotencyKey || idempotencyKey.length < 8 || idempotencyKey.length > 128) {
+      throw conflict('IDEMPOTENCY_KEY_REQUIRED', 'A valid Idempotency-Key header is required.');
+    }
+    const keyStatus = cartMergeKeyStatus(idempotencyKey);
+    if (keyStatus === 'invalid') {
+      throw conflict('IDEMPOTENCY_KEY_INVALID', 'The cart merge idempotency key is invalid.');
+    }
+    if (keyStatus === 'expired') {
+      throw conflict('IDEMPOTENCY_KEY_EXPIRED', 'This cart merge attempt has expired and was not applied.');
+    }
+    const keyDigest = createHash('sha256').update(idempotencyKey).digest();
+    const bodyDigest = cartMergeRequestDigest(input);
+    await req.app.locals.db.execute(
+      `DELETE FROM cart_merge_idempotency
+        WHERE created_at < UTC_TIMESTAMP(3) - INTERVAL ${cartMergeIdempotencyLedgerRetentionMinutes} MINUTE
+        ORDER BY created_at LIMIT 500`
+    );
+    const existing = await existingMergeForKey(req.app.locals.db, req.auth.userId, keyDigest);
+    if (existing) {
+      if (!Buffer.from(existing.request_digest).equals(bodyDigest)) {
+        throw conflict('IDEMPOTENCY_KEY_REUSED', 'This idempotency key was already used for a different cart merge.');
+      }
+      return res.json({ cart: await renderCart(req.app.locals.db, catalog, req.auth.userId), replayed: true });
+    }
+
     const quantities = new Map();
-    input.items.forEach((item) => quantities.set(item.productId, Math.min(99, (quantities.get(item.productId) || 0) + item.quantity)));
-    const products = await Promise.all([...quantities.keys()].map((id) => catalog.getProduct(id, { refresh: true })));
+    input.items.forEach((item) => quantities.set(item.productId, (quantities.get(item.productId) || 0) + item.quantity));
+    const excessive = [...quantities].find(([, quantity]) => quantity > 99);
+    if (excessive) {
+      throw conflict('QUANTITY_LIMIT_EXCEEDED', 'A merged product quantity exceeds the limit of 99.', {
+        productId: excessive[0], maximum: 99
+      });
+    }
+    if (quantities.size === 0) {
+      return res.json({ cart: await renderCart(req.app.locals.db, catalog, req.auth.userId), replayed: false });
+    }
+    const products = (await Promise.all([...quantities.keys()].map((id) => catalog.getProduct(id, { refresh: true }))))
+      .sort((left, right) => String(left.id).localeCompare(String(right.id)));
     const unavailable = products.filter((product) => !product.is_available).map((product) => product.id);
     if (unavailable.length) throw conflict('PRODUCTS_UNAVAILABLE', 'Some products are currently unavailable.', { productIds: unavailable });
 
+    let replayed = false;
     await inTransaction(req.app.locals.db, async (connection) => {
       const cart = await cartForUpdate(connection, req.auth.userId);
+      const lockedExisting = await existingMergeForKey(connection, req.auth.userId, keyDigest, { lock: true });
+      if (lockedExisting) {
+        if (!Buffer.from(lockedExisting.request_digest).equals(bodyDigest)) {
+          throw conflict('IDEMPOTENCY_KEY_REUSED', 'This idempotency key was already used for a different cart merge.');
+        }
+        replayed = true;
+        return;
+      }
       for (const product of products) {
         const requested = quantities.get(product.id);
         const productRefId = await upsertProductRef(connection, product);
@@ -211,7 +299,14 @@ export function createCartRouter(catalog) {
           'SELECT quantity FROM cart_items WHERE cart_id = ? AND product_ref_id = ? LIMIT 1 FOR UPDATE',
           [cart.id, productRefId]
         );
-        const quantity = Math.min(99, Number(existingRows[0]?.quantity || 0) + requested);
+        const quantity = Number(existingRows[0]?.quantity || 0) + requested;
+        if (quantity > 99) {
+          throw conflict('QUANTITY_LIMIT_EXCEEDED', 'The merged quantity exceeds the limit of 99.', {
+            productId: product.id,
+            maximum: 99,
+            inCart: Number(existingRows[0]?.quantity || 0)
+          });
+        }
         if (product.stock_quantity != null && quantity > product.stock_quantity) {
           throw conflict('QUANTITY_UNAVAILABLE', 'The merged quantity is unavailable.', {
             productId: product.id,
@@ -228,8 +323,12 @@ export function createCartRouter(catalog) {
         );
       }
       if (products.length) await connection.execute('UPDATE carts SET version = version + 1 WHERE id = ?', [cart.id]);
+      await connection.execute(
+        'INSERT INTO cart_merge_idempotency (user_id, key_digest, request_digest) VALUES (?, ?, ?)',
+        [req.auth.userId, keyDigest, bodyDigest]
+      );
     });
-    res.json({ cart: await renderCart(req.app.locals.db, catalog, req.auth.userId) });
+    res.json({ cart: await renderCart(req.app.locals.db, catalog, req.auth.userId), replayed });
   });
 
   return router;

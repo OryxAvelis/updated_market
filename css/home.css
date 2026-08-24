@@ -117,24 +117,6 @@
 .hero-cta i { transition: transform 0.2s; }
 .hero-cta:hover i { transform: translateX(4px); }
 
-/* Floating bubbles (like login page) */
-.hero-bubbles span {
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.1);
-  animation: heroFloat 9s ease-in-out infinite;
-  z-index: 1;
-}
-.hero-bubbles span:nth-child(1) { width: 220px; height: 220px; top: -70px; right: -40px; }
-.hero-bubbles span:nth-child(2) { width: 150px; height: 150px; bottom: -60px; right: 130px; animation-delay: 1.2s; }
-.hero-bubbles span:nth-child(3) { width: 70px;  height: 70px;  top: 28%;  right: 32%; animation-delay: 2.2s; background: rgba(255,255,255,0.14); }
-.hero-bubbles span:nth-child(4) { width: 42px;  height: 42px;  top: 18%;  right: 46%; animation-delay: 0.6s; background: rgba(255,255,255,0.16); }
-.hero-bubbles span:nth-child(5) { width: 26px;  height: 26px;  bottom: 24%; right: 7%;  animation-delay: 1.8s; background: rgba(255,255,255,0.2); }
-@keyframes heroFloat {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50%      { transform: translateY(-22px) rotate(8deg); }
-}
-
 /* Staggered rise-in for hero content */
 .hero-text h2 { animation: heroRise 0.7s 0.1s ease both; }
 .hero-text p  { animation: heroRise 0.7s 0.25s ease both; }
@@ -303,7 +285,7 @@
 .cat-card span {
   font-size: 0.78rem;
   font-weight: 550;
-  color: #374151;
+  color: var(--text);
   display: block;
   line-height: 1.3;
 }
@@ -350,7 +332,6 @@
 @media (prefers-reduced-motion: reduce) {
   .hero-slide.active,
   .hero-img,
-  .hero-bubbles span,
   .hero-text h2,
   .hero-text p,
   .hero-text .hero-cta { animation: none !important; }

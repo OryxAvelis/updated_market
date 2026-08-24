@@ -95,6 +95,10 @@ function addressPayload(label = 'Home') {
   };
 }
 
+function cartMergeKey() {
+  return `am1.${Date.now().toString(36)}.${randomUUID()}`;
+}
+
 databaseDescribe('user API with MySQL', () => {
   beforeAll(async () => {
     if (!pool) throw new Error('TEST_USE_DATABASE=true did not create a database pool.');
@@ -240,14 +244,26 @@ databaseDescribe('user API with MySQL', () => {
     const ownerAccount = await register(owner, uniqueEmail('address-owner', trackedEmails), 'Address Owner');
     const strangerAccount = await register(stranger, uniqueEmail('address-stranger', trackedEmails), 'Address Stranger');
 
+    const firstAddress = { ...addressPayload(), isDefault: false };
     const created = await owner
       .post('/api/v1/me/addresses')
       .set('Origin', origin)
       .set('X-CSRF-Token', ownerAccount.csrfToken)
-      .send(addressPayload());
+      .send(firstAddress);
     expect(created.status).toBe(201);
     const addressId = created.body.address.id;
     expect(typeof addressId).toBe('string');
+    expect(created.body.address.isDefault).toBe(true);
+
+    const replayedAddress = await owner
+      .post('/api/v1/me/addresses')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', ownerAccount.csrfToken)
+      .send(firstAddress);
+    expect(replayedAddress.status).toBe(200);
+    expect(replayedAddress.body).toMatchObject({ replayed: true, address: { id: addressId } });
+    const ownerAddresses = await owner.get('/api/v1/me/addresses');
+    expect(ownerAddresses.body.addresses).toHaveLength(1);
 
     const strangerList = await stranger.get('/api/v1/me/addresses');
     expect(strangerList.status).toBe(200);
@@ -281,11 +297,13 @@ databaseDescribe('user API with MySQL', () => {
     const { app, catalog } = testApp([product]);
     const shopper = request.agent(app);
     const account = await register(shopper, uniqueEmail('cart', trackedEmails));
+    const mergeKey = cartMergeKey();
 
     const tampered = await shopper
       .post('/api/v1/cart/merge')
       .set('Origin', origin)
       .set('X-CSRF-Token', account.csrfToken)
+      .set('Idempotency-Key', cartMergeKey())
       .send({ items: [{ productId: product.id, quantity: 2, unitPrice: '0.01' }] });
     expect(tampered.status).toBe(422);
     expect(tampered.body.error.code).toBe('VALIDATION_FAILED');
@@ -294,6 +312,7 @@ databaseDescribe('user API with MySQL', () => {
       .post('/api/v1/cart/merge')
       .set('Origin', origin)
       .set('X-CSRF-Token', account.csrfToken)
+      .set('Idempotency-Key', mergeKey)
       .send({ items: [{ productId: product.id, quantity: 2 }] });
     expect(merged.status).toBe(200);
     expect(merged.body.cart.items).toHaveLength(1);
@@ -301,6 +320,43 @@ databaseDescribe('user API with MySQL', () => {
       productId: product.id, quantity: 2, unitPrice: '12.34', isAvailable: true, verified: true
     });
     expect(merged.body.cart).toMatchObject({ subtotal: '24.68', deliveryFee: '20.00', total: '44.68' });
+
+    const replayed = await shopper
+      .post('/api/v1/cart/merge')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', account.csrfToken)
+      .set('Idempotency-Key', mergeKey)
+      .send({ items: [{ productId: product.id, quantity: 2 }] });
+    expect(replayed.status).toBe(200);
+    expect(replayed.body.replayed).toBe(true);
+    expect(replayed.body.cart.items[0].quantity).toBe(2);
+
+    const reusedKey = await shopper
+      .post('/api/v1/cart/merge')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', account.csrfToken)
+      .set('Idempotency-Key', mergeKey)
+      .send({ items: [{ productId: product.id, quantity: 1 }] });
+    expect(reusedKey.status).toBe(409);
+    expect(reusedKey.body.error.code).toBe('IDEMPOTENCY_KEY_REUSED');
+
+    catalog.records.get(product.id).stock_quantity = 120;
+    const nearLimit = await shopper
+      .put(`/api/v1/cart/items/${product.id}`)
+      .set('Origin', origin)
+      .set('X-CSRF-Token', account.csrfToken)
+      .send({ quantity: 95 });
+    expect(nearLimit.status).toBe(200);
+    const excessiveMerge = await shopper
+      .post('/api/v1/cart/merge')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', account.csrfToken)
+      .set('Idempotency-Key', cartMergeKey())
+      .send({ items: [{ productId: product.id, quantity: 10 }] });
+    expect(excessiveMerge.status).toBe(409);
+    expect(excessiveMerge.body.error.code).toBe('QUANTITY_LIMIT_EXCEEDED');
+    const unchangedAfterOverflow = await shopper.get('/api/v1/cart');
+    expect(unchangedAfterOverflow.body.cart.items[0].quantity).toBe(95);
 
     catalog.records.get(product.id).stock_quantity = 1;
     const reducedStock = await shopper.get('/api/v1/cart');
@@ -313,11 +369,18 @@ databaseDescribe('user API with MySQL', () => {
     });
     expect(reducedStock.body.cart.items[0]).toMatchObject({
       productId: product.id,
-      quantity: 2,
+      quantity: 95,
       stockQuantity: 1,
       quantityAvailable: false
     });
-    catalog.records.get(product.id).stock_quantity = 10;
+    catalog.records.delete(product.id);
+    const discontinued = await shopper.get('/api/v1/cart');
+    expect(discontinued.status).toBe(200);
+    expect(discontinued.body.cart).toMatchObject({ checkoutReady: false, total: '0.00' });
+    expect(discontinued.body.cart.items[0]).toMatchObject({
+      productId: product.id, isAvailable: false, stockQuantity: 0,
+      quantityAvailable: false, verified: true
+    });
 
     const [rows] = await pool.execute(
       'SELECT last_verified_price FROM catalog_product_refs WHERE external_id = ? LIMIT 1',
@@ -341,6 +404,7 @@ databaseDescribe('user API with MySQL', () => {
       .post('/api/v1/cart/merge')
       .set('Origin', origin)
       .set('X-CSRF-Token', account.csrfToken)
+      .set('Idempotency-Key', cartMergeKey())
       .send({ items: [{ productId: product.id, quantity: 2 }] });
     expect(merged.status).toBe(200);
 
@@ -426,6 +490,7 @@ databaseDescribe('user API with MySQL', () => {
       .post('/api/v1/cart/merge')
       .set('Origin', origin)
       .set('X-CSRF-Token', account.csrfToken)
+      .set('Idempotency-Key', cartMergeKey())
       .send({ items: [{ productId: product.id, quantity: 1 }] });
     const placed = await shopper
       .post('/api/v1/orders')
@@ -491,6 +556,23 @@ databaseDescribe('user API with MySQL', () => {
     expect(delivered.status).toBe(200);
     expect(delivered.body.order.status).toBe('delivered');
 
+    const orderDetail = await shopper.get(`/api/v1/orders/${orderId}`);
+    expect(orderDetail.status).toBe(200);
+    const expectedReturnDeadline = new Date(
+      Date.parse(orderDetail.body.order.deliveredAt) + 7 * 24 * 60 * 60 * 1000
+    ).toISOString();
+    expect(orderDetail.body.order).toMatchObject({
+      returnEligible: true,
+      returnDeadline: expectedReturnDeadline
+    });
+
+    const orderHistory = await shopper.get('/api/v1/orders?limit=20');
+    expect(orderHistory.status).toBe(200);
+    expect(orderHistory.body.orders.find((order) => order.id === orderId)).toMatchObject({
+      returnEligible: true,
+      returnDeadline: expectedReturnDeadline
+    });
+
     const tracking = await shopper.get(`/api/v1/orders/${orderId}/tracking`);
     expect(tracking.status).toBe(200);
     expect(tracking.body.status).toBe('delivered');
@@ -534,6 +616,12 @@ databaseDescribe('user API with MySQL', () => {
       .send({ rating: 4, title: 'Useful product', body: 'A clear integration-test review.' });
     expect(created.status).toBe(201);
     const reviewId = created.body.review.id;
+
+    const mineForProduct = await author
+      .get(`/api/v1/me/reviews?product_id=${encodeURIComponent(product.id)}&page=1&limit=1`);
+    expect(mineForProduct.status).toBe(200);
+    expect(mineForProduct.body.reviews).toHaveLength(1);
+    expect(mineForProduct.body.reviews[0]).toMatchObject({ id: reviewId, productId: product.id });
 
     const foreignPatch = await stranger
       .patch(`/api/v1/reviews/${reviewId}`)

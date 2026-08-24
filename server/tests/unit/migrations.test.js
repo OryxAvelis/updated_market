@@ -78,9 +78,11 @@ describe('migration source safety', () => {
     expect(migrations.map((migration) => migration.name)).toEqual([
       '0001_initial_user_schema.sql',
       '0002_fulfillment_webhook_events.sql',
-      '0003_low_stock_transition_state.sql'
+      '0003_low_stock_transition_state.sql',
+      '0004_return_idempotency.sql',
+      '0005_cart_merge_idempotency.sql'
     ]);
-    expect(migrations.map((migration) => migration.statements.length)).toEqual([25, 1, 2]);
+    expect(migrations.map((migration) => migration.statements.length)).toEqual([25, 1, 2, 1, 1]);
     for (const migration of migrations) {
       expect(migration.checksum).toMatch(/^[a-f0-9]{64}$/);
       expect(migration.statements.every((statement) => (statement.match(/;/g) || []).length === 1)).toBe(true);
@@ -94,9 +96,9 @@ describe('migration execution safety', () => {
     const first = await runMigrations({ database: fake.database, log: silentLog });
     const second = await runMigrations({ database: fake.database, log: silentLog });
 
-    expect(first).toEqual({ applied: 3, total: 3 });
-    expect(second).toEqual({ applied: 0, total: 3 });
-    expect(fake.applied.size).toBe(3);
+    expect(first).toEqual({ applied: 5, total: 5 });
+    expect(second).toEqual({ applied: 0, total: 5 });
+    expect(fake.applied.size).toBe(5);
     expect(fake.calls.filter((call) => call.sql?.includes('GET_LOCK'))).toHaveLength(2);
     expect(fake.calls.filter((call) => call.sql?.includes('RELEASE_LOCK'))).toHaveLength(2);
     expect(fake.calls.some((call) => /multipleStatements/i.test(call.sql || ''))).toBe(false);

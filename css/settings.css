@@ -51,7 +51,23 @@ body[data-page="settings"] .settings-heading h1 {
 .address-form[hidden] {
   display: none !important;
 }
-.settings-load-error { font-size: 0.86rem; }
+.settings-load-error {
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  font-size: 0.86rem;
+}
+.settings-load-error:not([hidden]) { display: flex; }
+.settings-load-error .btn { flex-shrink: 0; min-height: 44px; }
+.settings-section-recovery {
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+  font-size: 0.86rem;
+}
+.settings-section-recovery:not([hidden]) { display: flex; }
+.settings-section-recovery .btn { flex-shrink: 0; min-height: 44px; }
 .settings-guest { max-width: 620px; margin: 2rem auto; }
 .settings-guest .card-body { padding: 2.5rem 1.5rem !important; }
 .settings-guest p {
@@ -307,6 +323,7 @@ body[data-page="settings"] .settings-heading h1 {
 }
 
 /* Saved delivery addresses */
+#addresses { scroll-margin-top: 7rem; }
 .address-list {
   display: grid;
   gap: 0.75rem;
@@ -364,7 +381,7 @@ body[data-page="settings"] .settings-heading h1 {
   gap: 0.35rem;
 }
 .saved-address-actions .btn {
-  min-height: 36px;
+  min-height: 44px;
   font-size: 0.72rem;
   font-weight: 650;
 }
@@ -405,8 +422,16 @@ body[data-page="settings"] .settings-heading h1 {
   gap: 1rem;
   padding: 0.85rem 0.95rem;
   background: var(--card);
+  cursor: pointer;
+  margin: 0;
 }
 .preference-switch-row + .preference-switch-row { border-top: 1px solid var(--border); }
+.preference-switch-row:hover { background: var(--card-alt); }
+.preference-switch-row:focus-within {
+  outline: 3px solid var(--orange);
+  outline-offset: -3px;
+}
+.preference-switch-row > span:first-child { min-width: 0; }
 .preference-switch-row strong {
   display: block;
   color: var(--text);
@@ -442,4 +467,6 @@ body[data-page="settings"] .settings-heading h1 {
   .saved-address-heading { flex-direction: column; }
   .saved-address-actions { justify-content: flex-start; }
   .preference-switch-row { align-items: flex-start; }
+  .settings-load-error:not([hidden]) { align-items: flex-start; flex-direction: column; }
+  .settings-section-recovery:not([hidden]) { align-items: flex-start; flex-direction: column; }
 }

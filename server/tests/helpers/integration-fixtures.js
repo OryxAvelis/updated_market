@@ -32,7 +32,12 @@ export function createMockCatalog(products = []) {
     records,
     async getProduct(productId) {
       const product = records.get(String(productId));
-      if (!product) throw new Error('The integration-test catalog received an unknown product ID.');
+      if (!product) {
+        throw Object.assign(new Error('The integration-test catalog received an unknown product ID.'), {
+          status: 404,
+          code: 'PRODUCT_NOT_FOUND'
+        });
+      }
       return structuredClone(product);
     },
     async listProducts({ search, category } = {}) {

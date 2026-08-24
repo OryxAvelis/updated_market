@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../auth/session.js';
 import { upsertProductRef } from '../catalog/refs.js';
+import { databaseDateToIso, nullableDatabaseDateToIso } from '../db/date.js';
 import { conflict, notFound } from '../http/errors.js';
 import { productIdSchema, publicIdSchema } from '../validation/common.js';
 
@@ -16,6 +17,7 @@ const reviewListSchema = z.object({
   page: z.coerce.number().int().min(1).max(10000).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(10)
 }).strip();
+const myReviewListSchema = reviewListSchema.extend({ product_id: productIdSchema.optional() });
 const recentSchema = z.object({ productId: productIdSchema }).strict();
 const searchSchema = z.object({
   query: z.string().trim().min(1).max(100),
@@ -30,8 +32,8 @@ function reviewDto(row) {
     body: row.body,
     author: row.display_name,
     verifiedPurchase: Boolean(row.verified_order_item_id),
-    createdAt: row.created_at,
-    updatedAt: row.updated_at
+    createdAt: databaseDateToIso(row.created_at),
+    updatedAt: databaseDateToIso(row.updated_at)
   };
 }
 
@@ -166,16 +168,19 @@ export function createMeReviewsRouter() {
   const router = Router();
   router.use(requireAuth);
   router.get('/', async (req, res) => {
-    const query = reviewListSchema.parse(req.query);
+    const query = myReviewListSchema.parse(req.query);
+    const parameters = [req.auth.userId];
+    const productCondition = query.product_id ? 'AND p.external_id = ?' : '';
+    if (query.product_id) parameters.push(query.product_id);
     const [rows] = await req.app.locals.db.execute(
       `SELECT rv.public_id, rv.rating, rv.title, rv.body, rv.verified_order_item_id,
               rv.created_at, rv.updated_at, u.display_name,
               p.external_id, p.last_known_name, p.last_known_image_url
          FROM reviews rv JOIN users u ON u.id = rv.user_id
-         JOIN catalog_product_refs p ON p.id = rv.product_ref_id
-        WHERE rv.user_id = ? AND rv.deleted_at IS NULL
+          JOIN catalog_product_refs p ON p.id = rv.product_ref_id
+        WHERE rv.user_id = ? AND rv.deleted_at IS NULL ${productCondition}
         ORDER BY rv.created_at DESC LIMIT ${query.limit} OFFSET ${(query.page - 1) * query.limit}`,
-      [req.auth.userId]
+      parameters
     );
     res.json({ reviews: rows.map((row) => ({
       ...reviewDto(row), productId: row.external_id, productName: row.last_known_name, productImageUrl: row.last_known_image_url
@@ -200,7 +205,8 @@ export function createHistoryRouter(catalog) {
     res.json({ products: rows.map((row) => ({
       id: row.external_id, name: row.last_known_name, imageUrl: row.last_known_image_url,
       brand: row.last_known_brand, price: row.last_verified_price,
-      isAvailable: Boolean(row.is_available), viewCount: row.view_count, lastViewedAt: row.last_viewed_at
+      isAvailable: Boolean(row.is_available), viewCount: row.view_count,
+      lastViewedAt: databaseDateToIso(row.last_viewed_at)
     })) });
   });
 
@@ -234,7 +240,12 @@ export function createHistoryRouter(catalog) {
          FROM search_history WHERE user_id = ? ORDER BY last_searched_at DESC LIMIT ${limit}`,
       [req.auth.userId]
     );
-    res.json({ searches: rows.map((row) => ({ query: row.query, resultsCount: row.results_count, count: row.search_count, lastSearchedAt: row.last_searched_at })) });
+    res.json({ searches: rows.map((row) => ({
+      query: row.query,
+      resultsCount: row.results_count,
+      count: row.search_count,
+      lastSearchedAt: databaseDateToIso(row.last_searched_at)
+    })) });
   });
 
   router.post('/search-history', async (req, res) => {
@@ -285,7 +296,8 @@ export function createNotificationsRouter() {
     const unreadOnly = req.query.unread === 'true';
     const [rows] = await req.app.locals.db.execute(
       `SELECT n.public_id, n.type, n.payload, n.read_at, n.created_at, n.expires_at,
-              o.public_id AS order_public_id, p.external_id AS product_id
+              o.public_id AS order_public_id, p.external_id AS product_id,
+              p.last_known_name AS product_name
          FROM notifications n LEFT JOIN orders o ON o.id = n.order_id
          LEFT JOIN catalog_product_refs p ON p.id = n.product_ref_id
         WHERE n.user_id = ? AND (n.expires_at IS NULL OR n.expires_at > UTC_TIMESTAMP(3))
@@ -301,8 +313,10 @@ export function createNotificationsRouter() {
     res.json({ unreadCount: Number(count.total), notifications: rows.map((row) => ({
       id: row.public_id, type: row.type,
       payload: typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload,
-      orderId: row.order_public_id, productId: row.product_id,
-      readAt: row.read_at, createdAt: row.created_at, expiresAt: row.expires_at
+      orderId: row.order_public_id, productId: row.product_id, productName: row.product_name,
+      readAt: nullableDatabaseDateToIso(row.read_at),
+      createdAt: databaseDateToIso(row.created_at),
+      expiresAt: nullableDatabaseDateToIso(row.expires_at)
     })) });
   });
   router.patch('/:notificationId/read', async (req, res) => {

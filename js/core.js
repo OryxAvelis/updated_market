@@ -14,55 +14,62 @@ const STORE_FRONTEND_CONTEXT = document.body?.dataset.admin !== 'true';
 const API = STORE_FRONTEND_CONTEXT ? '/api/v1/catalog' : 'https://api.mmarket.ma/api';
 const EXCLUDE_CAT = 1811; // Fumoir (smoking) — excluded
 
-// Fallback icons for categories that don't have one from the API
+// Shared Font Awesome icons for category surfaces (sidebar, Home and directory).
 const CAT_ICONS = {
   // French names (as returned by the API)
-  'boissons':             '🥤',
-  'hygiene':              '🧴',
-  'produits laitiers':    '🥛',
-  'glaces':               '🍦',
-  'epicerie':             '🛒',
-  'fruits sec':           '🥜',
-  'friandise':            '🍬',
-  'maison cuisine':       '🍳',
-  'univers bebe':         '👶',
-  'snacks sucres':        '🍫',
-  'animaux':              '🐾',
-  'snacks sales':         '🧂',
-  'boulangerie patisserie': '🥐',
-  'nettoyage':            '🧹',
-  'cadeaux fetes':        '🎁',
-  'fournitures bureau':   '📎',
-  'divertissement':        '🎮',
-  'frais':                 '🥦',
-  'petit dejeuner':        '🥐',
-  'asiatique':             '🍜',
-  'accessoire telephone':  '📱',
-  'accessoire téléphone':   '📱',
+  'boissons':               'fa-bottle-water',
+  'hygiene':                'fa-pump-soap',
+  'produits laitiers':      'fa-cheese',
+  'glaces':                 'fa-ice-cream',
+  'epicerie':               'fa-basket-shopping',
+  'fruits sec':             'fa-seedling',
+  'friandise':              'fa-candy-cane',
+  'maison cuisine':         'fa-kitchen-set',
+  'univers bebe':           'fa-baby',
+  'snacks sucres':          'fa-cookie-bite',
+  'animaux':                'fa-paw',
+  'snacks sales':           'fa-bowl-food',
+  'boulangerie patisserie': 'fa-bread-slice',
+  'nettoyage':              'fa-broom',
+  'cadeaux fetes':          'fa-gift',
+  'fournitures bureau':     'fa-paperclip',
+  'divertissement':         'fa-gamepad',
+  'frais':                  'fa-carrot',
+  'petit dejeuner':         'fa-mug-hot',
+  'asiatique':              'fa-bowl-rice',
+  'accessoire telephone':   'fa-mobile-screen-button',
   // English names (fallbacks)
-  'beverages':            '🥤',
-  'dairy products':       '🥛',
-  'ice creams':           '🍦',
-  'groceries':            '🛒',
-  'dried fruits':         '🥜',
-  'candies':              '🍬',
-  'home & kitchen':       '🍳',
-  'baby & kids':          '👶',
-  'sweet & chocolates':   '🍫',
-  'pet supplies':         '🐾',
-  'snacks':               '🧂',
-  'bakery':               '🥐',
-  'cleaning':             '🧹',
-  'gifts':                '🎁',
-  'stationery':           '📎',
+  'beverages':              'fa-bottle-water',
+  'personal care':          'fa-pump-soap',
+  'dairy products':         'fa-cheese',
+  'ice creams':             'fa-ice-cream',
+  'groceries':              'fa-basket-shopping',
+  'dried fruits':           'fa-seedling',
+  'candies':                'fa-candy-cane',
+  'home & kitchen':         'fa-kitchen-set',
+  'baby & kids':            'fa-baby',
+  'sweet & chocolates':     'fa-cookie-bite',
+  'pet supplies':           'fa-paw',
+  'snacks':                 'fa-bowl-food',
+  'bakery':                 'fa-bread-slice',
+  'cleaning':               'fa-broom',
+  'gifts':                  'fa-gift',
+  'stationery':             'fa-paperclip',
+  'entertainment':          'fa-gamepad',
+  'fresh food':             'fa-carrot',
+  'breakfast':              'fa-mug-hot',
+  'asian food':             'fa-bowl-rice',
+  'phone accessories':      'fa-mobile-screen-button',
 };
 
 function getCatIcon(cat) {
-  // Skip any generic/box-like icons from the API, use our mapping instead
-  const genericIcons = ['📦', '🏪', '🛒', '🗂️', '❓'];
-  if (cat.icon && !genericIcons.includes(cat.icon)) return cat.icon;
-  const key = (cat.name || '').toLowerCase().trim();
-  return CAT_ICONS[key] || '🏪';
+  const key = String(cat?.name || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+  const iconClass = CAT_ICONS[key] || 'fa-store';
+  return `<i class="fa-solid ${iconClass} category-icon" aria-hidden="true"></i>`;
 }
 
 const LS = {
@@ -71,6 +78,10 @@ const LS = {
   orders: 'am_orders',
   recent: 'am_recent'
 };
+
+const STORE_AUTH_CHANNEL_NAME = 'am-market-auth-state-v1';
+const STORE_AUTH_SESSION_LOCK_NAME = 'am-market-auth-session-v1';
+const MAX_GUEST_COMMERCE_ITEMS = 100;
 
 // ---------- State ----------
 let cart = [];
@@ -84,9 +95,20 @@ let savedAddresses = [];
 let authenticatedRecent = [];
 let authenticatedSearches = [];
 let sessionKnown = !STORE_FRONTEND_CONTEXT;
-let cartSyncPromise = Promise.resolve();
+let cartSyncPromise = Promise.resolve(true);
 let wishlistSyncPromise = Promise.resolve();
 let storeReady = Promise.resolve();
+let authStateEpoch = 0;
+let sessionExpiryHandled = false;
+let storeAuthChannel = null;
+const authenticatedResourceState = {
+  cart: 'ready',
+  wishlist: 'ready',
+  notifications: 'ready',
+  recent: 'ready',
+  search: 'ready'
+};
+let accountRecoveryPending = false;
 
 function normalizeCart(value) {
   if (!Array.isArray(value)) return [];
@@ -109,7 +131,12 @@ function loadState() {
 }
 
 function cartFromApi(payload) {
-  return normalizeCart((payload?.cart?.items || []).map(item => ({
+  if (!payload?.cart || !Array.isArray(payload.cart.items)) throw new TypeError('Invalid cart response');
+  if (payload.cart.items.some(item => !item || typeof item !== 'object' || item.productId == null ||
+      !Number.isSafeInteger(Number(item.quantity)) || Number(item.quantity) < 1 || Number(item.quantity) > 99)) {
+    throw new TypeError('Invalid cart item');
+  }
+  const normalized = normalizeCart(payload.cart.items.map(item => ({
     id: item.productId,
     qty: item.quantity,
     name: item.name,
@@ -121,57 +148,421 @@ function cartFromApi(payload) {
     quantity_available: item.quantityAvailable,
     load_failed: item.verified === false
   })));
+  if (new Set(normalized.map(item => item.id)).size !== normalized.length) throw new TypeError('Duplicate cart item');
+  return normalized;
 }
 
 function wishlistFromApi(payload) {
-  return (payload?.items || []).map(item => String(item.productId));
+  if (!Array.isArray(payload?.items)) throw new TypeError('Invalid wishlist response');
+  if (payload.items.some(item => !item || typeof item !== 'object' || item.productId == null)) {
+    throw new TypeError('Invalid wishlist item');
+  }
+  const items = payload.items.map(item => String(item.productId));
+  if (new Set(items).size !== items.length) throw new TypeError('Duplicate wishlist item');
+  return items;
 }
 
-async function syncCartToServer(snapshot) {
+function notificationsFromApi(payload) {
+  if (!payload || typeof payload !== 'object' || !Array.isArray(payload.notifications) || payload.notifications.length > 50) {
+    throw new TypeError('Invalid notifications response');
+  }
+  const notifications = payload.notifications.map(item => {
+    if (!item || typeof item !== 'object' || item.id == null) throw new TypeError('Invalid notification item');
+    return {
+      id: String(item.id),
+      type: typeof item.type === 'string' ? item.type : '',
+      orderId: item.orderId == null ? null : String(item.orderId),
+      productId: item.productId == null ? null : String(item.productId),
+      productName: typeof item.productName === 'string' ? item.productName : '',
+      payload: { stockQuantity: item.payload?.stockQuantity },
+      readAt: item.readAt || null,
+      createdAt: item.createdAt || null,
+      expiresAt: item.expiresAt || null
+    };
+  });
+  const unreadCount = payload.unreadCount == null
+    ? notifications.filter(item => !item.readAt).length
+    : Number(payload.unreadCount);
+  if (!Number.isSafeInteger(unreadCount) || unreadCount < 0) throw new TypeError('Invalid notification count');
+  return { notifications, unreadCount };
+}
+
+function recentFromApi(payload) {
+  if (!payload || typeof payload !== 'object' || !Array.isArray(payload.products) || payload.products.length > 50) {
+    throw new TypeError('Invalid recently viewed response');
+  }
+  return payload.products.map(product => {
+    const price = Number(product?.price);
+    if (!product || typeof product !== 'object' || product.id == null ||
+        typeof product.name !== 'string' || product.price == null || product.price === '' ||
+        !Number.isFinite(price) || price < 0 ||
+        typeof product.isAvailable !== 'boolean') {
+      throw new TypeError('Invalid recently viewed product');
+    }
+    return {
+      id: String(product.id),
+      name: product.name,
+      price: price.toFixed(2),
+      image_url: typeof product.imageUrl === 'string' ? product.imageUrl : '',
+      brand_name: typeof product.brand === 'string' ? product.brand : '',
+      is_available: product.isAvailable !== false
+    };
+  });
+}
+
+function searchesFromApi(payload) {
+  if (!payload || typeof payload !== 'object' || !Array.isArray(payload.searches) || payload.searches.length > 50) {
+    throw new TypeError('Invalid search history response');
+  }
+  return payload.searches.map(item => {
+    const query = typeof item?.query === 'string' ? item.query.trim() : '';
+    if (!query || query.length > 100) throw new TypeError('Invalid search history item');
+    return {
+      query,
+      resultsCount: Number.isSafeInteger(Number(item.resultsCount)) && Number(item.resultsCount) >= 0
+        ? Number(item.resultsCount)
+        : null,
+      count: Number.isSafeInteger(Number(item.count)) && Number(item.count) >= 0 ? Number(item.count) : 0,
+      lastSearchedAt: item.lastSearchedAt || null
+    };
+  });
+}
+
+function markAuthenticatedResourceReady(resource) {
+  const recovered = authenticatedResourceState[resource] !== 'ready';
+  authenticatedResourceState[resource] = 'ready';
+  if (!recovered) return;
+  renderAccountRecovery();
+  window.dispatchEvent(new CustomEvent('am:account-resources-recovered', { detail: { resources: [resource] } }));
+}
+
+function normalizeStoreSignedOutReason(reason) {
+  if (reason === 'unauthorized' || reason === 'account-closed' ||
+      reason === 'password-changed' || reason === 'password-reset' ||
+      reason === 'account-changed' || reason === 'session-changed') return reason;
+  return 'logout';
+}
+
+async function withStoreAuthSessionLock(work) {
+  const locks = globalThis.navigator?.locks;
+  if (!locks || typeof locks.request !== 'function') {
+    const error = new Error('A cross-tab account lock is unavailable.');
+    error.code = 'AUTH_LOCK_UNAVAILABLE';
+    throw error;
+  }
+  return locks.request(STORE_AUTH_SESSION_LOCK_NAME, { mode: 'exclusive' }, work);
+}
+
+function preserveGuestCommerceAfterExternalSessionChange() {
+  authStateEpoch += 1;
+  sessionExpiryHandled = true;
+  currentPreferences = null;
+  savedAddresses = [];
+  orders = [];
+  accountNotifications = [];
+  accountUnreadCount = 0;
+  authenticatedRecent = [];
+  authenticatedSearches = [];
+  sessionKnown = true;
+  accountRecoveryPending = false;
+  cartSyncPromise = Promise.resolve(true);
+  wishlistSyncPromise = Promise.resolve();
+  Object.keys(authenticatedResourceState).forEach(resource => {
+    authenticatedResourceState[resource] = 'ready';
+  });
+  loadState();
+  updateBadges();
+  renderNotifMenu();
+  renderAccountPanel();
+  updateAccountUI();
+  renderAccountRecovery();
+  syncVisibleWishlistControls();
+}
+
+function transitionStoreToSignedOut({ reason = 'unauthorized', notify = true } = {}) {
+  if (!currentUser) {
+    preserveGuestCommerceAfterExternalSessionChange();
+    return false;
+  }
+  const normalizedReason = normalizeStoreSignedOutReason(reason);
+  sessionExpiryHandled = true;
+  authStateEpoch += 1;
+  currentUser = null;
+  currentPreferences = null;
+  savedAddresses = [];
+  cart = [];
+  wishlist = [];
+  orders = [];
+  accountNotifications = [];
+  accountUnreadCount = 0;
+  authenticatedRecent = [];
+  authenticatedSearches = [];
+  sessionKnown = true;
+  accountRecoveryPending = false;
+  cartSyncPromise = Promise.resolve(true);
+  wishlistSyncPromise = Promise.resolve();
+  Object.keys(authenticatedResourceState).forEach(resource => {
+    authenticatedResourceState[resource] = 'ready';
+  });
+
+  try {
+    localStorage.removeItem('am_user');
+    localStorage.removeItem('am_profile');
+    localStorage.removeItem('am_delivery');
+    localStorage.removeItem(LS.orders);
+  } catch (storageError) {
+    console.warn('[AM MARKET] Could not clear legacy local account state', storageError);
+  }
+  try {
+    sessionStorage.removeItem('am_user');
+    sessionStorage.removeItem('am_profile');
+  } catch (storageError) {
+    console.warn('[AM MARKET] Could not clear legacy session account state', storageError);
+  }
+  if (STORE_FRONTEND_CONTEXT) loadState();
+
+  updateBadges();
+  renderNotifMenu();
+  renderAccountPanel();
+  updateAccountUI();
+  renderAccountRecovery();
+  syncVisibleWishlistControls();
+  if (notify) toast(t(normalizedReason === 'unauthorized' ? 'checkout_session_expired' : 'logged_out'));
+  window.dispatchEvent(new CustomEvent('am:session-expired', { detail: { reason: normalizedReason } }));
+  return true;
+}
+
+function refreshGuestCommerceFromStorage() {
+  if (!STORE_FRONTEND_CONTEXT || currentUser) return false;
+  loadState();
+  updateBadges();
+  syncVisibleWishlistControls();
+  window.dispatchEvent(new CustomEvent('am:guest-commerce-changed'));
+  return true;
+}
+
+function initializeStoreAuthBroadcast() {
+  if (!STORE_FRONTEND_CONTEXT || storeAuthChannel || typeof window.BroadcastChannel !== 'function') return false;
+  try {
+    storeAuthChannel = new window.BroadcastChannel(STORE_AUTH_CHANNEL_NAME);
+    storeAuthChannel.addEventListener('message', event => {
+      const message = event?.data;
+      if (!message || message.version !== 1) return;
+      if (message.type === 'guest-commerce-changed') {
+        refreshGuestCommerceFromStorage();
+        return;
+      }
+      const messageUserId = String(message.userId || '').trim();
+      const currentUserId = String(currentUser?.id || '').trim();
+      if (message.type === 'signed-out') {
+        if (!messageUserId) return;
+        if (!currentUserId) {
+          preserveGuestCommerceAfterExternalSessionChange();
+          return;
+        }
+        if (currentUserId !== messageUserId) return;
+        transitionStoreToSignedOut({ reason: message.reason, notify: true });
+        return;
+      }
+      if (message.type === 'session-invalidated') {
+        if (messageUserId && currentUserId && messageUserId !== currentUserId) return;
+        if (!currentUserId) {
+          preserveGuestCommerceAfterExternalSessionChange();
+          return;
+        }
+        transitionStoreToSignedOut({ reason: message.reason, notify: false });
+        return;
+      }
+      if (message.type !== 'account-changed' || !messageUserId) return;
+      if (!currentUserId) {
+        preserveGuestCommerceAfterExternalSessionChange();
+        return;
+      }
+      if (currentUserId !== messageUserId) {
+        transitionStoreToSignedOut({ reason: 'account-changed', notify: false });
+      }
+    });
+    return true;
+  } catch (error) {
+    storeAuthChannel = null;
+    console.warn('[AM MARKET] Cross-tab sign-out coordination is unavailable', error);
+    return false;
+  }
+}
+
+function broadcastStoreSignedOut(reason = 'logout', userId = currentUser?.id) {
+  if (!storeAuthChannel && !initializeStoreAuthBroadcast()) return false;
+  const normalizedUserId = String(userId || '').trim();
+  if (!normalizedUserId) return false;
+  try {
+    storeAuthChannel.postMessage({
+      version: 1,
+      type: 'signed-out',
+      reason: normalizeStoreSignedOutReason(reason),
+      userId: normalizedUserId
+    });
+    return true;
+  } catch (error) {
+    console.warn('[AM MARKET] Could not notify other tabs about sign-out', error);
+    return false;
+  }
+}
+
+function broadcastStoreSessionInvalidated(reason = 'password-changed', userId = currentUser?.id) {
+  if (!storeAuthChannel && !initializeStoreAuthBroadcast()) return false;
+  const normalizedUserId = String(userId || '').trim();
+  try {
+    storeAuthChannel.postMessage({
+      version: 1,
+      type: 'session-invalidated',
+      reason: normalizeStoreSignedOutReason(reason),
+      ...(normalizedUserId ? { userId: normalizedUserId } : {})
+    });
+    return true;
+  } catch (error) {
+    console.warn('[AM MARKET] Could not notify other tabs about the changed session', error);
+    return false;
+  }
+}
+
+function broadcastStoreAccountChanged(userId) {
+  if (!storeAuthChannel && !initializeStoreAuthBroadcast()) return false;
+  const normalizedUserId = String(userId || '').trim();
+  if (!normalizedUserId) return false;
+  try {
+    storeAuthChannel.postMessage({ version: 1, type: 'account-changed', userId: normalizedUserId });
+    return true;
+  } catch (error) {
+    console.warn('[AM MARKET] Could not notify other tabs about the active account', error);
+    return false;
+  }
+}
+
+function broadcastStoreGuestCommerceChanged() {
+  if (!storeAuthChannel && !initializeStoreAuthBroadcast()) return false;
+  try {
+    storeAuthChannel.postMessage({ version: 1, type: 'guest-commerce-changed' });
+    return true;
+  } catch (error) {
+    console.warn('[AM MARKET] Could not notify other tabs about guest commerce changes', error);
+    return false;
+  }
+}
+
+function handleStoreUnauthorized(error) {
+  if (Number(error?.status) !== 401) return false;
+  if (!currentUser) return sessionExpiryHandled;
+
+  const signedOutUserId = currentUser.id;
+  transitionStoreToSignedOut({ reason: 'unauthorized', notify: true });
+  broadcastStoreSignedOut('unauthorized', signedOutUserId);
+  return true;
+}
+
+function captureAuthenticatedRequest() {
+  return { epoch: authStateEpoch, user: currentUser };
+}
+
+function isAuthenticatedRequestCurrent(context) {
+  return Boolean(context?.user && currentUser === context.user && authStateEpoch === context.epoch);
+}
+
+function assertAuthenticatedRequestCurrent(context) {
+  if (isAuthenticatedRequestCurrent(context)) return;
+  const error = new Error('The authenticated request is no longer current.');
+  error.code = 'AUTH_REQUIRED';
+  error.status = 401;
+  throw error;
+}
+
+async function syncCartToServer(snapshot, authContext) {
+  assertAuthenticatedRequestCurrent(authContext);
   const remotePayload = await StoreAPI.cart.get();
-  const remote = new Map((remotePayload.cart?.items || []).map(item => [String(item.productId), Number(item.quantity)]));
+  assertAuthenticatedRequestCurrent(authContext);
+  const remote = new Map(cartFromApi(remotePayload).map(item => [String(item.id), Number(item.qty)]));
   const desired = new Map(snapshot.map(item => [String(item.id), Number(item.qty)]));
   if (desired.size === 0) {
-    if (remote.size) await StoreAPI.cart.clear();
+    if (remote.size) {
+      await StoreAPI.cart.clear();
+      assertAuthenticatedRequestCurrent(authContext);
+    }
     cart = [];
     updateBadges();
+    markAuthenticatedResourceReady('cart');
     return;
   }
   for (const id of remote.keys()) {
-    if (!desired.has(id)) await StoreAPI.cart.removeItem(id);
+    if (!desired.has(id)) {
+      await StoreAPI.cart.removeItem(id);
+      assertAuthenticatedRequestCurrent(authContext);
+    }
   }
   for (const [id, quantity] of desired) {
     if (!remote.has(id)) await StoreAPI.cart.addItem({ productId: id, quantity });
     else if (remote.get(id) !== quantity) await StoreAPI.cart.updateItem(id, { quantity });
+    assertAuthenticatedRequestCurrent(authContext);
   }
-  cart = cartFromApi(await StoreAPI.cart.get());
+  const refreshed = await StoreAPI.cart.get();
+  assertAuthenticatedRequestCurrent(authContext);
+  cart = cartFromApi(refreshed);
   updateBadges();
+  markAuthenticatedResourceReady('cart');
 }
 
 function saveCart() {
   updateBadges();
   if (!currentUser) {
     localStorage.setItem(LS.cart, JSON.stringify(cart));
-    return Promise.resolve();
+    return Promise.resolve(true);
   }
   const snapshot = cart.map(item => ({ id: String(item.id), qty: item.qty }));
-  cartSyncPromise = cartSyncPromise.catch(() => {}).then(() => syncCartToServer(snapshot)).catch(async error => {
-    console.error(error);
-    toast(error.message || t('api_error'));
-    try { cart = cartFromApi(await StoreAPI.cart.get()); updateBadges(); } catch { /* keep the optimistic UI */ }
-    return null;
+  const authContext = captureAuthenticatedRequest();
+  cartSyncPromise = cartSyncPromise.catch(() => false).then(() => syncCartToServer(snapshot, authContext)).then(() => true).catch(async error => {
+    if (handleStoreUnauthorized(error)) return false;
+    if (!isAuthenticatedRequestCurrent(authContext)) return false;
+    console.error('Cart synchronization failed', error);
+    toast(t('api_error'));
+    try {
+      const refreshed = await StoreAPI.cart.get();
+      if (!isAuthenticatedRequestCurrent(authContext)) return false;
+      cart = cartFromApi(refreshed);
+      updateBadges();
+      window.dispatchEvent(new CustomEvent('am:cart-reconciled'));
+    } catch (reloadError) {
+      if (handleStoreUnauthorized(reloadError)) return false;
+      authenticatedResourceState.cart = 'error';
+      console.error('Cart recovery after synchronization failure failed', reloadError);
+      renderAccountRecovery();
+      window.dispatchEvent(new CustomEvent('am:account-resource-error', { detail: { resource: 'cart' } }));
+    }
+    return false;
   });
   return cartSyncPromise;
 }
 
-async function syncWishlistToServer(snapshot) {
+async function syncWishlistToServer(snapshot, authContext) {
+  assertAuthenticatedRequestCurrent(authContext);
   const remotePayload = await StoreAPI.wishlist.get();
-  const remote = new Set((remotePayload.items || []).map(item => String(item.productId)));
+  assertAuthenticatedRequestCurrent(authContext);
+  const remote = new Set(wishlistFromApi(remotePayload));
   const desired = new Set(snapshot.map(String));
-  for (const id of remote) if (!desired.has(id)) await StoreAPI.wishlist.removeItem(id);
-  for (const id of desired) if (!remote.has(id)) await StoreAPI.wishlist.addItem({ productId: id });
-  wishlist = wishlistFromApi(await StoreAPI.wishlist.get());
+  for (const id of remote) {
+    if (!desired.has(id)) {
+      await StoreAPI.wishlist.removeItem(id);
+      assertAuthenticatedRequestCurrent(authContext);
+    }
+  }
+  for (const id of desired) {
+    if (!remote.has(id)) {
+      await StoreAPI.wishlist.addItem({ productId: id });
+      assertAuthenticatedRequestCurrent(authContext);
+    }
+  }
+  const refreshed = await StoreAPI.wishlist.get();
+  assertAuthenticatedRequestCurrent(authContext);
+  wishlist = wishlistFromApi(refreshed);
   updateBadges();
+  markAuthenticatedResourceReady('wishlist');
 }
 
 function saveWish() {
@@ -181,10 +572,27 @@ function saveWish() {
     return Promise.resolve();
   }
   const snapshot = [...wishlist];
-  wishlistSyncPromise = wishlistSyncPromise.catch(() => {}).then(() => syncWishlistToServer(snapshot)).catch(async error => {
-    console.error(error);
-    toast(error.message || t('api_error'));
-    try { wishlist = wishlistFromApi(await StoreAPI.wishlist.get()); updateBadges(); } catch { /* keep the optimistic UI */ }
+  const authContext = captureAuthenticatedRequest();
+  wishlistSyncPromise = wishlistSyncPromise.catch(() => {}).then(() => syncWishlistToServer(snapshot, authContext)).catch(async error => {
+    if (handleStoreUnauthorized(error)) return null;
+    if (!isAuthenticatedRequestCurrent(authContext)) return null;
+    console.error('Wishlist synchronization failed', error);
+    toast(t('api_error'));
+    try {
+      const refreshed = await StoreAPI.wishlist.get();
+      if (!isAuthenticatedRequestCurrent(authContext)) return null;
+      wishlist = wishlistFromApi(refreshed);
+      updateBadges();
+      window.dispatchEvent(new CustomEvent('am:account-resources-recovered', {
+        detail: { resources: ['wishlist'] }
+      }));
+    } catch (reloadError) {
+      if (handleStoreUnauthorized(reloadError)) return null;
+      authenticatedResourceState.wishlist = 'error';
+      console.error('Wishlist recovery after synchronization failure failed', reloadError);
+      renderAccountRecovery();
+      window.dispatchEvent(new CustomEvent('am:account-resource-error', { detail: { resource: 'wishlist' } }));
+    }
     return null;
   });
   return wishlistSyncPromise;
@@ -196,7 +604,38 @@ function saveOrders() {
   renderNotifMenu();
   return Promise.resolve();
 }
-function waitForStoreMutations() { return Promise.allSettled([cartSyncPromise, wishlistSyncPromise]); }
+async function waitForStoreMutations({ requireCartSync = true } = {}) {
+  const startedAuthenticated = Boolean(currentUser);
+  const startedAuthEpoch = authStateEpoch;
+  let pendingCartSync;
+  let pendingWishlistSync;
+  let cartResult;
+  let wishlistResult;
+  do {
+    pendingCartSync = cartSyncPromise;
+    pendingWishlistSync = wishlistSyncPromise;
+    [cartResult, wishlistResult] = await Promise.allSettled([pendingCartSync, pendingWishlistSync]);
+  } while (pendingCartSync !== cartSyncPromise || pendingWishlistSync !== wishlistSyncPromise);
+  if (startedAuthenticated && startedAuthEpoch !== authStateEpoch) {
+    const error = new Error('The authenticated session expired during synchronization.');
+    error.code = 'AUTH_REQUIRED';
+    error.status = 401;
+    throw error;
+  }
+  if (requireCartSync && currentUser &&
+      (cartResult.status !== 'fulfilled' || cartResult.value !== true || authenticatedResourceState.cart !== 'ready')) {
+    if (cartResult.status === 'fulfilled' && cartResult.value === false && authenticatedResourceState.cart === 'ready' &&
+        pendingCartSync === cartSyncPromise) {
+      // The failed optimistic write was reconciled from the server. Fail this
+      // navigation once, then let a later explicit attempt use that confirmed state.
+      cartSyncPromise = Promise.resolve(true);
+    }
+    const error = new Error('The authenticated cart could not be synchronized.');
+    error.code = 'CART_SYNC_FAILED';
+    throw error;
+  }
+  return [cartResult, wishlistResult];
+}
 function whenStoreReady(callback) { return storeReady.then(callback); }
 
 // Recently viewed (product snapshots, newest first, max 8)
@@ -220,7 +659,9 @@ function addRecent(product) {
   list = list.slice(0, 8);
   if (currentUser) {
     authenticatedRecent = list;
-    StoreAPI.recent.record({ productId: String(product.id) }).catch(error => console.error(error));
+    StoreAPI.recent.record({ productId: String(product.id) }).catch(error => {
+      if (!handleStoreUnauthorized(error)) console.error('Recently viewed record failed', error);
+    });
   } else {
     localStorage.setItem(LS.recent, JSON.stringify(list));
   }
@@ -272,7 +713,7 @@ async function apiJSON(url) {
 // If the browser blocks product images from the API on file://, reroute via a raw proxy
 document.addEventListener('error', e => {
   const el = e.target;
-  if (!el || el.tagName !== 'IMG' || !el.src.startsWith(API_HOST)) return;
+  if (STORE_FRONTEND_CONTEXT || !el || el.tagName !== 'IMG' || !el.src.startsWith(API_HOST)) return;
   const raw = PROXIES.filter(p => p.bin);
   const i = +el.dataset.px || 0;
   if (i >= raw.length) return;
@@ -280,10 +721,12 @@ document.addEventListener('error', e => {
   el.src = raw[i].url(el.src);
 }, true);
 
-let productCache = {};   // in-memory product cache for this page load
-let productPromises = {}; // de-duplicate overlapping detail requests
+let productCache = Object.create(null);   // in-memory product cache for this page load
+let productPromises = Object.create(null); // de-duplicate overlapping detail requests
 let categories = [];
 let categoriesPromise = null;
+let catalogBrands = [];
+let catalogBrandsPromise = null;
 
 async function fetchCategories() {
   const data = await apiJSON(`${API}/categories/`);
@@ -292,33 +735,63 @@ async function fetchCategories() {
     .filter(c => c.id !== EXCLUDE_CAT && c.parent_id == null);
 }
 
-async function fetchProducts(page = 1, categoryId = null, search = '', ordering = '', pageSize = 12) {
+async function fetchBrands() {
+  const data = await apiJSON(`${API}/brands/`);
+  if (!Array.isArray(data)) throw new TypeError('Invalid catalog brands response');
+  return data;
+}
+
+async function fetchProducts(page = 1, categoryId = null, search = '', ordering = '', pageSize = 12, filters = {}) {
   const safePageSize = Math.min(100, Math.max(1, Math.floor(Number(pageSize) || 12)));
-  let url = `${API}/products/?include_descendants=true&page=${page}&page_size=${safePageSize}`;
-  if (categoryId) url += `&category=${categoryId}`;
+  const safePage = Math.max(1, Math.floor(Number(page) || 1));
+  let url = `${API}/products/?include_descendants=true&page=${safePage}&page_size=${safePageSize}`;
+  if (categoryId) url += `&category=${encodeURIComponent(String(categoryId))}`;
   if (search) url += `&search=${encodeURIComponent(search)}`;
   if (ordering) url += `&ordering=${encodeURIComponent(ordering)}`;
+  if (filters.brand) url += `&brand=${encodeURIComponent(String(filters.brand))}`;
+  if (filters.maxPrice != null && filters.maxPrice !== ''
+      && Number.isFinite(Number(filters.maxPrice)) && Number(filters.maxPrice) >= 0) {
+    url += `&max_price=${encodeURIComponent(String(Number(filters.maxPrice)))}`;
+  }
   const data = await apiJSON(url); // { count, next, previous, results }
   (data.results || []).forEach(p => { productCache[p.id] = p; });
   return data;
 }
 
 async function fetchProduct(id) {
-  if (productCache[id]) return productCache[id];
-  if (!productPromises[id]) {
-    productPromises[id] = apiJSON(`${API}/products/${id}/`)
-      .then(p => { productCache[id] = p; return p; })
-      .finally(() => { delete productPromises[id]; });
+  const key = String(id);
+  if (productCache[key]) return productCache[key];
+  if (!productPromises[key]) {
+    productPromises[key] = apiJSON(`${API}/products/${encodeURIComponent(key)}/`)
+      .then(p => { productCache[key] = p; return p; })
+      .finally(() => { delete productPromises[key]; });
   }
-  return productPromises[id];
+  return productPromises[key];
 }
 
 // Fetch the category list once per page load (memoized promise)
 function ensureCategories() {
   if (!categoriesPromise) {
-    categoriesPromise = fetchCategories().then(list => { categories = list; return list; });
+    categoriesPromise = fetchCategories()
+      .then(list => { categories = list; return list; })
+      .catch(error => {
+        categoriesPromise = null;
+        throw error;
+      });
   }
   return categoriesPromise;
+}
+
+function ensureBrands() {
+  if (!catalogBrandsPromise) {
+    catalogBrandsPromise = fetchBrands()
+      .then(list => { catalogBrands = list; return list; })
+      .catch(error => {
+        catalogBrandsPromise = null;
+        throw error;
+      });
+  }
+  return catalogBrandsPromise;
 }
 
 // ---------- Helpers ----------
@@ -335,7 +808,9 @@ function setTheme(theme) {
   localStorage.setItem('am_theme', t);
   if (currentUser) {
     currentPreferences = { ...(currentPreferences || {}), theme: t };
-    StoreAPI.preferences.update({ theme: t }).catch(error => console.error(error));
+    StoreAPI.preferences.update({ theme: t }).catch(error => {
+      if (!handleStoreUnauthorized(error)) console.error('Theme preference update failed', error);
+    });
   }
   applyTheme(t);
 }
@@ -370,7 +845,9 @@ function setDefaultPay(p) {
   localStorage.setItem('am_pay', payment);
   if (currentUser) {
     currentPreferences = { ...(currentPreferences || {}), defaultPayment: payment };
-    StoreAPI.preferences.update({ defaultPayment: payment }).catch(error => console.error(error));
+    StoreAPI.preferences.update({ defaultPayment: payment }).catch(error => {
+      if (!handleStoreUnauthorized(error)) console.error('Payment preference update failed', error);
+    });
   }
 }
 
@@ -412,10 +889,33 @@ function isValidMoroccanPhone(value) {
   return /^[5-7]\d{8}$/.test(normalizeMoroccanPhone(value));
 }
 
-function escapeHtml(t) {
-  const d = document.createElement('div');
-  d.textContent = t || '';
-  return d.innerHTML;
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, character => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[character]);
+}
+
+function safeImageUrl(value, fallback = 'img/placeholder.svg') {
+  const raw = String(value ?? '').trim();
+  if (!raw) return escapeHtml(fallback);
+  try {
+    const url = new URL(raw, document.baseURI);
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
+      return escapeHtml(fallback);
+    }
+    return escapeHtml(url.href);
+  } catch {
+    return escapeHtml(fallback);
+  }
+}
+
+function safeNonNegativeCount(value) {
+  const count = Number(value);
+  return Number.isSafeInteger(count) && count >= 0 ? count : 0;
 }
 
 function motionBehavior() {
@@ -461,6 +961,11 @@ function toast(msg, actionLabel = '', action = null) {
 
 // ---------- Cart & wishlist actions ----------
 function addToCart(id, qty = 1, product = null, silent = false) {
+  if (currentUser && authenticatedResourceState.cart !== 'ready') {
+    if (!silent) toast(accountRecoveryMessage(['cart']));
+    renderAccountRecovery();
+    return false;
+  }
   id = String(id);
   const p = product || productCache[id] || null;
   if (p?.is_available === false) {
@@ -471,6 +976,10 @@ function addToCart(id, qty = 1, product = null, silent = false) {
   const item = cart.find(i => i.id === id);
   if (item) item.qty = Math.min(99, item.qty + qty);
   else {
+    if (!currentUser && cart.length >= MAX_GUEST_COMMERCE_ITEMS) {
+      if (!silent) toast(t('guest_cart_limit'));
+      return false;
+    }
     // Keep a product snapshot so cart/checkout pages can render without refetching
     cart.push(p
       ? { id, qty, name: p.name, price: p.price, image_url: p.image_url, brand_name: p.brand_name || '', is_available: p.is_available !== false }
@@ -482,11 +991,24 @@ function addToCart(id, qty = 1, product = null, silent = false) {
 }
 
 function toggleWish(id) {
+  if (currentUser && authenticatedResourceState.wishlist !== 'ready') {
+    toast(accountRecoveryMessage(['wishlist']));
+    renderAccountRecovery();
+    return false;
+  }
   id = String(id);
   const idx = wishlist.indexOf(id);
   if (idx >= 0) { wishlist.splice(idx, 1); toast(t('removed_wish')); }
-  else { wishlist.push(id); toast(t('added_wish')); }
+  else {
+    if (!currentUser && wishlist.length >= MAX_GUEST_COMMERCE_ITEMS) {
+      toast(t('guest_wish_limit'));
+      return false;
+    }
+    wishlist.push(id);
+    toast(t('added_wish'));
+  }
   saveWish();
+  return true;
 }
 
 function deliveryFee(sub) {
@@ -500,6 +1022,7 @@ async function getCartItems() {
   let changed = false;
   for (const c of cart) {
     let p = productCache[c.id];
+    const serverAuthoritative = Boolean(currentUser);
     // Prefer full product from API if we only have a thin snapshot (no image)
     const needsFetch = !p || !p.image_url;
     if (needsFetch) {
@@ -519,8 +1042,29 @@ async function getCartItems() {
       }
       productCache[c.id] = p;
     }
-    if (c.name == null || String(c.price) !== String(p.price) || c.image_url !== p.image_url || c.is_available !== (p.is_available !== false) || Boolean(c.load_failed) !== Boolean(p.load_failed)) {
-      c.name = p.name; c.price = p.price; c.image_url = p.image_url; c.brand_name = p.brand_name || ''; c.is_available = p.is_available !== false; c.load_failed = Boolean(p.load_failed);
+    if (serverAuthoritative) {
+      // Keep cached display metadata, but never let a stale catalog card
+      // override the cart endpoint's availability and verification decision.
+      p = {
+        ...(p || {}),
+        id: String(c.id),
+        name: c.name || p?.name || t('product_crumb'),
+        price: c.price ?? p?.price ?? 0,
+        image_url: c.image_url || p?.image_url || '',
+        brand_name: c.brand_name || p?.brand_name || '',
+        is_available: c.is_available === true,
+        stock_quantity: c.stock_quantity ?? null,
+        quantity_available: c.quantity_available === true,
+        load_failed: Boolean(c.load_failed)
+      };
+      productCache[c.id] = p;
+    }
+    if (c.name == null || String(c.price) !== String(p.price) || c.image_url !== p.image_url ||
+        c.is_available !== (p.is_available !== false) || c.stock_quantity !== p.stock_quantity ||
+        c.quantity_available !== p.quantity_available || Boolean(c.load_failed) !== Boolean(p.load_failed)) {
+      c.name = p.name; c.price = p.price; c.image_url = p.image_url; c.brand_name = p.brand_name || '';
+      c.is_available = p.is_available !== false; c.stock_quantity = p.stock_quantity ?? null;
+      c.quantity_available = p.quantity_available === true; c.load_failed = Boolean(p.load_failed);
       changed = true;
     }
     items.push({ id: String(c.id), qty: c.qty, product: p });
@@ -548,38 +1092,99 @@ function updateBadges() {
   });
 }
 
+function notificationMessage(notification) {
+  const typeKeys = {
+    order_confirmed: 'notif_order_confirmed',
+    order_preparing: 'notif_order_preparing',
+    order_shipping: 'notif_order_shipping',
+    order_delivered: 'notif_order_delivered',
+    order_cancelled: 'notif_order_cancelled',
+    return_requested: 'notif_return_requested',
+    low_stock: 'notif_low_stock',
+    back_in_stock: 'notif_back_in_stock'
+  };
+  const key = typeKeys[notification?.type];
+  if (!key) return t('notif_generic');
+  return t(key, {
+    product: notification.productName || (getLang() === 'fr' ? 'Ce produit' : 'This product'),
+    quantity: Number.isFinite(Number(notification.payload?.stockQuantity))
+      ? Number(notification.payload.stockQuantity)
+      : ''
+  });
+}
+
+function notificationDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat(getLang() === 'fr' ? 'fr-FR' : 'en-GB', {
+    dateStyle: 'medium'
+  }).format(date);
+}
+
 function renderNotifMenu() {
   const menu = $('notifMenu');
   if (!menu) return;
+  if (currentUser && authenticatedResourceState.notifications === 'loading') {
+    menu.innerHTML = `<li class="notif-empty" role="status">${escapeHtml(t('loading'))}</li>`;
+    return;
+  }
+  if (currentUser && authenticatedResourceState.notifications === 'error') {
+    menu.innerHTML = `<li class="notif-empty">
+      <p class="mb-2">${escapeHtml(accountRecoveryMessage(['notifications']))}</p>
+      <button type="button" class="btn btn-sm btn-outline-orange state-action" id="retryAccountNotifications">${escapeHtml(t('retry'))}</button>
+    </li>`;
+    $('retryAccountNotifications')?.addEventListener('click', async event => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      await retryAuthenticatedResources();
+      requestAnimationFrame(() => {
+        const target = authenticatedResourceState.notifications === 'error'
+          ? $('retryAccountNotifications')
+          : menu.querySelector('a, button') || menu.closest('.dropdown')?.querySelector('[data-bs-toggle="dropdown"]');
+        target?.focus({ preventScroll: true });
+      });
+    });
+    return;
+  }
   if (!accountNotifications.length) {
     menu.innerHTML = `<li class="notif-empty">${t('notif_empty')}</li>`;
     return;
   }
-  menu.innerHTML = accountNotifications.slice(0, 5).map(notification => `
-    <li><a class="dropdown-item notif-item" href="${notification.orderId
+  menu.innerHTML = accountNotifications.slice(0, 5).map(notification => {
+    const destination = notification.orderId
       ? `orders.html?order=${encodeURIComponent(notification.orderId)}`
       : notification.productId
         ? `product.html?id=${encodeURIComponent(notification.productId)}`
-        : 'settings.html'}" data-notification-id="${escapeHtml(notification.id)}">
+        : 'settings.html';
+    return `
+    <li><a class="dropdown-item notif-item" href="${escapeHtml(destination)}" data-notification-id="${escapeHtml(notification.id)}">
       <i class="fa-solid ${notification.productId ? 'fa-box-open' : 'fa-bag-shopping'}"></i>
-      <span>${escapeHtml(notification.payload?.message || notification.type.replaceAll('_', ' '))}<br><small class="text-muted">${new Date(notification.createdAt).toLocaleDateString()}</small></span>
-    </a></li>`).join('');
+      <span>${escapeHtml(notificationMessage(notification))}<br><small class="text-muted">${escapeHtml(notificationDate(notification.createdAt))}</small></span>
+    </a></li>`;
+  }).join('');
   menu.querySelectorAll('[data-notification-id]').forEach(link => {
     link.addEventListener('click', async event => {
       event.preventDefault();
       const destination = link.getAttribute('href');
       const notification = accountNotifications.find(item => item.id === link.dataset.notificationId);
+      const authContext = captureAuthenticatedRequest();
+      let sessionExpired = false;
       try {
         await StoreAPI.notifications.markRead(link.dataset.notificationId);
+        if (!isAuthenticatedRequestCurrent(authContext)) {
+          sessionExpired = true;
+          return;
+        }
         if (notification && !notification.readAt) {
           notification.readAt = new Date().toISOString();
           accountUnreadCount = Math.max(0, accountUnreadCount - 1);
           updateBadges();
         }
       } catch (error) {
-        console.error(error);
+        sessionExpired = handleStoreUnauthorized(error);
+        if (!sessionExpired) console.error('Notification update failed', error);
       } finally {
-        location.href = destination;
+        if (!sessionExpired) location.href = destination;
       }
     });
   });
@@ -637,11 +1242,26 @@ window.addEventListener('pageshow', e => {
 // ---------- Sidebar (home + categories pages) ----------
 let sidebarActiveCat = null;
 
-async function renderSidebar(activeCat = null) {
+async function renderSidebar(activeCat = null, { restoreFocus = false } = {}) {
   sidebarActiveCat = activeCat;
   const list = $('categoryList');
   if (!list) return;
-  try { await ensureCategories(); } catch { return; }
+  try {
+    await ensureCategories();
+  } catch (error) {
+    console.error('Category sidebar load failed', error);
+    list.innerHTML = `<div class="p-3 text-center" role="alert">
+      <p class="small text-danger mb-2">${escapeHtml(t('api_error'))}</p>
+      <button type="button" class="btn btn-sm btn-outline-orange state-action" id="retrySidebarCategories">${escapeHtml(t('retry'))}</button>
+    </div>`;
+    const retry = $('retrySidebarCategories');
+    retry?.addEventListener('click', event => {
+      event.currentTarget.disabled = true;
+      renderSidebar(activeCat, { restoreFocus: true });
+    });
+    if (restoreFocus) requestAnimationFrame(() => retry?.focus({ preventScroll: true }));
+    return;
+  }
   // Prioritize school / office supplies (Fournitures Bureau) during rentrée
   const RENTREE_CAT = 1363;
   const sorted = [...categories].sort((a, b) => {
@@ -651,36 +1271,39 @@ async function renderSidebar(activeCat = null) {
   });
   list.innerHTML = `
     <a class="list-group-item ${activeCat == null ? 'active' : ''}" href="categories.html">
-      🏪 ${t('all_categories')}
+      ${getCatIcon({ name: 'all categories' })} ${t('all_categories')}
     </a>
     ${sorted.map(c => `
-      <a class="list-group-item ${activeCat === c.id ? 'active' : ''}" href="categories.html?cat=${c.id}">
+      <a class="list-group-item ${String(activeCat) === String(c.id) ? 'active' : ''}" href="categories.html?cat=${encodeURIComponent(String(c.id))}">
         ${getCatIcon(c)} ${escapeHtml(catName(c.name))}
-        <span class="cat-count">${c.product_count || 0}</span>
+        <span class="cat-count">${safeNonNegativeCount(c.product_count)}</span>
         <i class="fa-solid fa-chevron-right cat-chev"></i>
       </a>
     `).join('')}`;
+  if (restoreFocus) requestAnimationFrame(() => list.querySelector('a')?.focus({ preventScroll: true }));
 }
 
 // ---------- Product card (shared rendering) ----------
 function cardHTML(p) {
-  const img = p.image_url || '';
-  const inWish = wishlist.includes(String(p.id));
+  const id = String(p?.id ?? '');
+  const imageSrc = safeImageUrl(p?.image_url);
+  const inWish = wishlist.includes(id);
   const available = p.is_available !== false;
   const disc = parseInt(p.discount_percent) || 0;
   const oldPrice = parseFloat(p.original_price);
   const hasOld = oldPrice > 0 && oldPrice > parseFloat(p.price);
-  const href = 'product.html?id=' + encodeURIComponent(p.id);
+  const href = 'product.html?id=' + encodeURIComponent(id);
+  const safeHref = escapeHtml(href);
   return `
     <div class="col-6 col-md-4 col-xl-3">
       <div class="product-card ${available ? '' : 'is-unavailable'}">
         ${disc > 0 ? `<span class="badge-disc">-${disc}%</span>` : (p.is_promo ? `<span class="badge-disc badge-promo">${t('promo')}</span>` : '')}
-        <a class="product-img" href="${href}">
-          <img src="${img || 'img/placeholder.svg'}" alt="${escapeHtml(p.name)}" loading="lazy" decoding="async"
+        <a class="product-img" href="${safeHref}">
+          <img src="${imageSrc}" alt="${escapeHtml(p.name)}" loading="lazy" decoding="async"
                data-product-image data-image-fallback="img/placeholder.svg">
         </a>
         <div class="product-body">
-          <a class="product-title" href="${href}">${escapeHtml(p.name)}</a>
+          <a class="product-title" href="${safeHref}">${escapeHtml(p.name)}</a>
           <div class="product-meta">
             <div class="product-brand">${p.brand_name ? escapeHtml(p.brand_name) : 'AM Market'}</div>
             <span class="product-stock ${available ? '' : 'out'}">${t(available ? 'in_stock' : 'out_stock')}</span>
@@ -691,12 +1314,12 @@ function cardHTML(p) {
               ${hasOld ? `<span class="old">${formatPrice(oldPrice)}</span>` : ''}
             </div>
             <div class="card-actions">
-              <button class="wish-btn ${inWish ? 'active' : ''}" data-wish="${p.id}" title="${t('wish_title')}"
+              <button class="wish-btn ${inWish ? 'active' : ''}" data-wish="${escapeHtml(id)}" title="${escapeHtml(t('wish_title'))}"
                       aria-label="${escapeHtml(t(inWish ? 'remove_named_wish' : 'add_named_wish', { name: p.name }))}"
                       aria-pressed="${inWish}">
                 <i class="fa-${inWish ? 'solid' : 'regular'} fa-heart"></i>
               </button>
-              <button class="add-btn" data-id="${p.id}" title="${t(available ? 'add_to_cart' : 'out_stock')}"
+              <button class="add-btn" data-id="${escapeHtml(id)}" title="${escapeHtml(t(available ? 'add_to_cart' : 'out_stock'))}"
                       aria-label="${escapeHtml(t(available ? 'add_named_cart' : 'named_out_stock', { name: p.name }))}" ${available ? '' : 'disabled'}>
                 <i class="fa-solid fa-cart-plus"></i>
               </button>
@@ -709,13 +1332,31 @@ function cardHTML(p) {
 
 // Wire add-to-cart / wishlist buttons inside a card grid. `rerender` (optional)
 // is called after a wishlist toggle so the page can refresh its cards.
+function restoreWishlistControlFocus(container, productId) {
+  requestAnimationFrame(() => {
+    const control = [...container.querySelectorAll('[data-wish]')]
+      .find(button => button.dataset.wish === String(productId));
+    (control || container.querySelector('.state-action'))?.focus({ preventScroll: true });
+  });
+}
+
+function rerenderCardsWithFocus(container, rerender, context) {
+  try {
+    Promise.resolve(rerender(context))
+      .then(() => restoreWishlistControlFocus(container, context.productId))
+      .catch(error => console.error('Product grid refresh failed', error));
+  } catch (error) {
+    console.error('Product grid refresh failed', error);
+  }
+}
+
 function bindCards(container, rerender) {
   container.querySelectorAll('.add-btn').forEach(btn => {
     btn.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
       if (btn.disabled) return;
-      addToCart(btn.dataset.id);
+      if (!addToCart(btn.dataset.id)) return;
       const icon = btn.querySelector('i');
       btn.classList.add('is-added');
       if (icon) icon.className = 'fa-solid fa-check';
@@ -731,7 +1372,7 @@ function bindCards(container, rerender) {
       e.stopPropagation();
       const id = String(btn.dataset.wish);
       const wasSaved = wishlist.includes(id);
-      toggleWish(id);
+      if (!toggleWish(id)) return;
       const syncButton = () => {
         const saved = wishlist.includes(id);
         const name = btn.closest('.product-card')?.querySelector('.product-title')?.textContent?.trim() || t('product_crumb');
@@ -746,7 +1387,7 @@ function bindCards(container, rerender) {
         toast(t('removed_wish'), t('undo'), () => {
           if (!wishlist.includes(id)) wishlist.push(id);
           saveWish();
-          if (rerender) rerender({ restoreFocus: true });
+          if (rerender) rerenderCardsWithFocus(container, rerender, { restoreFocus: true, productId: id });
           else {
             syncButton();
             btn.focus({ preventScroll: true });
@@ -757,7 +1398,11 @@ function bindCards(container, rerender) {
       btn.classList.add('is-pulsing');
       setTimeout(() => {
         btn.classList.remove('is-pulsing');
-        if (rerender) rerender({ restoreFocus: true, removedWishId: btn.dataset.wish });
+        if (rerender) rerenderCardsWithFocus(container, rerender, {
+          restoreFocus: true,
+          removedWishId: id,
+          productId: id
+        });
       }, 220);
     };
   });
@@ -788,6 +1433,7 @@ const HEADER_HTML = `
         </div>
         <div class="search-suggestions" id="searchSuggestions" role="listbox" aria-label="Search suggestions"
              data-i18n-aria="search_suggestions" hidden></div>
+        <div class="visually-hidden" id="searchSuggestionStatus" role="status" aria-live="polite" aria-atomic="true"></div>
       </div>
 
       <div class="d-flex align-items-center gap-1 gap-lg-2 header-actions">
@@ -964,6 +1610,7 @@ function initHeaderSearch() {
   const input = $('searchInput');
   const btn = $('searchBtn');
   const box = $('searchSuggestions');
+  const status = $('searchSuggestionStatus');
   if (!input || !box) return;
 
   const cache = new Map();
@@ -971,13 +1618,16 @@ function initHeaderSearch() {
   let requestSeq = 0;
   let activeIndex = -1;
 
+  const recordSearch = payload => StoreAPI.search.record(payload).catch(error => {
+    if (!handleStoreUnauthorized(error)) console.error('Search history update failed', error);
+  });
+
   const go = (value = input.value) => {
     const q = value.trim();
     if (q && currentUser) {
       const known = cache.get(q.toLowerCase());
       const resultsCount = Array.isArray(known) ? known.length : undefined;
-      StoreAPI.search.record({ query: q, ...(resultsCount === undefined ? {} : { resultsCount }) })
-        .catch(error => console.error(error));
+      recordSearch({ query: q, ...(resultsCount === undefined ? {} : { resultsCount }) });
       authenticatedSearches = [
         { query: q, resultsCount, lastSearchedAt: new Date().toISOString() },
         ...authenticatedSearches.filter(item => item.query.toLowerCase() !== q.toLowerCase())
@@ -987,47 +1637,69 @@ function initHeaderSearch() {
   };
 
   const close = () => {
+    clearTimeout(timer);
+    timer = null;
+    requestSeq += 1;
     box.hidden = true;
     box.innerHTML = '';
+    if (status) status.textContent = '';
     input.setAttribute('aria-expanded', 'false');
     input.removeAttribute('aria-activedescendant');
     activeIndex = -1;
   };
 
-  const open = html => {
+  const open = (html, statusMessage = '') => {
     box.innerHTML = html;
+    if (status) status.textContent = statusMessage;
     box.hidden = false;
     input.setAttribute('aria-expanded', 'true');
+    input.removeAttribute('aria-activedescendant');
     activeIndex = -1;
   };
 
   const renderProducts = (list, query, labelKey = 'search_suggestions') => {
     if (!list.length) {
-      open(`<div class="search-suggestion-status">${t('search_no_suggestions')}</div>
-        <a class="search-suggestion-all" href="categories.html?q=${encodeURIComponent(query)}">
-          <span>${t('search_all_results', { q: escapeHtml(query) })}</span><i class="fa-solid fa-arrow-right"></i>
-        </a>`);
+      open(`<div class="search-suggestion-status" role="presentation">${t('search_no_suggestions')}</div>
+        <a class="search-suggestion-all" id="searchOptionAll" role="option" aria-selected="false" href="categories.html?q=${encodeURIComponent(query)}">
+          <span>${t('search_all_results', { q: escapeHtml(query) })}</span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+        </a>`, t('search_no_suggestions'));
       return;
     }
     list.forEach(p => { productCache[p.id] = p; });
-    open(`<div class="search-suggestion-label">${t(labelKey)}</div>${list.slice(0, 5).map((p, i) => `
-      <a class="search-suggestion" id="searchOption${i}" role="option" href="product.html?id=${encodeURIComponent(p.id)}">
-        <img src="${p.image_url || 'img/placeholder.svg'}" alt="" loading="eager" data-image-fallback="img/placeholder.svg">
+    open(`<div class="search-suggestion-label" role="presentation">${t(labelKey)}</div>${list.slice(0, 5).map((p, i) => `
+      <a class="search-suggestion" id="searchOption${i}" role="option" aria-selected="false" href="product.html?id=${encodeURIComponent(p.id)}">
+        <img src="${safeImageUrl(p.image_url)}" alt="" loading="eager" data-image-fallback="img/placeholder.svg">
         <span class="search-suggestion-copy">
           <strong>${escapeHtml(p.name)}</strong>
           <small>${escapeHtml(p.brand_name || 'AM Market')}</small>
         </span>
         <span class="search-suggestion-price">${formatPrice(p.price)}</span>
       </a>`).join('')}
-      <a class="search-suggestion-all" href="categories.html?q=${encodeURIComponent(query)}">
-        <span>${t('search_all_results', { q: escapeHtml(query) })}</span><i class="fa-solid fa-arrow-right"></i>
+      <a class="search-suggestion-all" id="searchOptionAll" role="option" aria-selected="false" href="categories.html?q=${encodeURIComponent(query)}">
+        <span>${t('search_all_results', { q: escapeHtml(query) })}</span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
       </a>`);
   };
 
   const showRecent = () => {
+    if (currentUser && authenticatedResourceState.search === 'loading') {
+      open(`<div class="search-suggestion-status" role="presentation">${escapeHtml(t('loading'))}</div>`, t('loading'));
+      return;
+    }
+    if (currentUser && authenticatedResourceState.search === 'error') {
+      open(`<div class="search-suggestion-status" role="presentation">${escapeHtml(accountRecoveryMessage(['search']))}</div>
+        <button type="button" class="search-suggestion-all" id="searchOptionRetry" role="option" aria-selected="false">${escapeHtml(t('retry'))}</button>`,
+      accountRecoveryMessage(['search']));
+      $('searchOptionRetry')?.addEventListener('click', async event => {
+        event.currentTarget.disabled = true;
+        await retryAuthenticatedResources();
+        showRecent();
+        input.focus({ preventScroll: true });
+      });
+      return;
+    }
     if (currentUser && authenticatedSearches.length) {
-      open(`<div class="search-suggestion-label">${getLang() === 'fr' ? 'Recherches récentes' : 'Recent searches'}</div>${authenticatedSearches.slice(0, 5).map((item, i) => `
-        <a class="search-suggestion search-history-item" id="searchOption${i}" role="option" href="categories.html?q=${encodeURIComponent(item.query)}" data-search-query="${escapeHtml(item.query)}">
+      open(`<div class="search-suggestion-label" role="presentation">${getLang() === 'fr' ? 'Recherches récentes' : 'Recent searches'}</div>${authenticatedSearches.slice(0, 5).map((item, i) => `
+        <a class="search-suggestion search-history-item" id="searchOption${i}" role="option" aria-selected="false" href="categories.html?q=${encodeURIComponent(item.query)}" data-search-query="${escapeHtml(item.query)}">
           <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>
           <span class="search-suggestion-copy"><strong>${escapeHtml(item.query)}</strong></span>
         </a>`).join('')}`);
@@ -1042,7 +1714,7 @@ function initHeaderSearch() {
     const q = query.trim();
     if (q.length < 2) { if (!q) showRecent(); else close(); return; }
     const seq = ++requestSeq;
-    open(`<div class="search-suggestion-status"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>${t('loading')}</div>`);
+    open(`<div class="search-suggestion-status" role="presentation"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>${t('loading')}</div>`, t('loading'));
     try {
       let list = cache.get(q.toLowerCase());
       if (!list) {
@@ -1053,7 +1725,7 @@ function initHeaderSearch() {
       if (seq !== requestSeq || input.value.trim() !== q) return;
       renderProducts(list, q);
     } catch {
-      if (seq === requestSeq) open(`<div class="search-suggestion-status">${t('search_unavailable')}</div>`);
+      if (seq === requestSeq) open(`<div class="search-suggestion-status" role="presentation">${t('search_unavailable')}</div>`, t('search_unavailable'));
     }
   };
 
@@ -1067,15 +1739,19 @@ function initHeaderSearch() {
     timer = setTimeout(() => requestSuggestions(input.value), 280);
   });
   input.addEventListener('keydown', e => {
-    const options = [...box.querySelectorAll('.search-suggestion, .search-suggestion-all')];
+    const options = [...box.querySelectorAll('[role="option"]')];
     if (e.key === 'Escape') { close(); return; }
     if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && options.length) {
       e.preventDefault();
       activeIndex = e.key === 'ArrowDown'
         ? (activeIndex + 1) % options.length
         : (activeIndex - 1 + options.length) % options.length;
-      options.forEach((o, i) => o.classList.toggle('is-active', i === activeIndex));
-      input.setAttribute('aria-activedescendant', options[activeIndex].id || '');
+      options.forEach((o, i) => {
+        const isActive = i === activeIndex;
+        o.classList.toggle('is-active', isActive);
+        o.setAttribute('aria-selected', String(isActive));
+      });
+      input.setAttribute('aria-activedescendant', options[activeIndex].id);
       return;
     }
     if (e.key === 'Enter') {
@@ -1083,8 +1759,9 @@ function initHeaderSearch() {
       if (activeIndex >= 0 && options[activeIndex]) {
         const selectedQuery = options[activeIndex].dataset.searchQuery;
         if (selectedQuery) go(selectedQuery);
+        else if (options[activeIndex].matches('button')) options[activeIndex].click();
         else {
-          if (input.value.trim() && currentUser) StoreAPI.search.record({ query: input.value.trim() }).catch(error => console.error(error));
+          if (input.value.trim() && currentUser) recordSearch({ query: input.value.trim() });
           location.href = options[activeIndex].href;
         }
       }
@@ -1095,16 +1772,24 @@ function initHeaderSearch() {
     const link = event.target.closest('.search-suggestion, .search-suggestion-all');
     if (!link || !currentUser) return;
     const query = link.dataset.searchQuery || input.value.trim();
-    if (query) StoreAPI.search.record({ query }).catch(error => console.error(error));
+    if (query) recordSearch({ query });
   });
   document.addEventListener('click', e => {
     if (!e.target.closest('.search-box')) close();
+  });
+  window.addEventListener('am:account-resources-recovered', event => {
+    if (event.detail?.resources?.includes('search') && document.activeElement === input && input.value.trim().length < 2) {
+      showRecent();
+    }
+  });
+  window.addEventListener('am:langchange', () => {
+    if (!box.hidden && input.value.trim().length < 2) showRecent();
   });
 }
 
 // Sync the mobile bottom toolbar active tab with the current page
 function initTabbar() {
-  const map = { home: 'home', categories: 'home', product: 'home', cart: 'cart', checkout: 'cart', wishlist: 'wishlist', orders: 'account', settings: 'account', help: 'account' };
+  const map = { home: 'home', categories: 'home', 'all-categories': 'home', product: 'home', cart: 'cart', checkout: 'cart', wishlist: 'wishlist', orders: 'account', settings: 'account', help: 'account' };
   const active = map[document.body.dataset.page] || '';
   document.querySelectorAll('.mobile-tabbar [data-tab]').forEach(el => {
     const isActive = el.dataset.tab === active;
@@ -1154,23 +1839,23 @@ document.addEventListener('click', e => {
   if (lo) {
     e.preventDefault();
     if (STORE_FRONTEND_CONTEXT) {
-      StoreAPI.auth.logout().then(() => {
-        currentUser = null;
-        currentPreferences = null;
-        savedAddresses = [];
-        cart = [];
-        wishlist = [];
-        orders = [];
-        accountNotifications = [];
-        accountUnreadCount = 0;
-        authenticatedRecent = [];
-        authenticatedSearches = [];
-        updateBadges();
-        renderNotifMenu();
-        renderAccountPanel();
-        updateAccountUI();
+      withStoreAuthSessionLock(async () => {
+        const signedOutUserId = currentUser?.id;
+        await StoreAPI.auth.logout();
+        transitionStoreToSignedOut({ reason: 'logout', notify: false });
+        if (!broadcastStoreSignedOut('logout', signedOutUserId)) {
+          broadcastStoreSessionInvalidated('logout');
+        }
+      }).then(() => {
         location.replace('index.html');
-      }).catch(error => toast(error.message || t('api_error')));
+      }).catch(error => {
+        if (handleStoreUnauthorized(error)) {
+          location.replace('index.html');
+          return;
+        }
+        console.error('Logout failed', error);
+        toast(t('api_error'));
+      });
     } else {
       localStorage.removeItem('am_user');
       sessionStorage.removeItem('am_user');
@@ -1181,23 +1866,202 @@ document.addEventListener('click', e => {
   }
 });
 
+function getAuthenticatedResourceState(resource) {
+  if (!currentUser || !Object.prototype.hasOwnProperty.call(authenticatedResourceState, resource)) return 'ready';
+  return authenticatedResourceState[resource];
+}
+
+function failedAccountResources() {
+  return Object.entries(authenticatedResourceState)
+    .filter(([, state]) => state === 'error')
+    .map(([resource]) => resource);
+}
+
+function accountRecoveryMessage(resources) {
+  const french = getLang() === 'fr';
+  const labels = french
+    ? {
+        cart: 'votre panier',
+        wishlist: 'vos favoris',
+        notifications: 'vos notifications',
+        recent: 'vos produits récemment consultés',
+        search: 'vos recherches récentes'
+      }
+    : {
+        cart: 'your cart',
+        wishlist: 'your saved items',
+        notifications: 'your notifications',
+        recent: 'your recently viewed products',
+        search: 'your recent searches'
+      };
+  const names = [...new Set(resources)].map(resource => labels[resource]).filter(Boolean);
+  if (!names.length) {
+    return french
+      ? "Impossible de charger les données de votre compte. Vos données n'ont pas été effacées."
+      : "We couldn't load your account data. Your data has not been erased.";
+  }
+  const joined = names.length === 1
+    ? names[0]
+    : `${names.slice(0, -1).join(', ')} ${french ? 'et' : 'and'} ${names.at(-1)}`;
+  return french
+    ? `Impossible de charger ${joined}. Vos données n'ont pas été effacées.`
+    : `We couldn't load ${joined}. Your data has not been erased.`;
+}
+
+function renderAccountRecovery() {
+  const existing = $('accountResourceRecovery');
+  const page = document.body.dataset.page;
+  const resources = currentUser
+    ? failedAccountResources().filter(resource => !(
+      (page === 'cart' && resource === 'cart') ||
+      (page === 'wishlist' && resource === 'wishlist')
+    ))
+    : [];
+  if (!resources.length) {
+    existing?.remove();
+    return;
+  }
+
+  const wrapper = existing || document.createElement('div');
+  wrapper.id = 'accountResourceRecovery';
+  wrapper.className = 'container-fluid px-3 px-lg-4 mt-2';
+  wrapper.setAttribute('role', 'alert');
+  wrapper.setAttribute('aria-live', 'assertive');
+  wrapper.replaceChildren();
+
+  const alert = document.createElement('div');
+  alert.className = 'alert alert-warning d-flex flex-wrap align-items-center justify-content-between gap-2 mb-0';
+  const message = document.createElement('span');
+  message.textContent = accountRecoveryMessage(resources);
+  const retry = document.createElement('button');
+  retry.type = 'button';
+  retry.className = 'btn btn-sm btn-outline-orange state-action';
+  retry.textContent = t('retry');
+  retry.disabled = accountRecoveryPending;
+  retry.addEventListener('click', () => retryAuthenticatedResources());
+  alert.append(message, retry);
+  wrapper.appendChild(alert);
+
+  if (!existing) {
+    const main = document.querySelector('main');
+    if (main?.parentNode) main.parentNode.insertBefore(wrapper, main);
+    else document.body.prepend(wrapper);
+  }
+}
+
+async function retryAuthenticatedResources() {
+  if (!currentUser || accountRecoveryPending) return false;
+  const requested = failedAccountResources();
+  if (!requested.length) return true;
+  const recoveryHadFocus = $('accountResourceRecovery')?.contains(document.activeElement) === true;
+  const authContext = captureAuthenticatedRequest();
+  accountRecoveryPending = true;
+  renderAccountRecovery();
+
+  const requests = requested.map(resource => ({
+    cart: () => StoreAPI.cart.get(),
+    wishlist: () => StoreAPI.wishlist.get(),
+    notifications: () => StoreAPI.notifications.list({ limit: 20 }),
+    recent: () => StoreAPI.recent.list({ limit: 8 }),
+    search: () => StoreAPI.search.history({ limit: 10 })
+  })[resource]());
+  const results = await Promise.allSettled(requests);
+  const unauthorized = results.find(result => result.status === 'rejected' && Number(result.reason?.status) === 401);
+  if (unauthorized && handleStoreUnauthorized(unauthorized.reason)) {
+    accountRecoveryPending = false;
+    return false;
+  }
+  if (!isAuthenticatedRequestCurrent(authContext)) {
+    accountRecoveryPending = false;
+    return false;
+  }
+  const recovered = [];
+  results.forEach((result, index) => {
+    const resource = requested[index];
+    if (result.status === 'fulfilled') {
+      try {
+        if (resource === 'cart') cart = cartFromApi(result.value);
+        else if (resource === 'wishlist') wishlist = wishlistFromApi(result.value);
+        else if (resource === 'notifications') {
+          const state = notificationsFromApi(result.value);
+          accountNotifications = state.notifications;
+          accountUnreadCount = state.unreadCount;
+        } else if (resource === 'recent') authenticatedRecent = recentFromApi(result.value);
+        else if (resource === 'search') authenticatedSearches = searchesFromApi(result.value);
+        authenticatedResourceState[resource] = 'ready';
+        recovered.push(resource);
+      } catch (error) {
+        authenticatedResourceState[resource] = 'error';
+        console.error(`Authenticated ${resource} recovery returned invalid data`, error);
+      }
+    } else {
+      authenticatedResourceState[resource] = 'error';
+      console.error(`Authenticated ${resource} recovery failed`, result.reason);
+    }
+  });
+
+  accountRecoveryPending = false;
+  updateBadges();
+  renderNotifMenu();
+  renderAccountRecovery();
+  if (recovered.length) {
+    window.dispatchEvent(new CustomEvent('am:account-resources-recovered', {
+      detail: { resources: recovered }
+    }));
+  }
+  if (recoveryHadFocus) {
+    requestAnimationFrame(() => {
+      if (failedAccountResources().length) {
+        const retry = $('accountResourceRecovery')?.querySelector('button') ||
+          $('retryAccountCart') || $('retryAccountWishlist') || $('retryAccountNotifications');
+        if (retry) {
+          retry.focus({ preventScroll: true });
+          return;
+        }
+      }
+      const heading = document.querySelector('main h1');
+      if (!heading) return;
+      if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
+      heading.focus({ preventScroll: true });
+    });
+  }
+  return failedAccountResources().length === 0;
+}
+
 async function loadAuthenticatedState() {
-  localStorage.removeItem('am_user');
-  sessionStorage.removeItem('am_user');
+  const bootstrapAuthEpoch = authStateEpoch;
+  try {
+    localStorage.removeItem('am_user');
+    sessionStorage.removeItem('am_user');
+  } catch (storageError) {
+    console.warn('[AM MARKET] Could not clear legacy account bootstrap state', storageError);
+  }
   const session = await StoreAPI.bootstrap();
+  if (authStateEpoch !== bootstrapAuthEpoch) return;
   sessionKnown = true;
   if (!session.authenticated) {
     currentUser = null;
+    sessionExpiryHandled = false;
+    Object.keys(authenticatedResourceState).forEach(resource => {
+      authenticatedResourceState[resource] = 'ready';
+    });
     return;
   }
   currentUser = { ...session.user, name: session.user.displayName };
+  sessionExpiryHandled = false;
+  const authContext = captureAuthenticatedRequest();
   currentPreferences = session.user.preferences || null;
   cart = [];
   wishlist = [];
+  Object.keys(authenticatedResourceState).forEach(resource => {
+    authenticatedResourceState[resource] = 'loading';
+  });
   accountNotifications = [];
+  accountUnreadCount = 0;
   authenticatedRecent = [];
   authenticatedSearches = [];
   savedAddresses = [];
+  renderNotifMenu();
   const resources = await Promise.allSettled([
     StoreAPI.cart.get(),
     StoreAPI.wishlist.get(),
@@ -1206,6 +2070,9 @@ async function loadAuthenticatedState() {
     StoreAPI.addresses.list(),
     StoreAPI.search.history({ limit: 10 })
   ]);
+  const unauthorized = resources.find(result => result.status === 'rejected' && Number(result.reason?.status) === 401);
+  if (unauthorized && handleStoreUnauthorized(unauthorized.reason)) return;
+  if (!isAuthenticatedRequestCurrent(authContext)) return;
   const valueAt = index => resources[index].status === 'fulfilled' ? resources[index].value : null;
   const cartPayload = valueAt(0);
   const wishPayload = valueAt(1);
@@ -1213,22 +2080,49 @@ async function loadAuthenticatedState() {
   const recentPayload = valueAt(3);
   const addressPayload = valueAt(4);
   const searchPayload = valueAt(5);
-  if (cartPayload) cart = cartFromApi(cartPayload);
-  if (wishPayload) wishlist = wishlistFromApi(wishPayload);
-  accountNotifications = notificationPayload?.notifications || [];
-  accountUnreadCount = Number.isFinite(Number(notificationPayload?.unreadCount))
-    ? Number(notificationPayload.unreadCount)
-    : accountNotifications.filter(item => !item.readAt).length;
+  try {
+    if (resources[0].status !== 'fulfilled') throw resources[0].reason;
+    cart = cartFromApi(cartPayload);
+    authenticatedResourceState.cart = 'ready';
+  } catch (error) {
+    authenticatedResourceState.cart = 'error';
+    console.error('Authenticated cart bootstrap failed', error);
+  }
+  try {
+    if (resources[1].status !== 'fulfilled') throw resources[1].reason;
+    wishlist = wishlistFromApi(wishPayload);
+    authenticatedResourceState.wishlist = 'ready';
+  } catch (error) {
+    authenticatedResourceState.wishlist = 'error';
+    console.error('Authenticated wishlist bootstrap failed', error);
+  }
+  try {
+    if (resources[2].status !== 'fulfilled') throw resources[2].reason;
+    const state = notificationsFromApi(notificationPayload);
+    accountNotifications = state.notifications;
+    accountUnreadCount = state.unreadCount;
+    authenticatedResourceState.notifications = 'ready';
+  } catch (error) {
+    authenticatedResourceState.notifications = 'error';
+    console.error('Authenticated notifications bootstrap failed', error);
+  }
+  try {
+    if (resources[3].status !== 'fulfilled') throw resources[3].reason;
+    authenticatedRecent = recentFromApi(recentPayload);
+    authenticatedResourceState.recent = 'ready';
+  } catch (error) {
+    authenticatedResourceState.recent = 'error';
+    console.error('Authenticated recently viewed bootstrap failed', error);
+  }
   savedAddresses = addressPayload?.addresses || [];
-  authenticatedSearches = searchPayload?.searches || [];
-  authenticatedRecent = (recentPayload?.products || []).map(product => ({
-    id: product.id,
-    name: product.name,
-    price: product.price,
-    image_url: product.imageUrl,
-    brand_name: product.brand || '',
-    is_available: product.isAvailable
-  }));
+  try {
+    if (resources[5].status !== 'fulfilled') throw resources[5].reason;
+    authenticatedSearches = searchesFromApi(searchPayload);
+    authenticatedResourceState.search = 'ready';
+  } catch (error) {
+    authenticatedResourceState.search = 'error';
+    console.error('Authenticated search history bootstrap failed', error);
+  }
   if (currentPreferences?.theme) applyTheme(currentPreferences.theme);
   if (currentPreferences?.language && typeof setLang === 'function' && getLang() !== currentPreferences.language) {
     setLang(currentPreferences.language, { persist: false });
@@ -1248,12 +2142,14 @@ async function initializeStorefrontState() {
     renderNotifMenu();
     renderAccountPanel();
     updateAccountUI();
+    renderAccountRecovery();
     window.dispatchEvent(new CustomEvent('am:store-ready'));
   }
 }
 
 (function coreInit() {
   loadState();
+  initializeStoreAuthBroadcast();
   applyTheme(getTheme()); // sync with the pre-paint theme script without a preference write
   updateBadges();
   renderNotifMenu();
@@ -1271,5 +2167,37 @@ window.addEventListener('am:langchange', () => {
   renderAccountPanel();
   updateAccountUI();
   renderNotifMenu();
-  if ($('categoryList') && categories.length) renderSidebar(sidebarActiveCat);
+  renderAccountRecovery();
+  if ($('categoryList')) renderSidebar(sidebarActiveCat);
+});
+
+window.addEventListener('am:session-changed', () => {
+  if (currentUser) transitionStoreToSignedOut({ reason: 'session-changed', notify: false });
+  else preserveGuestCommerceAfterExternalSessionChange();
+});
+
+window.addEventListener('storage', event => {
+  if (event.key === null || event.key === LS.cart || event.key === LS.wish) {
+    refreshGuestCommerceFromStorage();
+  }
+});
+
+function syncVisibleWishlistControls() {
+  document.querySelectorAll('[data-wish]').forEach(button => {
+    const saved = wishlist.includes(String(button.dataset.wish));
+    const name = button.closest('.product-card')?.querySelector('.product-title')?.textContent?.trim() || t('product_crumb');
+    button.classList.toggle('active', saved);
+    button.setAttribute('aria-pressed', String(saved));
+    button.setAttribute('aria-label', t(saved ? 'remove_named_wish' : 'add_named_wish', { name }));
+    const icon = button.querySelector('i');
+    if (icon) icon.className = `fa-${saved ? 'solid' : 'regular'} fa-heart`;
+  });
+}
+
+window.addEventListener('am:account-resources-recovered', event => {
+  if (!event.detail?.resources?.includes('wishlist')) return;
+  syncVisibleWishlistControls();
+  if (document.body.dataset.page === 'wishlist' && typeof window.renderWishlist === 'function') {
+    window.renderWishlist({ restoreFocus: true });
+  }
 });

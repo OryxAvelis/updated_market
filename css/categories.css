@@ -32,7 +32,7 @@
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  color: #9ca3af !important;
+  color: var(--text-2) !important;
   margin-bottom: 0.5rem !important;
   margin-top: 0.25rem;
 }
@@ -217,7 +217,7 @@
 }
 
 /* ========== EMPTY SEARCH ========== */
-.empty-search .empty-icon { font-size: 3rem; opacity: 0.5; }
+.empty-search .empty-icon { display: block; font-size: 3rem; opacity: 0.5; }
 .empty-search .suggest-btn { color: var(--orange); }
 
 /* ========== RESPONSIVE ========== */
@@ -313,6 +313,7 @@
     font-size: 0.7rem;
     line-height: 1.25;
     overflow-wrap: anywhere;
+    white-space: normal;
     padding: 4px 7px;
   }
 }

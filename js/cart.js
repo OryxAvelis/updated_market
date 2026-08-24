@@ -16,6 +16,24 @@ async function renderCart(focusTarget = null) {
   const summaryCol = $('summaryCol');
   const label = $('cartLabel');
 
+  if (getAuthenticatedResourceState('cart') === 'error') {
+    if (label) label.textContent = '(—)';
+    box.className = 'col-12';
+    box.removeAttribute('aria-busy');
+    box.innerHTML = `<div class="alert alert-warning d-flex flex-wrap align-items-center justify-content-between gap-2" role="alert">
+      <span>${escapeHtml(accountRecoveryMessage(['cart']))}</span>
+      <button type="button" class="btn btn-sm btn-outline-orange state-action" id="retryAccountCart">${escapeHtml(t('retry'))}</button>
+    </div>`;
+    if (summaryCol) summaryCol.style.display = 'none';
+    $('retryAccountCart')?.addEventListener('click', async event => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      const recovered = await retryAuthenticatedResources();
+      if (!recovered && button.isConnected) button.disabled = false;
+    });
+    return;
+  }
+
   const totalQty = cart.reduce((s, i) => s + i.qty, 0);
   if (label) label.textContent = `(${totalQty})`;
 
@@ -23,10 +41,7 @@ async function renderCart(focusTarget = null) {
     box.className = 'col-12';
     box.innerHTML = `
       <div class="cart-empty">
-        <div class="cart-empty-visual">
-          <div class="cart-empty-ring"></div>
-          <div class="cart-empty-icon"><i class="fa-solid fa-cart-shopping"></i></div>
-        </div>
+        <div class="cart-empty-visual" aria-hidden="true"><i class="fa-solid fa-cart-shopping"></i></div>
         <h2 class="h5">${t('cart_empty')}</h2>
         <p>${t('cart_empty_sub')}</p>
         <div class="cart-empty-actions">
@@ -35,6 +50,9 @@ async function renderCart(focusTarget = null) {
         </div>
       </div>`;
     if (summaryCol) summaryCol.style.display = 'none';
+    box.removeAttribute('aria-busy');
+    const live = $('cartLive');
+    if (live) live.textContent = t('cart_empty');
     return;
   }
 
@@ -60,8 +78,9 @@ async function renderCart(focusTarget = null) {
 
   box.innerHTML = items.map(({ id, qty, product: p }) => {
     const line = (parseFloat(p.price) || 0) * qty;
-    const img = p.image_url || 'img/placeholder.svg';
+    const imageSrc = safeImageUrl(p.image_url);
     const href = 'product.html?id=' + encodeURIComponent(id);
+    const safeHref = escapeHtml(href);
     const catalogAvailable = p.is_available !== false && !p.load_failed;
     const stockInsufficient = Number.isInteger(p.stock_quantity) && qty > p.stock_quantity;
     const available = catalogAvailable && !stockInsufficient;
@@ -72,11 +91,11 @@ async function renderCart(focusTarget = null) {
         : t('out_stock');
     return `
       <div class="cart-item ${available ? '' : 'is-unavailable'}" data-id="${escapeHtml(id)}">
-        <a class="ci-img-link" href="${href}">
-          <img src="${img}" alt="${escapeHtml(p.name)}" data-image-fallback="img/placeholder.svg">
+        <a class="ci-img-link" href="${safeHref}">
+          <img src="${imageSrc}" alt="${escapeHtml(p.name)}" data-image-fallback="img/placeholder.svg">
         </a>
         <div class="ci-info">
-          <a class="ci-name" href="${href}">${escapeHtml(p.name)}</a>
+          <a class="ci-name" href="${safeHref}">${escapeHtml(p.name)}</a>
           <div class="ci-unit">${formatPrice(p.price)} ${available ? '' : `· <strong class="ci-stock-out">${availabilityLabel}</strong>`}</div>
           <div class="ci-actions">
             <div class="qty-box">
@@ -126,8 +145,17 @@ async function renderCart(focusTarget = null) {
     event.preventDefault();
     const link = event.currentTarget;
     link.setAttribute('aria-disabled', 'true');
-    await waitForStoreMutations();
-    location.href = 'checkout.html';
+    try {
+      await waitForStoreMutations();
+      location.href = 'checkout.html';
+    } catch (error) {
+      if (handleStoreUnauthorized(error)) return;
+      console.error('Cart synchronization before checkout failed', error);
+      toast(t('api_error'));
+      renderAccountRecovery();
+      link.removeAttribute('aria-disabled');
+      link.focus({ preventScroll: true });
+    }
   });
   $('removeUnavailable')?.addEventListener('click', async () => {
     const unavailableIds = new Set(unavailableItems.map(item => String(item.id)));
@@ -215,3 +243,21 @@ function bindCartActions() {
 
 document.addEventListener('DOMContentLoaded', () => whenStoreReady(renderCart));
 window.addEventListener('am:langchange', renderCart);
+window.addEventListener('am:account-resources-recovered', event => {
+  if (!event.detail?.resources?.includes('cart')) return;
+  renderCart().then(() => $('cartHeading')?.focus({ preventScroll: true }));
+});
+window.addEventListener('am:account-resource-error', event => {
+  if (event.detail?.resource === 'cart') renderCart();
+});
+window.addEventListener('am:cart-reconciled', () => {
+  renderCart().then(() => $('cartHeading')?.focus({ preventScroll: true }));
+});
+window.addEventListener('am:session-expired', () => {
+  const hadPrivateFocus = $('cartItems')?.contains(document.activeElement) ||
+    $('summaryCol')?.contains(document.activeElement);
+  renderCart().then(() => {
+    if (hadPrivateFocus) $('cartHeading')?.focus({ preventScroll: true });
+  });
+});
+window.addEventListener('am:guest-commerce-changed', () => renderCart());

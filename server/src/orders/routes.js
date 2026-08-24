@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../auth/session.js';
 import { upsertProductRef } from '../catalog/refs.js';
+import { databaseDateToIso, nullableDatabaseDateToIso } from '../db/date.js';
 import { conflict, notFound } from '../http/errors.js';
 import { centsToDecimal, decimalToCents, deliveryFeeCents } from '../money.js';
 import { publicIdSchema } from '../validation/common.js';
@@ -28,9 +29,65 @@ const returnSchema = z.object({
   }).strict()).min(1).max(50)
 }).strict();
 
+const orderCursorPayloadSchema = z.object({
+  placedAt: z.string().datetime({ offset: true }),
+  orderId: publicIdSchema
+}).strict();
+
+const RETURN_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+export function orderDateToIso(value) {
+  return databaseDateToIso(value);
+}
+
+function optionalOrderDateToIso(value) {
+  return nullableDatabaseDateToIso(value);
+}
+
+export function returnWindowMetadata(status, deliveredAt, now = Date.now()) {
+  if (!deliveredAt) return { returnEligible: false, returnDeadline: null };
+  const deliveredAtMs = new Date(orderDateToIso(deliveredAt)).getTime();
+  const returnDeadlineMs = deliveredAtMs + RETURN_WINDOW_MS;
+  return {
+    returnEligible: status === 'delivered' && now >= deliveredAtMs && now <= returnDeadlineMs,
+    returnDeadline: new Date(returnDeadlineMs).toISOString()
+  };
+}
+
+export function isReturnWindowOpen(deliveredAt, now = Date.now()) {
+  return returnWindowMetadata('delivered', deliveredAt, now).returnEligible;
+}
+
+export function encodeOrderCursor({ placedAt, orderId }) {
+  return Buffer.from(JSON.stringify({
+    placedAt: orderDateToIso(placedAt),
+    orderId: publicIdSchema.parse(orderId)
+  })).toString('base64url');
+}
+
+export function decodeOrderCursor(value) {
+  const text = z.string().trim().min(1).max(512).parse(value);
+  // Continue accepting the original timestamp-only cursor during a rolling
+  // deployment. New responses always use the stable composite cursor below.
+  if (/^\d{4}-\d{2}-\d{2}[T ]/.test(text)) {
+    return { placedAt: new Date(orderDateToIso(text)), orderId: null };
+  }
+  const payload = orderCursorPayloadSchema.parse(
+    JSON.parse(Buffer.from(text, 'base64url').toString('utf8'))
+  );
+  return { placedAt: new Date(payload.placedAt), orderId: payload.orderId };
+}
+
 const listSchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(20),
-  before: z.string().datetime({ offset: true }).optional()
+  before: z.string().trim().min(1).max(512).transform((value, context) => {
+    try {
+      return decodeOrderCursor(value);
+    } catch {
+      context.addIssue({ code: 'custom', message: 'Invalid order cursor.' });
+      return z.NEVER;
+    }
+  }).optional()
 }).strip();
 
 function requestDigest(input) {
@@ -38,6 +95,20 @@ function requestDigest(input) {
     addressId: input.addressId,
     paymentMethod: input.paymentMethod,
     note: input.note || null
+  })).digest();
+}
+
+export function returnRequestDigest(orderId, input) {
+  const items = input.items.map((item) => ({
+    orderItemId: item.orderItemId,
+    quantity: item.quantity,
+    reason: item.reason || null
+  })).sort((left, right) => left.orderItemId.localeCompare(right.orderItemId));
+  return createHash('sha256').update(JSON.stringify({
+    orderId,
+    reason: input.reason,
+    details: input.details || null,
+    items
   })).digest();
 }
 
@@ -77,7 +148,14 @@ async function getOrder(database, userId, publicId) {
   if (!order) throw notFound('ORDER_NOT_FOUND', 'The order was not found.');
   const [items] = await database.execute(
     `SELECT public_id, external_product_id, product_name, product_image_url,
-            unit_price, quantity, line_total
+            unit_price, quantity, line_total,
+            COALESCE((
+              SELECT SUM(ri.quantity)
+                FROM return_items ri
+                JOIN return_requests rr ON rr.id = ri.return_id
+               WHERE ri.order_item_id = order_items.id
+                 AND rr.status NOT IN ('rejected', 'cancelled')
+            ), 0) AS returned_quantity
        FROM order_items WHERE order_id = ? ORDER BY line_no`,
     [order.id]
   );
@@ -86,6 +164,7 @@ async function getOrder(database, userId, publicId) {
        FROM order_tracking_events WHERE order_id = ? ORDER BY occurred_at, id`,
     [order.id]
   );
+  const returnWindow = returnWindowMetadata(order.status, order.delivered_at);
   return {
     id: order.public_id,
     orderNumber: order.order_number,
@@ -97,9 +176,11 @@ async function getOrder(database, userId, publicId) {
     deliveryFee: order.delivery_fee,
     total: order.total,
     note: order.note,
-    placedAt: order.placed_at,
-    cancelledAt: order.cancelled_at,
-    deliveredAt: order.delivered_at,
+    placedAt: orderDateToIso(order.placed_at),
+    cancelledAt: optionalOrderDateToIso(order.cancelled_at),
+    deliveredAt: optionalOrderDateToIso(order.delivered_at),
+    returnEligible: returnWindow.returnEligible,
+    returnDeadline: returnWindow.returnDeadline,
     address: {
       recipientName: order.recipient_name,
       phone: order.phone_e164,
@@ -119,6 +200,7 @@ async function getOrder(database, userId, publicId) {
       imageUrl: item.product_image_url,
       unitPrice: item.unit_price,
       quantity: item.quantity,
+      returnedQuantity: Number(item.returned_quantity) || 0,
       lineTotal: item.line_total
     })),
     tracking: tracking.map((event) => ({
@@ -127,7 +209,7 @@ async function getOrder(database, userId, publicId) {
       message: event.public_note,
       source: event.source,
       location: event.location,
-      occurredAt: event.occurred_at
+      occurredAt: orderDateToIso(event.occurred_at)
     }))
   };
 }
@@ -138,6 +220,34 @@ async function existingOrderForKey(database, userId, digest) {
     [userId, digest]
   );
   return rows[0] || null;
+}
+
+async function existingReturnForKey(database, userId, digest, { lock = false } = {}) {
+  const [rows] = await database.execute(
+    `SELECT rr.public_id, ri.request_digest
+       FROM return_request_idempotency ri
+       JOIN return_requests rr ON rr.id = ri.return_id
+      WHERE ri.user_id = ? AND ri.key_digest = ? LIMIT 1${lock ? ' FOR UPDATE' : ''}`,
+    [userId, digest]
+  );
+  return rows[0] || null;
+}
+
+async function returnSummary(database, userId, publicId) {
+  const [rows] = await database.execute(
+    `SELECT public_id, status, reason_code, details, requested_at, updated_at
+       FROM return_requests WHERE public_id = ? AND user_id = ? LIMIT 1`,
+    [publicId, userId]
+  );
+  if (!rows[0]) throw notFound('RETURN_NOT_FOUND', 'The return request was not found.');
+  return {
+    id: rows[0].public_id,
+    status: rows[0].status,
+    reason: rows[0].reason_code,
+    details: rows[0].details,
+    requestedAt: orderDateToIso(rows[0].requested_at),
+    updatedAt: orderDateToIso(rows[0].updated_at)
+  };
 }
 
 export function createOrdersRouter(catalog) {
@@ -310,24 +420,41 @@ export function createOrdersRouter(catalog) {
     const query = listSchema.parse(req.query);
     const params = [req.auth.userId];
     let beforeSql = '';
-    if (query.before) { beforeSql = ' AND placed_at < ?'; params.push(new Date(query.before)); }
+    if (query.before?.orderId) {
+      beforeSql = ' AND (placed_at < ? OR (placed_at = ? AND public_id < ?))';
+      params.push(query.before.placedAt, query.before.placedAt, query.before.orderId);
+    } else if (query.before) {
+      beforeSql = ' AND placed_at < ?';
+      params.push(query.before.placedAt);
+    }
     const [rows] = await req.app.locals.db.execute(
       `SELECT public_id, order_number, status, payment_method, payment_status,
               currency, subtotal, delivery_fee, total, placed_at, cancelled_at, delivered_at
          FROM orders WHERE user_id = ?${beforeSql}
-        ORDER BY placed_at DESC, id DESC LIMIT ${query.limit + 1}`,
+        ORDER BY placed_at DESC, public_id DESC LIMIT ${query.limit + 1}`,
       params
     );
     const hasMore = rows.length > query.limit;
     const page = rows.slice(0, query.limit);
+    const returnWindowNow = Date.now();
     res.json({
-      orders: page.map((row) => ({
-        id: row.public_id, orderNumber: row.order_number, status: row.status,
-        paymentMethod: row.payment_method, paymentStatus: row.payment_status,
-        currency: row.currency, subtotal: row.subtotal, deliveryFee: row.delivery_fee,
-        total: row.total, placedAt: row.placed_at, cancelledAt: row.cancelled_at, deliveredAt: row.delivered_at
-      })),
-      nextCursor: hasMore ? page.at(-1).placed_at : null
+      orders: page.map((row) => {
+        const returnWindow = returnWindowMetadata(row.status, row.delivered_at, returnWindowNow);
+        return {
+          id: row.public_id, orderNumber: row.order_number, status: row.status,
+          paymentMethod: row.payment_method, paymentStatus: row.payment_status,
+          currency: row.currency, subtotal: row.subtotal, deliveryFee: row.delivery_fee,
+          total: row.total, placedAt: orderDateToIso(row.placed_at),
+          cancelledAt: optionalOrderDateToIso(row.cancelled_at),
+          deliveredAt: optionalOrderDateToIso(row.delivered_at),
+          returnEligible: returnWindow.returnEligible,
+          returnDeadline: returnWindow.returnDeadline
+        };
+      }),
+      nextCursor: hasMore ? encodeOrderCursor({
+        placedAt: page.at(-1).placed_at,
+        orderId: page.at(-1).public_id
+      }) : null
     });
   });
 
@@ -383,69 +510,111 @@ export function createOrdersRouter(catalog) {
   router.post('/:orderId/returns', async (req, res) => {
     const orderPublicId = publicIdSchema.parse(req.params.orderId);
     const input = returnSchema.parse(req.body);
+    const idempotencyKey = req.get('idempotency-key');
+    if (!idempotencyKey || idempotencyKey.length < 8 || idempotencyKey.length > 128) {
+      throw conflict('IDEMPOTENCY_KEY_REQUIRED', 'A valid Idempotency-Key header is required.');
+    }
+    const idempotencyDigest = createHash('sha256').update(idempotencyKey).digest();
+    const bodyDigest = returnRequestDigest(orderPublicId, input);
+    const existing = await existingReturnForKey(req.app.locals.db, req.auth.userId, idempotencyDigest);
+    if (existing) {
+      if (!Buffer.from(existing.request_digest).equals(bodyDigest)) {
+        throw conflict('IDEMPOTENCY_KEY_REUSED', 'This idempotency key was already used for a different return request.');
+      }
+      return res.json({
+        return: await returnSummary(req.app.locals.db, req.auth.userId, existing.public_id),
+        replayed: true
+      });
+    }
+
     const returnPublicId = randomUUID();
-    await inTransaction(req.app.locals.db, async (connection) => {
-      const [orderRows] = await connection.execute(
-        `SELECT id, status, delivered_at FROM orders
-          WHERE public_id = ? AND user_id = ? LIMIT 1 FOR UPDATE`,
-        [orderPublicId, req.auth.userId]
-      );
-      const order = orderRows[0];
-      if (!order) throw notFound('ORDER_NOT_FOUND', 'The order was not found.');
-      if (order.status !== 'delivered' || !order.delivered_at || Date.now() - new Date(order.delivered_at).getTime() > 7 * 86400000) {
-        throw conflict('RETURN_WINDOW_CLOSED', 'Returns are available for seven days after delivery.');
-      }
-      const ids = input.items.map((item) => item.orderItemId);
-      const placeholders = ids.map(() => '?').join(',');
-      const [orderItems] = await connection.execute(
-        `SELECT id, public_id, quantity FROM order_items
-          WHERE order_id = ? AND public_id IN (${placeholders}) FOR UPDATE`,
-        [order.id, ...ids]
-      );
-      if (orderItems.length !== ids.length) throw conflict('RETURN_ITEMS_INVALID', 'One or more return items are invalid.');
-      const [prior] = await connection.execute(
-        `SELECT ri.order_item_id, COALESCE(SUM(ri.quantity), 0) AS returned_quantity
-           FROM return_items ri JOIN return_requests rr ON rr.id = ri.return_id
-          WHERE rr.order_id = ? AND rr.status NOT IN ('rejected', 'cancelled')
-          GROUP BY ri.order_item_id FOR UPDATE`,
-        [order.id]
-      );
-      const returned = new Map(prior.map((row) => [String(row.order_item_id), Number(row.returned_quantity)]));
-      for (const item of input.items) {
-        const source = orderItems.find((row) => row.public_id === item.orderItemId);
-        if (item.quantity + (returned.get(String(source.id)) || 0) > source.quantity) {
-          throw conflict('RETURN_QUANTITY_INVALID', 'A return quantity exceeds the purchased quantity.');
-        }
-      }
-      const [insert] = await connection.execute(
-        `INSERT INTO return_requests
-          (public_id, order_id, user_id, status, reason_code, details)
-         VALUES (?, ?, ?, 'requested', ?, ?)`,
-        [returnPublicId, order.id, req.auth.userId, input.reason, input.details ?? null]
-      );
-      for (const item of input.items) {
-        const source = orderItems.find((row) => row.public_id === item.orderItemId);
-        await connection.execute(
-          'INSERT INTO return_items (return_id, order_item_id, quantity, reason) VALUES (?, ?, ?, ?)',
-          [insert.insertId, source.id, item.quantity, item.reason || input.reason]
+    let replayedPublicId = null;
+    try {
+      await inTransaction(req.app.locals.db, async (connection) => {
+        const [orderRows] = await connection.execute(
+          `SELECT id, status, delivered_at FROM orders
+            WHERE public_id = ? AND user_id = ? LIMIT 1 FOR UPDATE`,
+          [orderPublicId, req.auth.userId]
         );
+        const order = orderRows[0];
+        if (!order) throw notFound('ORDER_NOT_FOUND', 'The order was not found.');
+
+        const lockedExisting = await existingReturnForKey(connection, req.auth.userId, idempotencyDigest, { lock: true });
+        if (lockedExisting) {
+          if (!Buffer.from(lockedExisting.request_digest).equals(bodyDigest)) {
+            throw conflict('IDEMPOTENCY_KEY_REUSED', 'This idempotency key was already used for a different return request.');
+          }
+          replayedPublicId = lockedExisting.public_id;
+          return;
+        }
+
+        if (!returnWindowMetadata(order.status, order.delivered_at).returnEligible) {
+          throw conflict('RETURN_WINDOW_CLOSED', 'Returns are available for seven days after delivery.');
+        }
+        const ids = input.items.map((item) => item.orderItemId);
+        const placeholders = ids.map(() => '?').join(',');
+        const [orderItems] = await connection.execute(
+          `SELECT id, public_id, quantity FROM order_items
+            WHERE order_id = ? AND public_id IN (${placeholders}) FOR UPDATE`,
+          [order.id, ...ids]
+        );
+        if (orderItems.length !== ids.length) throw conflict('RETURN_ITEMS_INVALID', 'One or more return items are invalid.');
+        const [prior] = await connection.execute(
+          `SELECT ri.order_item_id, COALESCE(SUM(ri.quantity), 0) AS returned_quantity
+             FROM return_items ri JOIN return_requests rr ON rr.id = ri.return_id
+            WHERE rr.order_id = ? AND rr.status NOT IN ('rejected', 'cancelled')
+            GROUP BY ri.order_item_id FOR UPDATE`,
+          [order.id]
+        );
+        const returned = new Map(prior.map((row) => [String(row.order_item_id), Number(row.returned_quantity)]));
+        for (const item of input.items) {
+          const source = orderItems.find((row) => row.public_id === item.orderItemId);
+          if (item.quantity + (returned.get(String(source.id)) || 0) > source.quantity) {
+            throw conflict('RETURN_QUANTITY_INVALID', 'A return quantity exceeds the purchased quantity.');
+          }
+        }
+        const [insert] = await connection.execute(
+          `INSERT INTO return_requests
+            (public_id, order_id, user_id, status, reason_code, details)
+           VALUES (?, ?, ?, 'requested', ?, ?)`,
+          [returnPublicId, order.id, req.auth.userId, input.reason, input.details ?? null]
+        );
+        await connection.execute(
+          `INSERT INTO return_request_idempotency
+            (user_id, key_digest, request_digest, return_id)
+           VALUES (?, ?, ?, ?)`,
+          [req.auth.userId, idempotencyDigest, bodyDigest, insert.insertId]
+        );
+        for (const item of input.items) {
+          const source = orderItems.find((row) => row.public_id === item.orderItemId);
+          await connection.execute(
+            'INSERT INTO return_items (return_id, order_item_id, quantity, reason) VALUES (?, ?, ?, ?)',
+            [insert.insertId, source.id, item.quantity, item.reason || input.reason]
+          );
+        }
+        await connection.execute(
+          `INSERT INTO notifications (public_id, user_id, type, order_id, dedupe_key, payload)
+           SELECT ?, ?, 'return_requested', ?, ?, JSON_OBJECT('orderId', ?, 'returnId', ?)
+             FROM user_preferences WHERE user_id = ? AND order_notifications = 1`,
+          [randomUUID(), req.auth.userId, order.id, `return:${returnPublicId}:requested`, orderPublicId, returnPublicId, req.auth.userId]
+        );
+      });
+    } catch (error) {
+      const replay = await existingReturnForKey(req.app.locals.db, req.auth.userId, idempotencyDigest);
+      if (replay && Buffer.from(replay.request_digest).equals(bodyDigest)) {
+        replayedPublicId = replay.public_id;
+      } else if (error?.code === 'ER_DUP_ENTRY' || replay) {
+        throw conflict('IDEMPOTENCY_KEY_REUSED', 'This idempotency key was already used for a different return request.');
+      } else {
+        throw error;
       }
-      await connection.execute(
-        `INSERT INTO notifications (public_id, user_id, type, order_id, dedupe_key, payload)
-         SELECT ?, ?, 'return_requested', ?, ?, JSON_OBJECT('orderId', ?, 'returnId', ?)
-           FROM user_preferences WHERE user_id = ? AND order_notifications = 1`,
-        [randomUUID(), req.auth.userId, order.id, `return:${returnPublicId}:requested`, orderPublicId, returnPublicId, req.auth.userId]
-      );
+    }
+
+    const publicId = replayedPublicId || returnPublicId;
+    res.status(replayedPublicId ? 200 : 201).json({
+      return: await returnSummary(req.app.locals.db, req.auth.userId, publicId),
+      replayed: Boolean(replayedPublicId)
     });
-    const [rows] = await req.app.locals.db.execute(
-      `SELECT public_id, status, reason_code, details, requested_at, updated_at
-         FROM return_requests WHERE public_id = ? AND user_id = ? LIMIT 1`,
-      [returnPublicId, req.auth.userId]
-    );
-    res.status(201).json({ return: {
-      id: rows[0].public_id, status: rows[0].status, reason: rows[0].reason_code,
-      details: rows[0].details, requestedAt: rows[0].requested_at, updatedAt: rows[0].updated_at
-    } });
   });
 
   return router;
@@ -474,8 +643,9 @@ export function createReturnsRouter() {
     );
     res.json({ return: {
       id: row.public_id, orderId: row.order_public_id, status: row.status,
-      reason: row.reason_code, details: row.details, requestedAt: row.requested_at,
-      updatedAt: row.updated_at,
+      reason: row.reason_code, details: row.details,
+      requestedAt: orderDateToIso(row.requested_at),
+      updatedAt: orderDateToIso(row.updated_at),
       items: items.map((item) => ({ orderItemId: item.order_item_id, productId: item.external_product_id, name: item.product_name, quantity: item.quantity, reason: item.reason }))
     } });
   });

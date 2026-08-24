@@ -58,11 +58,11 @@ function securityHeaders() {
     },
     crossOriginEmbedderPolicy: false,
     crossOriginResourcePolicy: { policy: 'same-site' },
-    // The public TLS edge owns HSTS when TLS is proxy-terminated so only one
-    // policy reaches the browser. Direct production HTTPS remains protected
-    // here by the application server.
-    hsts: config.isProduction && !config.tlsTerminatedByProxy
-      ? { maxAge: 31536000, includeSubDomains: true, preload: false }
+    // Node is the single HSTS owner in every production topology. Keeping the
+    // policy here also covers TLS proxies that do not add transport headers and
+    // avoids conflicting duplicate values at the edge.
+    hsts: config.isProduction
+      ? config.hsts
       : false,
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
     xFrameOptions: { action: 'deny' }
@@ -93,20 +93,29 @@ function requireJsonForBody(req, _res, next) {
 
 function enforceProxyHttps(req, res, next) {
   if (!config.isProduction || !config.tlsTerminatedByProxy || req.secure) return next();
-  return res.redirect(308, new URL(req.originalUrl, config.appOrigin).toString());
+  // Keep the configured origin authoritative. Passing a scheme-relative
+  // request target (//host/path) to the URL constructor would otherwise allow
+  // an attacker-controlled redirect host.
+  const requestTarget = String(req.originalUrl || '/').replace(/[\r\n]/g, '');
+  const relativeTarget = requestTarget.startsWith('/') ? requestTarget : `/${requestTarget}`;
+  return res.redirect(308, `${config.appOrigin}${relativeTarget}`);
 }
 
 function staticAssets(app) {
   const options = {
     dotfiles: 'deny',
     fallthrough: false,
-    immutable: config.isProduction,
-    maxAge: config.isProduction ? '1d' : 0,
+    // The storefront currently serves stable, unversioned filenames such as
+    // core.js and common.css. Marking those URLs immutable can leave customers
+    // on an old UI for a full deployment cycle, so always revalidate them and
+    // let ETags make unchanged responses inexpensive.
+    immutable: false,
+    maxAge: 0,
     index: false
   };
   app.use('/css', express.static(path.join(storefrontRoot, 'css'), options));
   app.use('/js', express.static(path.join(storefrontRoot, 'js'), options));
-  app.use('/img', express.static(path.join(storefrontRoot, 'img'), { ...options, maxAge: config.isProduction ? '7d' : 0 }));
+  app.use('/img', express.static(path.join(storefrontRoot, 'img'), options));
   app.get('/', (_req, res) => res.set('Cache-Control', 'no-cache').sendFile(path.join(storefrontRoot, 'index.html')));
   app.get('/:page', (req, res, next) => {
     if (!userPages.has(req.params.page)) return next();
