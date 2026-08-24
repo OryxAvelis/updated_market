@@ -37,6 +37,7 @@ const userPages = new Set([
   'cart.html', 'checkout.html', 'wishlist.html', 'orders.html',
   'settings.html', 'help.html', 'login.html', 'reset-password.html'
 ]);
+const publicCatalogFallbackOrigin = 'https://api.mmarket.ma';
 
 function securityHeaders() {
   return helmet({
@@ -44,7 +45,7 @@ function securityHeaders() {
       directives: {
         defaultSrc: ["'self'"],
         baseUri: ["'self'"],
-        connectSrc: ["'self'"],
+        connectSrc: ["'self'", publicCatalogFallbackOrigin],
         fontSrc: ["'self'", 'https://fonts.gstatic.com', 'https://cdnjs.cloudflare.com', 'data:'],
         formAction: ["'self'"],
         frameAncestors: ["'none'"],

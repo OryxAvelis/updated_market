@@ -111,4 +111,18 @@ describe('production transport fail-closed configuration', () => {
     expect(cacheControl).toContain('max-age=0');
     expect(cacheControl).not.toContain('immutable');
   });
+
+  it('allows only the pinned public catalog as an external connection fallback', () => {
+    const output = runModule(`
+      const [{ createApp }, { default: request }] = await Promise.all([
+        import('./src/app.js'), import('supertest')
+      ]);
+      const response = await request(createApp({ database: {} })).get('/');
+      console.log(JSON.stringify({ csp: response.headers['content-security-policy'] || '' }));
+    `, productionEnvironment({ CATALOG_API_ORIGIN: 'https://catalog.internal.example' }));
+    const { csp } = JSON.parse(output);
+    expect(csp).toContain("connect-src 'self' https://api.mmarket.ma");
+    expect(csp).not.toContain('catalog.internal.example');
+    expect(csp).not.toContain('connect-src *');
+  });
 });

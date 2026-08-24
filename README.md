@@ -61,6 +61,8 @@ Generate and trust the local HTTPS certificate, apply migrations, and start the 
 
 Open [https://localhost:3443](https://localhost:3443). Requests to `http://localhost:3000` are redirected with HTTP 308. The backend intentionally serves only the allowlisted customer pages and static asset directories.
 
+A plain static preview can still browse the public product and category catalog: customer pages try the same-origin `/api/v1/catalog` proxy first, then fall back to the allowlisted read-only `https://api.mmarket.ma/api` catalog when that route is unavailable. Registration, authenticated carts, checkout, orders, reviews, and other account features still require the Node application, so use `https://localhost:3443` for full end-to-end development.
+
 ## Password-reset email
 
 Set the `SMTP_*` variables described in `server/.env.example` through the deployment secret manager. A reset request always returns the same generic response. Tokens are random, short-lived, stored only as digests, usable once, and revoked if delivery fails. Without SMTP credentials the reset route remains safe, but no email can be delivered.

@@ -162,6 +162,7 @@ async function loadCoreSessionHarness({
         };
       },
       cartItems: getCartItems,
+      fetchCategories,
       fetchProducts,
       snapshot() {
         return {
@@ -258,6 +259,125 @@ describe('storefront session-expiry transition', () => {
 
     expect(new URL(requested[0]).searchParams.has('max_price')).toBe(false);
     expect(new URL(requested[1]).searchParams.get('max_price')).toBe('0');
+  });
+
+  it('falls back to the allowlisted MMarket catalog when a static server has no backend route', async () => {
+    const requested = [];
+    const fetchImpl = async url => {
+      requested.push(String(url));
+      if (String(url).startsWith('/api/v1/catalog/')) {
+        return new Response('<!doctype html><title>Static preview</title>', {
+          status: 200,
+          headers: { 'content-type': 'text/html' }
+        });
+      }
+      return new Response(JSON.stringify([{ id: 1, name: 'Beverages', parent_id: null }]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' }
+      });
+    };
+    const { hooks } = await loadCoreSessionHarness({ frontend: true, fetchImpl });
+
+    await expect(hooks.fetchCategories()).resolves.toEqual([
+      { id: 1, name: 'Beverages', parent_id: null }
+    ]);
+    expect(requested).toEqual([
+      '/api/v1/catalog/categories/',
+      'https://api.mmarket.ma/api/categories/'
+    ]);
+  });
+
+  it('keeps the same-origin catalog preferred and does not bypass access denials', async () => {
+    const successfulRequests = [];
+    const successfulFetch = async url => {
+      successfulRequests.push(String(url));
+      return new Response(JSON.stringify([{ id: 1, name: 'Beverages', parent_id: null }]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' }
+      });
+    };
+    const preferred = await loadCoreSessionHarness({ frontend: true, fetchImpl: successfulFetch });
+    await expect(preferred.hooks.fetchCategories()).resolves.toHaveLength(1);
+    expect(successfulRequests).toEqual(['/api/v1/catalog/categories/']);
+
+    const deniedRequests = [];
+    const deniedFetch = async url => {
+      deniedRequests.push(String(url));
+      return new Response(JSON.stringify({ error: 'denied' }), {
+        status: 403,
+        headers: { 'content-type': 'application/json' }
+      });
+    };
+    const denied = await loadCoreSessionHarness({ frontend: true, fetchImpl: deniedFetch });
+    await expect(denied.hooks.fetchCategories()).rejects.toMatchObject({ status: 403 });
+    expect(deniedRequests).toEqual(['/api/v1/catalog/categories/']);
+  });
+
+  it.each([
+    [422, 'VALIDATION_FAILED'],
+    [429, 'RATE_LIMITED'],
+    [503, 'CATALOG_RESPONSE_INVALID']
+  ])('does not bypass a validated backend error (%s %s)', async (status, code) => {
+    const requested = [];
+    const fetchImpl = async url => {
+      requested.push(String(url));
+      return new Response(JSON.stringify({ error: { code, message: 'Rejected' } }), {
+        status,
+        headers: { 'content-type': 'application/json' }
+      });
+    };
+    const { hooks } = await loadCoreSessionHarness({ frontend: true, fetchImpl });
+
+    await expect(hooks.fetchCategories()).rejects.toMatchObject({ status, code });
+    expect(requested).toEqual(['/api/v1/catalog/categories/']);
+  });
+
+  it('does not bypass malformed JSON from the same-origin backend', async () => {
+    const requested = [];
+    const fetchImpl = async url => {
+      requested.push(String(url));
+      return new Response('{"results":', {
+        status: 200,
+        headers: { 'content-type': 'application/json' }
+      });
+    };
+    const { hooks } = await loadCoreSessionHarness({ frontend: true, fetchImpl });
+
+    await expect(hooks.fetchCategories()).rejects.toMatchObject({
+      status: 200,
+      catalogFailure: 'invalid-json'
+    });
+    expect(requested).toEqual(['/api/v1/catalog/categories/']);
+  });
+
+  it('preserves product query parameters when the backend is unavailable', async () => {
+    const requested = [];
+    const fetchImpl = async url => {
+      requested.push(String(url));
+      if (String(url).startsWith('/api/v1/catalog/')) {
+        return new Response(JSON.stringify({
+          error: { code: 'CATALOG_UNAVAILABLE', message: 'Unavailable' }
+        }), {
+          status: 503,
+          headers: { 'content-type': 'application/json' }
+        });
+      }
+      return new Response(JSON.stringify({ count: 0, next: null, previous: null, results: [] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' }
+      });
+    };
+    const { hooks } = await loadCoreSessionHarness({ frontend: true, fetchImpl });
+
+    await expect(hooks.fetchProducts(3, 7, 'green tea', '-price', 24, {
+      brand: 11,
+      maxPrice: 99.5
+    })).resolves.toMatchObject({ count: 0, results: [] });
+    expect(requested).toHaveLength(2);
+    expect(requested[1]).toBe(requested[0].replace(
+      '/api/v1/catalog/',
+      'https://api.mmarket.ma/api/'
+    ));
   });
 
   it('still clears private UI state and emits expiry when browser storage cleanup is blocked', async () => {

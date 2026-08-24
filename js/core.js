@@ -668,9 +668,11 @@ function addRecent(product) {
 }
 
 // ---------- API ----------
-// Admin keeps its legacy catalog fallback. The storefront uses only the
-// allowlisted same-origin backend and never sends customer traffic to proxies.
+// Prefer the same-origin backend so production benefits from its validation and
+// cache. A static/local preview has no /api/v1/catalog route, so public catalog
+// reads may fall back to the allowlisted MMarket API (which supports CORS).
 const API_HOST = 'https://api.mmarket.ma';
+const DIRECT_CATALOG_API = `${API_HOST}/api`;
 const PROXIES = [
   { json: true, bin: true, url: u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u) },
   { json: true, bin: false, url: u => 'https://r.jina.ai/' + u },
@@ -685,17 +687,73 @@ function fetchWithTimeout(url, ms) {
   return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(timer));
 }
 
+function directCatalogFallbackUrl(url) {
+  if (!STORE_FRONTEND_CONTEXT || typeof url !== 'string') return null;
+  const backendPrefix = `${API}/`;
+  if (!url.startsWith(backendPrefix)) return null;
+  return `${DIRECT_CATALOG_API}/${url.slice(backendPrefix.length)}`;
+}
+
+function canUseDirectCatalogFallback(error) {
+  const status = Number(error?.status);
+  if (error?.catalogFailure === 'network') return true;
+  if (error?.catalogFailure === 'html-success') return true;
+  if (!Number.isInteger(status)) return false;
+  if ([404, 405, 502, 504].includes(status)) return true;
+  return status === 503 && error?.code === 'CATALOG_UNAVAILABLE';
+}
+
+async function fetchApiJson(url, timeoutMs) {
+  let res;
+  try {
+    res = await fetchWithTimeout(url, timeoutMs);
+  } catch (cause) {
+    const error = new Error(cause?.message || 'Network request failed');
+    error.name = cause?.name || 'NetworkError';
+    error.catalogFailure = 'network';
+    error.cause = cause;
+    throw error;
+  }
+
+  const contentType = String(res.headers.get('content-type') || '').toLowerCase();
+  const body = await res.text();
+  let data;
+  let parseError = null;
+  try {
+    data = JSON.parse(body);
+  } catch (error) {
+    parseError = error;
+  }
+
+  if (!res.ok) {
+    const error = new Error('HTTP ' + res.status);
+    error.status = res.status;
+    error.code = data?.error?.code || data?.code || null;
+    error.catalogFailure = 'http';
+    throw error;
+  }
+
+  if (parseError) {
+    const error = new Error('Invalid JSON response');
+    error.status = res.status;
+    error.catalogFailure = !contentType.includes('json') && /^\s*(?:<!doctype\s+html|<html\b)/i.test(body)
+      ? 'html-success'
+      : 'invalid-json';
+    error.cause = parseError;
+    throw error;
+  }
+  return data;
+}
+
 // Fetch API JSON: direct first, then through CORS proxies (file:// safety net)
 async function apiJSON(url) {
   try {
-    const res = await fetchWithTimeout(url, 8000);
-    if (!res.ok) {
-      const error = new Error('HTTP ' + res.status);
-      error.status = res.status;
-      throw error;
-    }
-    return await res.json();
+    return await fetchApiJson(url, 8000);
   } catch (e) {
+    const fallbackUrl = directCatalogFallbackUrl(url);
+    if (fallbackUrl && canUseDirectCatalogFallback(e)) {
+      return await fetchApiJson(fallbackUrl, 8000);
+    }
     if (e?.status >= 400 && e.status < 500) throw e;
     if (STORE_FRONTEND_CONTEXT) throw e;
     for (const px of PROXIES) {
