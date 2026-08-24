@@ -12,7 +12,6 @@
 
 const STORE_FRONTEND_CONTEXT = document.body?.dataset.admin !== 'true';
 const API = STORE_FRONTEND_CONTEXT ? '/api/v1/catalog' : 'https://api.mmarket.ma/api';
-const EXCLUDE_CAT = 1811; // Fumoir (smoking) — excluded
 
 // Shared Font Awesome icons for category surfaces (sidebar, Home and directory).
 const CAT_ICONS = {
@@ -788,9 +787,8 @@ let catalogBrandsPromise = null;
 
 async function fetchCategories() {
   const data = await apiJSON(`${API}/categories/`);
-  // Exclude smoking category
   return (Array.isArray(data) ? data : data.results || [])
-    .filter(c => c.id !== EXCLUDE_CAT && c.parent_id == null);
+    .filter(c => c.parent_id == null);
 }
 
 async function fetchBrands() {

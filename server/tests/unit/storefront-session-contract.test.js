@@ -271,7 +271,11 @@ describe('storefront session-expiry transition', () => {
           headers: { 'content-type': 'text/html' }
         });
       }
-      return new Response(JSON.stringify([{ id: 1, name: 'Beverages', parent_id: null }]), {
+      return new Response(JSON.stringify([
+        { id: 1, name: 'Beverages', parent_id: null },
+        { id: 1811, name: 'Fumoir', parent_id: null },
+        { id: 2, name: 'Child category', parent_id: 1 }
+      ]), {
         status: 200,
         headers: { 'content-type': 'application/json' }
       });
@@ -279,7 +283,8 @@ describe('storefront session-expiry transition', () => {
     const { hooks } = await loadCoreSessionHarness({ frontend: true, fetchImpl });
 
     await expect(hooks.fetchCategories()).resolves.toEqual([
-      { id: 1, name: 'Beverages', parent_id: null }
+      { id: 1, name: 'Beverages', parent_id: null },
+      { id: 1811, name: 'Fumoir', parent_id: null }
     ]);
     expect(requested).toEqual([
       '/api/v1/catalog/categories/',
