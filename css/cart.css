@@ -236,6 +236,24 @@
   box-shadow: none;
 }
 
+.cart-checkout-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 14px 2px 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.cart-checkout-note i {
+  color: var(--orange);
+  margin-top: 3px;
+  flex: 0 0 auto;
+}
+
+.cart-checkout-note + .btn-checkout { margin-top: 10px; }
+
 .cart-continue-link {
   display: flex;
   align-items: center;

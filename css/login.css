@@ -195,6 +195,27 @@ button { font-family: inherit; cursor: pointer; }
 }
 .auth-form-stack { width: 100%; }
 
+.auth-context {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border: 1px solid #b9d6fb;
+  border-radius: 4px;
+  background: #edf5ff;
+  color: #174f91;
+  font-size: 0.84rem;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.auth-context i {
+  margin-top: 3px;
+  flex: 0 0 auto;
+}
+
 .auth-alert {
   width: 100%;
   margin-bottom: 18px;

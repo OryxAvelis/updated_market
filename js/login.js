@@ -17,6 +17,10 @@
       secureAccount: 'Secure account sessions',
       loginSubtitle: 'Good to see you again.',
       signupSubtitle: 'Join AM Market in less than a minute.',
+      checkoutPrompt: 'Sign in or create an account to continue to secure checkout. Your cart is saved.',
+      checkoutBrandTitle: 'Complete your order',
+      checkoutBrandText: 'Sign in or create an account, then we’ll return you to checkout with your cart ready.',
+      backToCart: 'Back to cart',
       passwordPlaceholder: 'Password',
       passwordRule: 'Use 12–128 characters.',
       forgotTitle: 'Reset your password',
@@ -45,6 +49,10 @@
       secureAccount: 'Sessions de compte sécurisées',
       loginSubtitle: 'Ravi de vous revoir.',
       signupSubtitle: 'Rejoignez AM Market en moins d’une minute.',
+      checkoutPrompt: 'Connectez-vous ou créez un compte pour continuer vers la commande sécurisée. Votre panier est conservé.',
+      checkoutBrandTitle: 'Finalisez votre commande',
+      checkoutBrandText: 'Connectez-vous ou créez un compte, puis nous vous ramènerons à la commande avec votre panier.',
+      backToCart: 'Retour au panier',
       passwordPlaceholder: 'Mot de passe',
       passwordRule: 'Utilisez entre 12 et 128 caractères.',
       forgotTitle: 'Réinitialiser votre mot de passe',
@@ -90,6 +98,10 @@
       : 'index.html';
   }
 
+  function isCheckoutIntent() {
+    return safeNextPage().split('?')[0] === 'checkout.html';
+  }
+
   function accountNoticeKey() {
     const notice = new URLSearchParams(location.search).get('account');
     return ({ deactivated: 'accountDeactivated', deleted: 'accountDeleted' })[notice] || '';
@@ -117,7 +129,9 @@
       ? { title: t('brand_signup_title'), text: t('brand_signup_text') }
       : mode === 'forgot'
         ? { title: copy('forgotBrandTitle'), text: copy('forgotBrandText') }
-        : { title: t('brand_login_title'), text: t('brand_login_text') };
+        : isCheckoutIntent()
+          ? { title: copy('checkoutBrandTitle'), text: copy('checkoutBrandText') }
+          : { title: t('brand_login_title'), text: t('brand_login_text') };
     const title = $('brandTitle');
     const text = $('brandText');
     title.textContent = brand.title;
@@ -616,6 +630,15 @@
     });
   }
 
+  function syncPasswordVisibilityLabels() {
+    document.querySelectorAll('[data-eye]').forEach((button) => {
+      const input = $(button.dataset.eye);
+      const label = t(input.type === 'text' ? 'hide_pass' : 'show_pass');
+      button.setAttribute('aria-label', label);
+      button.setAttribute('title', label);
+    });
+  }
+
   function bindErrorClearing() {
     Object.values(fieldMap).forEach((config) => {
       $(config.input)?.addEventListener('input', () => clearFieldError(config));
@@ -625,6 +648,7 @@
   function syncLocalizedState() {
     applyLocalCopy();
     setBrand(currentMode);
+    applyCheckoutIntent();
     const alert = $('authAlert');
     if (!alert.hidden) {
       const key = alert.dataset.authAlertKey;
@@ -637,19 +661,26 @@
     document.querySelectorAll('form[aria-busy="true"] [data-submit-label]').forEach((label) => {
       label.textContent = copy('pending');
     });
-    document.querySelectorAll('[data-eye]').forEach((button) => {
-      const input = $(button.dataset.eye);
-      const label = t(input.type === 'text' ? 'hide_pass' : 'show_pass');
-      button.setAttribute('aria-label', label);
-      button.setAttribute('title', label);
-    });
+    syncPasswordVisibilityLabels();
+  }
+
+  function applyCheckoutIntent() {
+    const checkoutIntent = isCheckoutIntent();
+    const context = $('checkoutAuthContext');
+    if (context) context.hidden = !checkoutIntent;
+    const backLink = $('authBackLink');
+    const backLabel = $('authBackLabel');
+    if (backLink) backLink.href = checkoutIntent ? 'cart.html' : 'index.html';
+    if (backLabel) backLabel.textContent = checkoutIntent ? copy('backToCart') : t('back_home');
   }
 
   document.addEventListener('DOMContentLoaded', () => {
     applyLocalCopy();
     setBrand('login');
+    applyCheckoutIntent();
     const noticeKey = accountNoticeKey();
     bindPasswordVisibility();
+    syncPasswordVisibilityLabels();
     bindErrorClearing();
     $('toSignup').addEventListener('click', () => showMode('signup'));
     $('toLogin').addEventListener('click', () => showMode('login', true));

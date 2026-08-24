@@ -33,7 +33,7 @@ async function loginMergeHarness(mergeGuest, options = {}) {
     console,
     document: { addEventListener() {}, querySelectorAll() { return []; }, getElementById() { return null; } },
     getLang: () => 'en',
-    location: { search: '', replace() {} },
+    location: { search: options.search || '', replace() {} },
     localStorage: local,
     navigator: { locks: { request: lockRequest } },
     setTimeout,
@@ -49,15 +49,27 @@ async function loginMergeHarness(mergeGuest, options = {}) {
   context.globalThis = context;
   const source = await readFile(loginUrl, 'utf8');
   const instrumented = source.replace(/\}\)\(\);\s*$/, `
-    globalThis.__loginMergeTest = { merge: mergeGuestShopping };
+    globalThis.__loginMergeTest = { merge: mergeGuestShopping, safeNextPage, isCheckoutIntent };
   })();`);
   vm.runInNewContext(instrumented, context, {
     filename: 'js/login.js'
   });
-  return { merge: context.__loginMergeTest.merge, local, lockRequest, storeApi: context.StoreAPI };
+  return { ...context.__loginMergeTest, local, lockRequest, storeApi: context.StoreAPI };
 }
 
 describe('post-authentication guest cart merge', () => {
+  it('preserves only a safe checkout return target', async () => {
+    const checkout = await loginMergeHarness(vi.fn(), { search: '?next=checkout.html' });
+    expect(checkout.safeNextPage()).toBe('checkout.html');
+    expect(checkout.isCheckoutIntent()).toBe(true);
+
+    const external = await loginMergeHarness(vi.fn(), {
+      search: '?next=https%3A%2F%2Fevil.example%2Fcheckout.html'
+    });
+    expect(external.safeNextPage()).toBe('index.html');
+    expect(external.isCheckoutIntent()).toBe(false);
+  });
+
   it('persists and reuses the exact caller-owned key after an ambiguous failure', async () => {
     const mergeGuest = vi.fn()
       .mockRejectedValueOnce(Object.assign(new Error('response lost'), { code: 'TIMEOUT' }))
