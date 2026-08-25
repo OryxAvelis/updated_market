@@ -275,12 +275,15 @@
   width: 52px;
   height: 52px;
   margin: 0 auto 10px;
-  background: linear-gradient(145deg, #eaf2ff, #d0e6ff);
+  background: linear-gradient(145deg, var(--orange-light), var(--orange-soft));
+  color: var(--orange);
+  border: 1px solid var(--orange-soft);
   border-radius: 2%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.4rem;
+  transition: background 0.2s, color 0.2s, transform 0.2s;
 }
 .cat-card span {
   font-size: 0.78rem;
@@ -288,6 +291,18 @@
   color: var(--text);
   display: block;
   line-height: 1.3;
+}
+
+[data-theme="dark"] .cat-card {
+  border-color: var(--border);
+}
+[data-theme="dark"] .cat-card:hover {
+  background: var(--card-alt);
+}
+[data-theme="dark"] .cat-card:hover .icon {
+  background: var(--orange);
+  color: #fff;
+  transform: scale(1.05);
 }
 
 /* ========== RESPONSIVE ========== */
