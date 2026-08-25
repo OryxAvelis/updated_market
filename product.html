@@ -16,7 +16,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/common.css?v=20260824-ui-polish" />
-  <link rel="stylesheet" href="css/product.css?v=20260824-ui-polish" />
+  <link rel="stylesheet" href="css/product.css?v=20260825-review-ux" />
   <link rel="icon" type="image/png" href="img/logo-round.png" />
 </head>
 <body data-page="product">
@@ -31,14 +31,19 @@
     </nav>
     <div class="row g-4" id="detailContent"></div>
     <section class="product-reviews mt-5" id="reviewsSection" aria-labelledby="reviewsHeading">
-      <div class="reviews-heading-row">
-        <div>
-          <h2 class="h4 fw-bold mb-1" id="reviewsHeading" tabindex="-1">Customer reviews</h2>
-          <p class="text-muted mb-0" id="reviewsSummary" aria-live="polite">Loading reviews…</p>
+      <div class="reviews-layout">
+        <div class="reviews-overview">
+          <span class="reviews-overview-icon" aria-hidden="true"><i class="fa-regular fa-comments"></i></span>
+          <div class="reviews-heading-row">
+            <h2 class="h4 fw-bold mb-1" id="reviewsHeading" tabindex="-1">Customer reviews</h2>
+            <p class="text-muted mb-0" id="reviewsSummary" aria-live="polite">Loading reviews…</p>
+          </div>
+        </div>
+        <div class="reviews-content">
+          <div id="reviewComposer"></div>
+          <div class="reviews-list" id="reviewsList" aria-live="polite"></div>
         </div>
       </div>
-      <div id="reviewComposer"></div>
-      <div id="reviewsList" aria-live="polite"></div>
     </section>
     <div class="mt-5" id="relatedSection" style="display:none">
       <h2 class="h4 fw-bold mb-3" data-i18n="related">Related Products</h2>
@@ -50,6 +55,6 @@
   <script src="js/i18n.js?v=20260824-ui-polish"></script>
   <script src="js/store-api.js?v=20260824-ui-polish"></script>
   <script src="js/core.js?v=20260824-ui-polish"></script>
-  <script src="js/product.js?v=20260824-ui-polish"></script>
+  <script src="js/product.js?v=20260825-review-ux"></script>
 </body>
 </html>

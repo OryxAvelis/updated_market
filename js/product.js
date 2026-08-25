@@ -237,25 +237,69 @@ function reviewStars(rating) {
   return `<span class="review-stars" role="img" aria-label="${escapeHtml(label)}">${Array.from({ length: 5 }, (_, index) => `<i class="fa-${index < Math.round(value) ? 'solid' : 'regular'} fa-star" aria-hidden="true"></i>`).join('')}</span>`;
 }
 
+function reviewRatingCopy(rating) {
+  const value = Math.max(1, Math.min(5, Number(rating) || 5));
+  const english = ['Very poor', 'Poor', 'Average', 'Good', 'Excellent'];
+  const french = ['Très mauvais', 'Mauvais', 'Moyen', 'Bien', 'Excellent'];
+  return productCopy(english[value - 1], french[value - 1]);
+}
+
+function reviewRatingPicker(selectedRating) {
+  const rating = Math.max(1, Math.min(5, Number(selectedRating) || 5));
+  return `<div class="review-rating-picker" role="group" aria-labelledby="reviewRatingLabel">
+    ${[1, 2, 3, 4, 5].map(value => `<button type="button" class="review-rating-star${value <= rating ? ' is-active' : ''}" data-review-rating="${value}" aria-pressed="${value === rating}" aria-label="${escapeHtml(productCopy(`Set rating to ${value} out of 5`, `Noter ${value} sur 5`))}"><i class="fa-solid fa-star" aria-hidden="true"></i></button>`).join('')}
+    <input type="hidden" id="reviewRating" value="${rating}">
+    <span class="review-rating-value" aria-live="polite"><strong id="reviewRatingScore">${rating} / 5</strong><small id="reviewRatingText">${escapeHtml(reviewRatingCopy(rating))}</small></span>
+  </div>`;
+}
+
+function syncReviewRatingPicker(nextRating, { focus = false } = {}) {
+  const rating = Math.max(1, Math.min(5, Number(nextRating) || 5));
+  const input = $('reviewRating');
+  if (input) input.value = String(rating);
+  document.querySelectorAll('[data-review-rating]').forEach(button => {
+    const value = Number(button.dataset.reviewRating);
+    button.classList.toggle('is-active', value <= rating);
+    button.setAttribute('aria-pressed', String(value === rating));
+  });
+  if ($('reviewRatingScore')) $('reviewRatingScore').textContent = `${rating} / 5`;
+  if ($('reviewRatingText')) $('reviewRatingText').textContent = reviewRatingCopy(rating);
+  if (focus) document.querySelector(`[data-review-rating="${rating}"]`)?.focus({ preventScroll: true });
+}
+
 function reviewComposerHTML() {
   if (!getUser()) {
     const next = `product.html?id=${encodeURIComponent(productId)}`;
     return `<div class="review-signin"><i class="fa-solid fa-lock" aria-hidden="true"></i><span>${productCopy('Sign in to rate and review this product.', 'Connectez-vous pour noter et commenter ce produit.')}</span><a class="btn btn-outline-orange btn-sm" href="login.html?next=${encodeURIComponent(next)}">${productCopy('Sign in', 'Se connecter')}</a></div>`;
   }
   const review = currentProductReview;
+  const rating = Math.max(1, Math.min(5, Number(review?.rating) || 5));
   return `<details class="review-composer" ${review ? '' : 'open'}>
-    <summary id="reviewComposerSummary">${review ? productCopy('Edit your review', 'Modifier votre avis') : productCopy('Write a review', 'Écrire un avis')}</summary>
+    <summary id="reviewComposerSummary">
+      <span class="review-composer-summary-icon" aria-hidden="true"><i class="fa-solid ${review ? 'fa-pen-to-square' : 'fa-pen'}"></i></span>
+      <span class="review-composer-summary-copy"><strong>${review ? productCopy('Edit your review', 'Modifier votre avis') : productCopy('Write a review', 'Écrire un avis')}</strong><small>${productCopy('Share an honest experience to help other shoppers.', 'Partagez une expérience sincère pour aider les autres clients.')}</small></span>
+      <span class="review-composer-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+    </summary>
     <form id="reviewForm" class="review-form">
-      <label class="form-label" for="reviewRating">${productCopy('Rating', 'Note')}</label>
-      <select class="form-select" id="reviewRating" required>
-        ${[5, 4, 3, 2, 1].map(value => `<option value="${value}" ${Number(review?.rating || 5) === value ? 'selected' : ''}>${value} / 5</option>`).join('')}
-      </select>
-      <label class="form-label" for="reviewTitle">${productCopy('Title (optional)', 'Titre (facultatif)')}</label>
-      <input class="form-control" id="reviewTitle" maxlength="120" value="${escapeHtml(review?.title || '')}">
-      <label class="form-label" for="reviewBody">${productCopy('Review (optional)', 'Avis (facultatif)')}</label>
-      <textarea class="form-control" id="reviewBody" maxlength="2000" rows="4">${escapeHtml(review?.body || '')}</textarea>
+      <div class="review-form-grid">
+        <div class="review-field">
+          <span class="form-label" id="reviewRatingLabel">${productCopy('Your rating', 'Votre note')}</span>
+          ${reviewRatingPicker(rating)}
+          <span class="review-field-hint">${productCopy('Select one to five stars.', 'Sélectionnez de une à cinq étoiles.')}</span>
+        </div>
+        <div class="review-field">
+          <label class="form-label" for="reviewTitle">${productCopy('Review title', 'Titre de l’avis')} <span class="review-field-hint">${productCopy('(optional)', '(facultatif)')}</span></label>
+          <input class="form-control" id="reviewTitle" maxlength="120" placeholder="${escapeHtml(productCopy('Summarize your experience', 'Résumez votre expérience'))}" value="${escapeHtml(review?.title || '')}">
+          <span class="review-field-hint">${productCopy('Up to 120 characters.', 'Jusqu’à 120 caractères.')}</span>
+        </div>
+        <div class="review-field review-field--body">
+          <label class="form-label" for="reviewBody">${productCopy('Your review', 'Votre avis')} <span class="review-field-hint">${productCopy('(optional)', '(facultatif)')}</span></label>
+          <textarea class="form-control" id="reviewBody" maxlength="2000" rows="4" placeholder="${escapeHtml(productCopy('What did you like? What should other shoppers know?', 'Qu’avez-vous apprécié ? Que devraient savoir les autres clients ?'))}">${escapeHtml(review?.body || '')}</textarea>
+          <span class="review-field-hint">${productCopy('Please avoid sharing personal information.', 'Évitez de partager des informations personnelles.')}</span>
+        </div>
+      </div>
       <div class="review-form-actions">
-        <button type="submit" class="btn btn-orange" id="reviewSubmit">${review ? productCopy('Save changes', 'Enregistrer') : productCopy('Publish review', 'Publier l’avis')}</button>
+        <button type="submit" class="btn btn-orange" id="reviewSubmit"><i class="fa-solid fa-paper-plane" aria-hidden="true"></i> ${review ? productCopy('Save changes', 'Enregistrer') : productCopy('Publish review', 'Publier l’avis')}</button>
         ${review ? `<button type="button" class="btn btn-outline-danger" id="reviewDelete">${productCopy('Delete', 'Supprimer')}</button>` : ''}
       </div>
       <div class="alert alert-danger small" id="reviewError" role="alert" hidden></div>
@@ -272,12 +316,12 @@ function renderReviews(payload) {
   const averageValue = Number(payload.summary?.average);
   const average = Number.isFinite(averageValue) ? Math.max(0, Math.min(5, averageValue)) : 0;
   summary.innerHTML = count
-    ? `${reviewStars(average)} <strong>${average.toFixed(1)}</strong> · ${count} ${productCopy(count === 1 ? 'review' : 'reviews', 'avis')}`
-    : productCopy('No reviews yet. Be the first to share your experience.', 'Aucun avis pour le moment. Soyez le premier à partager votre expérience.');
+    ? `<span class="review-score">${reviewStars(average)}<span class="review-score-line"><strong class="review-score-value">${average.toFixed(1)}</strong><span class="review-score-count">${count} ${productCopy(count === 1 ? 'review' : 'reviews', 'avis')}</span></span></span>`
+    : `<span class="review-summary-empty"><strong>${productCopy('No customer reviews yet', 'Aucun avis client pour le moment')}</strong><span>${productCopy('Share your experience and help other shoppers decide.', 'Partagez votre expérience pour aider les autres clients.')}</span></span>`;
   composer.innerHTML = reviewComposerHTML();
   const reviews = payload.reviews || [];
   list.innerHTML = reviews.length ? reviews.map(review => `<article class="review-card">
-    <div class="review-card-head"><div>${reviewStars(review.rating)}<strong>${escapeHtml(review.title || '')}</strong></div><time datetime="${escapeHtml(review.createdAt)}">${new Date(review.createdAt).toLocaleDateString(getLang() === 'fr' ? 'fr-FR' : 'en-GB')}</time></div>
+    <div class="review-card-head"><div>${reviewStars(review.rating)}${review.title ? `<strong>${escapeHtml(review.title)}</strong>` : ''}</div><time datetime="${escapeHtml(review.createdAt)}">${new Date(review.createdAt).toLocaleDateString(getLang() === 'fr' ? 'fr-FR' : 'en-GB')}</time></div>
     <div class="review-author">${escapeHtml(review.author)}${review.verifiedPurchase ? `<span><i class="fa-solid fa-circle-check" aria-hidden="true"></i> ${productCopy('Verified purchase', 'Achat vérifié')}</span>` : ''}</div>
     ${review.body ? `<p>${escapeHtml(review.body)}</p>` : ''}
   </article>`).join('') : '';
@@ -312,6 +356,25 @@ function focusReviewTarget(target) {
 }
 
 function bindReviewComposer() {
+  const ratingButtons = [...document.querySelectorAll('[data-review-rating]')];
+  ratingButtons.forEach(button => {
+    button.addEventListener('click', () => syncReviewRatingPicker(button.dataset.reviewRating));
+    button.addEventListener('keydown', event => {
+      const current = Number($('reviewRating')?.value || 5);
+      const next = event.key === 'ArrowRight' || event.key === 'ArrowUp'
+        ? Math.min(5, current + 1)
+        : event.key === 'ArrowLeft' || event.key === 'ArrowDown'
+          ? Math.max(1, current - 1)
+          : event.key === 'Home'
+            ? 1
+            : event.key === 'End'
+              ? 5
+              : null;
+      if (next === null) return;
+      event.preventDefault();
+      syncReviewRatingPicker(next, { focus: true });
+    });
+  });
   $('reviewForm')?.addEventListener('submit', async event => {
     event.preventDefault();
     showReviewError();
@@ -390,7 +453,7 @@ function captureReviewDraft() {
 
 function restoreReviewDraft(draft) {
   if (!draft || !$('reviewForm')) return;
-  if ($('reviewRating')) $('reviewRating').value = draft.rating;
+  syncReviewRatingPicker(draft.rating);
   if ($('reviewTitle')) $('reviewTitle').value = draft.title;
   if ($('reviewBody')) $('reviewBody').value = draft.body;
   const details = document.querySelector('.review-composer');
