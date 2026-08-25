@@ -1,10 +1,10 @@
 /**
  * AM MARKET admin shared UI.
  *
- * This is a frontend-only prototype. Authentication is delegated exclusively
- * to admin-auth.js and all admin writes remain in this browser's localStorage.
+ * Authentication is delegated exclusively to the server-backed adapter in
+ * admin-auth.js. Existing administrative workspace edits remain browser-local.
  */
-(() => {
+(async () => {
   'use strict';
 
   const STORAGE_KEYS = Object.freeze({
@@ -50,8 +50,8 @@
       title_admin_settings: 'Settings — AM MARKET Admin',
       admin_skip_content: 'Skip to admin content',
       admin_panel: 'Admin panel',
-      admin_prototype: 'Frontend prototype',
-      admin_local_note: 'Local-only prototype. Changes stay in this browser and are not secured or sent to a server.',
+      admin_workspace: 'Administration workspace',
+      admin_local_note: 'Workspace edits on these screens stay in this browser; administrator access is verified by the server.',
       admin_primary_nav: 'Admin sections',
       admin_brand_label: 'AM MARKET admin panel',
       admin_display_settings: 'Display settings',
@@ -65,6 +65,7 @@
       admin_signed_in_as: 'Signed in as',
       admin_logout: 'Log out',
       admin_logged_out: 'You have been logged out',
+      admin_logout_failed: 'Could not log out. Check your connection and try again.',
       admin_nav_dashboard: 'Dashboard',
       admin_nav_products: 'Products',
       admin_nav_categories: 'Categories',
@@ -88,7 +89,7 @@
       admin_saved_local: 'Change stored in this browser only',
       admin_login_eyebrow: 'AM MARKET administration',
       admin_login_title: 'Welcome back',
-      admin_login_intro: 'Sign in to open the local admin prototype.',
+      admin_login_intro: 'Sign in with an authorized administrator account.',
       admin_login_email: 'Admin email',
       admin_login_password: 'Password',
       admin_required: 'Required',
@@ -101,9 +102,12 @@
       admin_login_password_required: 'Enter the admin password.',
       admin_login_empty_summary: 'Enter your email and password to continue.',
       admin_login_wrong: 'The email or password is incorrect.',
+      admin_login_rate_limited: 'Too many sign-in attempts. Wait a few minutes and try again.',
+      admin_login_unavailable: 'Administrator sign-in is temporarily unavailable. Check your connection and try again.',
+      admin_login_retry: 'Your security token expired. Refresh this page and try again.',
       admin_login_success: 'Signed in successfully',
-      admin_login_notice_title: 'Prototype access only',
-      admin_login_notice: 'This sign-in runs entirely in your browser. It is not secure authentication and does not connect to a backend.',
+      admin_login_notice_title: 'Protected administrator access',
+      admin_login_notice: 'Your session is protected by the AM MARKET server and a secure HTTP-only cookie.',
       admin_login_storefront: 'Return to storefront',
       admin_dashboard_eyebrow: 'Browser snapshot',
       admin_dashboard_title: 'Store overview',
@@ -123,9 +127,6 @@
       admin_dashboard_six_months: 'Last six months',
       admin_dashboard_period_total: 'Period total',
       admin_dashboard_no_orders: 'No local orders yet',
-      admin_dashboard_demo_label: 'Demo fallback',
-      admin_dashboard_demo_banner_title: 'Demo dashboard preview',
-      admin_dashboard_demo_banner: 'There are no orders in this browser, so sales, order, customer and chart values below are clearly labeled demo data. Catalog values still come from the live read-only catalog.',
       admin_dashboard_local_banner_title: 'Local browser data',
       admin_dashboard_local_banner: 'Sales, orders and customers are calculated from orders stored in this browser only.',
       admin_dashboard_sales_trend: 'Sales trend',
@@ -155,8 +156,8 @@
       admin_dashboard_loaded_sample: 'Availability reflects {n} loaded catalog products.',
       admin_dashboard_catalog_error_title: 'Catalog unavailable',
       admin_dashboard_catalog_error_body: 'The read-only catalog could not be loaded. Local order metrics are still available.',
-      admin_dashboard_local_only_title: 'What this prototype can do',
-      admin_dashboard_local_only_body: 'It can inspect storefront orders saved in this browser and read the public catalog. Admin changes elsewhere in this prototype remain local and are never sent to a server.',
+      admin_dashboard_local_only_title: 'Data sources',
+      admin_dashboard_local_only_body: 'This dashboard reads storefront orders saved on this device and the public catalog. Workspace edits stay on this device until dedicated administrator data APIs are connected.',
       admin_status_processing: 'Processing',
       admin_status_confirmed: 'Confirmed',
       admin_status_preparing: 'Preparing',
@@ -181,8 +182,8 @@
       title_admin_settings: 'Paramètres — Administration AM MARKET',
       admin_skip_content: 'Aller au contenu administrateur',
       admin_panel: 'Espace administrateur',
-      admin_prototype: 'Prototype frontend',
-      admin_local_note: 'Prototype local uniquement. Les modifications restent dans ce navigateur, ne sont pas sécurisées et ne sont envoyées à aucun serveur.',
+      admin_workspace: 'Espace d’administration',
+      admin_local_note: 'Les modifications de cet espace restent dans ce navigateur ; l’accès administrateur est vérifié par le serveur.',
       admin_primary_nav: 'Sections administrateur',
       admin_brand_label: 'Espace administrateur AM MARKET',
       admin_display_settings: 'Paramètres d’affichage',
@@ -196,6 +197,7 @@
       admin_signed_in_as: 'Connecté en tant que',
       admin_logout: 'Se déconnecter',
       admin_logged_out: 'Vous êtes déconnecté',
+      admin_logout_failed: 'Impossible de vous déconnecter. Vérifiez votre connexion et réessayez.',
       admin_nav_dashboard: 'Tableau de bord',
       admin_nav_products: 'Produits',
       admin_nav_categories: 'Catégories',
@@ -219,7 +221,7 @@
       admin_saved_local: 'Modification stockée dans ce navigateur uniquement',
       admin_login_eyebrow: 'Administration AM MARKET',
       admin_login_title: 'Heureux de vous revoir',
-      admin_login_intro: 'Connectez-vous pour ouvrir le prototype d’administration local.',
+      admin_login_intro: 'Connectez-vous avec un compte administrateur autorisé.',
       admin_login_email: 'E-mail administrateur',
       admin_login_password: 'Mot de passe',
       admin_required: 'Obligatoire',
@@ -232,9 +234,12 @@
       admin_login_password_required: 'Saisissez le mot de passe administrateur.',
       admin_login_empty_summary: 'Saisissez votre e-mail et votre mot de passe pour continuer.',
       admin_login_wrong: 'L’e-mail ou le mot de passe est incorrect.',
+      admin_login_rate_limited: 'Trop de tentatives de connexion. Patientez quelques minutes puis réessayez.',
+      admin_login_unavailable: 'La connexion administrateur est temporairement indisponible. Vérifiez votre connexion et réessayez.',
+      admin_login_retry: 'Votre jeton de sécurité a expiré. Actualisez cette page puis réessayez.',
       admin_login_success: 'Connexion réussie',
-      admin_login_notice_title: 'Accès au prototype uniquement',
-      admin_login_notice: 'Cette connexion fonctionne entièrement dans votre navigateur. Ce n’est pas une authentification sécurisée et aucun backend n’est utilisé.',
+      admin_login_notice_title: 'Accès administrateur protégé',
+      admin_login_notice: 'Votre session est protégée par le serveur AM MARKET et un cookie HTTP-only sécurisé.',
       admin_login_storefront: 'Retour à la boutique',
       admin_dashboard_eyebrow: 'Aperçu du navigateur',
       admin_dashboard_title: 'Vue d’ensemble de la boutique',
@@ -254,9 +259,6 @@
       admin_dashboard_six_months: 'Six derniers mois',
       admin_dashboard_period_total: 'Total de la période',
       admin_dashboard_no_orders: 'Aucune commande locale',
-      admin_dashboard_demo_label: 'Données de démonstration',
-      admin_dashboard_demo_banner_title: 'Aperçu de démonstration',
-      admin_dashboard_demo_banner: 'Aucune commande n’est stockée dans ce navigateur. Les valeurs de ventes, commandes, clients et graphiques ci-dessous sont donc clairement identifiées comme données de démonstration. Les valeurs du catalogue proviennent toujours du catalogue réel en lecture seule.',
       admin_dashboard_local_banner_title: 'Données locales du navigateur',
       admin_dashboard_local_banner: 'Les ventes, commandes et clients sont calculés à partir des commandes stockées uniquement dans ce navigateur.',
       admin_dashboard_sales_trend: 'Évolution des ventes',
@@ -286,8 +288,8 @@
       admin_dashboard_loaded_sample: 'La disponibilité reflète {n} produits du catalogue chargés.',
       admin_dashboard_catalog_error_title: 'Catalogue indisponible',
       admin_dashboard_catalog_error_body: 'Le catalogue en lecture seule n’a pas pu être chargé. Les indicateurs de commandes locales restent disponibles.',
-      admin_dashboard_local_only_title: 'Fonctions de ce prototype',
-      admin_dashboard_local_only_body: 'Il peut consulter les commandes de la boutique enregistrées dans ce navigateur et lire le catalogue public. Les modifications effectuées ailleurs dans ce prototype restent locales et ne sont jamais envoyées à un serveur.',
+      admin_dashboard_local_only_title: 'Sources de données',
+      admin_dashboard_local_only_body: 'Ce tableau de bord lit les commandes de la boutique enregistrées sur cet appareil et le catalogue public. Les modifications de l’espace restent sur cet appareil jusqu’à la connexion d’API de données administrateur dédiées.',
       admin_status_processing: 'En traitement',
       admin_status_confirmed: 'Confirmée',
       admin_status_preparing: 'En préparation',
@@ -309,7 +311,12 @@
   const filename = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
   const publicPage = body?.dataset.adminPublic === 'true' || filename === 'login.html';
   const page = body?.dataset.adminPage || ROUTES.find(route => route.file === filename)?.id || 'dashboard';
-  const session = window.AdminAuth?.getSession?.() || null;
+  let session = null;
+  try {
+    session = await window.AdminAuth?.getSession?.() || null;
+  } catch {
+    session = null;
+  }
 
   if (!publicPage && !session) {
     const next = ROUTES.some(route => route.file === filename) ? filename : 'index.html';
@@ -560,7 +567,7 @@
           <nav class="admin-nav" aria-label="Admin sections" data-i18n-aria="admin_primary_nav">${links}</nav>
           <div class="admin-sidebar-note">
             <i class="fa-solid fa-laptop-file" aria-hidden="true"></i>
-            <div><strong data-i18n="admin_prototype">Frontend prototype</strong><p data-i18n="admin_local_note">Local-only prototype. Changes stay in this browser and are not secured or sent to a server.</p></div>
+            <div><strong data-i18n="admin_workspace">Administration workspace</strong><p data-i18n="admin_local_note">Workspace edits on these screens stay in this browser; administrator access is verified by the server.</p></div>
           </div>
         </aside>
         <button class="admin-drawer-overlay" type="button" data-admin-drawer-close tabindex="-1" aria-label="Close admin menu" data-i18n-aria="admin_close_menu"></button>
@@ -570,7 +577,7 @@
               <button type="button" class="admin-icon-button admin-menu-button" data-admin-drawer-open aria-expanded="false" aria-controls="adminSidebar" aria-label="Open admin menu" data-i18n-aria="admin_open_menu">
                 <i class="fa-solid fa-bars" aria-hidden="true"></i>
               </button>
-              <div><p class="admin-topbar-eyebrow" data-i18n="admin_prototype">Frontend prototype</p><p class="admin-topbar-title" data-admin-page-title></p></div>
+              <div><p class="admin-topbar-eyebrow" data-i18n="admin_workspace">Administration workspace</p><p class="admin-topbar-title" data-admin-page-title></p></div>
             </div>
             <div class="admin-topbar-actions">
               <div class="admin-session-copy">
@@ -661,10 +668,17 @@
     root.querySelectorAll('[data-admin-logout]').forEach(button => {
       if (button.dataset.adminBound) return;
       button.dataset.adminBound = 'true';
-      button.addEventListener('click', () => {
-        window.AdminAuth?.logout?.();
-        toast(tr('admin_logged_out'), 'info');
-        setTimeout(() => location.replace('login.html'), 650);
+      button.addEventListener('click', async () => {
+        button.disabled = true;
+        try {
+          await window.AdminAuth?.logout?.();
+          toast(tr('admin_logged_out'), 'info');
+          setTimeout(() => location.replace('login.html'), 650);
+        } catch {
+          toast(tr('admin_logout_failed'), 'error');
+        } finally {
+          button.disabled = false;
+        }
       });
     });
     root.querySelectorAll('[data-admin-drawer-open]').forEach(button => button.addEventListener('click', () => setDrawer(true)));
@@ -733,12 +747,18 @@
     updateDynamicControls();
   });
 
-  document.addEventListener('DOMContentLoaded', () => {
+  function initializeAdminUi() {
     ensureFeedback();
     if (!publicPage) buildShell();
     else bindControls(document);
     updateDynamicControls();
     body?.classList.add('admin-ready');
     window.dispatchEvent(new CustomEvent('admin:ready', { detail: { session, page, core: api } }));
-  });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeAdminUi, { once: true });
+  } else {
+    initializeAdminUi();
+  }
 })();

@@ -1,12 +1,12 @@
 /**
  * AM MARKET admin analytics.
- * Uses local am_orders when available; otherwise uses explicitly labeled aggregate demo data.
+ * Uses the orders available on this device and renders honest empty states.
  */
 Object.assign(I18N.en, {
   title_admin_analytics: 'Analytics — AM MARKET Admin',
   admin_insights: 'Insights',
   admin_analytics_title: 'Analytics',
-  admin_analytics_intro: 'Review local order signals and transparent demo fallbacks.',
+  admin_analytics_intro: 'Review order activity available on this device for the selected period.',
   admin_period: 'Period',
   admin_last_7_days: 'Last 7 days',
   admin_last_30_days: 'Last 30 days',
@@ -16,14 +16,14 @@ Object.assign(I18N.en, {
   admin_sales_trend: 'Sales trend',
   admin_sales_trend_sub: 'Order totals grouped across the selected period.',
   admin_orders_by_status: 'Orders by status',
-  admin_orders_by_status_sub: 'Distribution of the current local or demo dataset.',
+  admin_orders_by_status_sub: 'Distribution of the selected order data.',
   admin_best_sellers: 'Best sellers',
   admin_best_sellers_sub: 'Ranked by units in the selected order data.',
   admin_loading: 'Loading…',
-  admin_local_analytics_source: 'Showing orders stored in this browser. No server analytics exist.',
-  admin_demo_analytics_source: 'No local orders match this period, so every value below is clearly labeled demo data.',
-  admin_demo_data: 'Demo data',
-  admin_local_data: 'Local browser data',
+  admin_local_analytics_source: 'Showing orders available on this device for the selected period.',
+  admin_empty_analytics_source: 'No orders match the selected period. Metrics show zero and charts remain empty.',
+  admin_empty_data: 'No matching orders',
+  admin_local_data: 'Device order data',
   admin_sales: 'Sales',
   admin_orders_metric: 'Orders',
   admin_average_order_value: 'Average order value',
@@ -40,19 +40,16 @@ Object.assign(I18N.en, {
   admin_status_delivered: 'Delivered',
   admin_sales_chart_label: 'Sales over time',
   admin_status_chart_label: 'Orders grouped by status',
-  admin_demo_groceries: 'Everyday groceries',
-  admin_demo_drinks: 'Beverages',
-  admin_demo_household: 'Household essentials',
-  admin_demo_snacks: 'Snacks',
-  admin_metric_source_local: 'Calculated from local orders',
-  admin_metric_source_demo: 'Illustrative demo value'
+  admin_metric_source_local: 'Calculated from selected orders',
+  admin_no_orders_period_title: 'No orders for this period',
+  admin_no_orders_period_body: 'Choose a wider period or wait for new orders to appear.'
 });
 
 Object.assign(I18N.fr, {
   title_admin_analytics: 'Analyses — Administration AM MARKET',
   admin_insights: 'Analyses',
   admin_analytics_title: 'Analyses',
-  admin_analytics_intro: 'Consultez les signaux des commandes locales et des valeurs de démonstration transparentes.',
+  admin_analytics_intro: 'Consultez l’activité des commandes disponible sur cet appareil pour la période choisie.',
   admin_period: 'Période',
   admin_last_7_days: '7 derniers jours',
   admin_last_30_days: '30 derniers jours',
@@ -62,14 +59,14 @@ Object.assign(I18N.fr, {
   admin_sales_trend: 'Évolution des ventes',
   admin_sales_trend_sub: 'Totaux des commandes regroupés sur la période sélectionnée.',
   admin_orders_by_status: 'Commandes par statut',
-  admin_orders_by_status_sub: 'Répartition du jeu de données local ou de démonstration.',
+  admin_orders_by_status_sub: 'Répartition des commandes sélectionnées.',
   admin_best_sellers: 'Meilleures ventes',
   admin_best_sellers_sub: 'Classement par unités dans les commandes sélectionnées.',
   admin_loading: 'Chargement…',
-  admin_local_analytics_source: 'Affichage des commandes stockées dans ce navigateur. Aucune analyse serveur n’existe.',
-  admin_demo_analytics_source: 'Aucune commande locale ne correspond à cette période : toutes les valeurs ci-dessous sont clairement des données de démonstration.',
-  admin_demo_data: 'Données de démo',
-  admin_local_data: 'Données locales du navigateur',
+  admin_local_analytics_source: 'Affichage des commandes disponibles sur cet appareil pour la période choisie.',
+  admin_empty_analytics_source: 'Aucune commande ne correspond à la période choisie. Les indicateurs sont à zéro et les graphiques restent vides.',
+  admin_empty_data: 'Aucune commande correspondante',
+  admin_local_data: 'Commandes de cet appareil',
   admin_sales: 'Ventes',
   admin_orders_metric: 'Commandes',
   admin_average_order_value: 'Panier moyen',
@@ -86,43 +83,12 @@ Object.assign(I18N.fr, {
   admin_status_delivered: 'Livrée',
   admin_sales_chart_label: 'Ventes dans le temps',
   admin_status_chart_label: 'Commandes regroupées par statut',
-  admin_demo_groceries: 'Courses du quotidien',
-  admin_demo_drinks: 'Boissons',
-  admin_demo_household: 'Essentiels maison',
-  admin_demo_snacks: 'Snacks',
-  admin_metric_source_local: 'Calculé depuis les commandes locales',
-  admin_metric_source_demo: 'Valeur illustrative de démonstration'
+  admin_metric_source_local: 'Calculé depuis les commandes sélectionnées',
+  admin_no_orders_period_title: 'Aucune commande pour cette période',
+  admin_no_orders_period_body: 'Choisissez une période plus large ou attendez de nouvelles commandes.'
 });
 
-let analyticsUsesDemo = false;
-
-function demoAnalyticsOrders() {
-  const values = [148, 232, 196, 318, 274, 356, 420];
-  const statuses = ['Processing', 'Confirmed', 'Preparing', 'Shipping', 'Delivered', 'Delivered', 'Delivered'];
-  const products = [
-    ['admin_demo_groceries', 3],
-    ['admin_demo_drinks', 2],
-    ['admin_demo_household', 1],
-    ['admin_demo_snacks', 4]
-  ];
-  return values.map((total, index) => {
-    const date = new Date();
-    date.setDate(date.getDate() - (values.length - 1 - index) * 3);
-    return {
-      id: `demo-${index + 1}`,
-      date: date.toISOString(),
-      total,
-      status: statuses[index],
-      items: products.slice(0, 2 + (index % 3)).map(([nameKey, qty], itemIndex) => ({
-        id: `demo-product-${itemIndex}`,
-        nameKey,
-        name: t(nameKey),
-        qty: Math.max(1, qty - (index % 2)),
-        price: Math.round(total / (4 + itemIndex))
-      }))
-    };
-  });
-}
+let analyticsIsEmpty = true;
 
 function selectedPeriodOrders(orderList) {
   const period = document.getElementById('analyticsPeriod').value;
@@ -135,12 +101,13 @@ function selectedPeriodOrders(orderList) {
 }
 
 function analyticsDataset() {
-  const local = (Array.isArray(orders) ? orders : []).filter(order => {
+  const available = (Array.isArray(orders) ? orders : []).filter(order => {
     const timestamp = Date.parse(order?.date);
     return order && Array.isArray(order.items) && Number.isFinite(timestamp);
   });
-  analyticsUsesDemo = local.length === 0;
-  return selectedPeriodOrders(analyticsUsesDemo ? demoAnalyticsOrders() : local);
+  const selected = selectedPeriodOrders(available);
+  analyticsIsEmpty = selected.length === 0;
+  return selected;
 }
 
 function statusKey(status) {
@@ -182,7 +149,7 @@ function renderAnalyticsMetrics(dataset) {
   const sales = revenueDataset.reduce((sum, order) => sum + (Number(order.total) || 0), 0);
   const average = revenueDataset.length ? sales / revenueDataset.length : 0;
   const top = aggregateProducts(revenueDataset)[0];
-  const source = t(analyticsUsesDemo ? 'admin_metric_source_demo' : 'admin_metric_source_local');
+  const source = t('admin_metric_source_local');
   const metrics = [
     { icon: 'coins', label: t('admin_sales'), value: formatPrice(sales) },
     { icon: 'bag-shopping', label: t('admin_orders_metric'), value: String(dataset.length) },
@@ -218,7 +185,11 @@ function renderSalesChart(dataset) {
   const container = document.getElementById('salesTrendChart');
   const values = trendPoints(dataset);
   if (!values.length) {
-    AdminCore.state(container, { type: 'empty', title: t('admin_no_product'), body: '' });
+    AdminCore.state(container, {
+      type: 'empty',
+      title: t('admin_no_orders_period_title'),
+      body: t('admin_no_orders_period_body')
+    });
     return;
   }
   const width = 600;
@@ -246,10 +217,19 @@ function renderSalesChart(dataset) {
 }
 
 function renderStatusChart(dataset) {
+  const container = document.getElementById('orderStatusChart');
+  if (!dataset.length) {
+    AdminCore.state(container, {
+      type: 'empty',
+      title: t('admin_no_orders_period_title'),
+      body: t('admin_no_orders_period_body')
+    });
+    return;
+  }
   const counts = { processing: 0, confirmed: 0, preparing: 0, shipping: 0, delivered: 0, cancelled: 0 };
   dataset.forEach(order => { counts[statusKey(order.status)] += 1; });
   const max = Math.max(...Object.values(counts), 1);
-  document.getElementById('orderStatusChart').innerHTML = `
+  container.innerHTML = `
     <div class="admin-status-chart" role="img" aria-label="${AdminCore.escape(t('admin_status_chart_label'))}">
       ${Object.entries(counts).map(([key, count]) => `
         <div class="admin-status-bar">
@@ -265,7 +245,11 @@ function renderBestSellers(dataset) {
   const products = aggregateProducts(dataset).slice(0, 6);
   container.removeAttribute('aria-busy');
   if (!products.length) {
-    AdminCore.state(container, { type: 'empty', title: t('admin_no_product'), body: '' });
+    AdminCore.state(container, {
+      type: 'empty',
+      title: t('admin_no_orders_period_title'),
+      body: t('admin_no_orders_period_body')
+    });
     return;
   }
   container.innerHTML = `
@@ -285,7 +269,7 @@ function renderBestSellers(dataset) {
 function renderAnalytics() {
   const dataset = analyticsDataset();
   const note = document.getElementById('analyticsSourceNote');
-  note.innerHTML = `<i class="fa-solid fa-${analyticsUsesDemo ? 'flask' : 'laptop'}" aria-hidden="true"></i><span>${t(analyticsUsesDemo ? 'admin_demo_analytics_source' : 'admin_local_analytics_source')}</span><strong>${t(analyticsUsesDemo ? 'admin_demo_data' : 'admin_local_data')}</strong>`;
+  note.innerHTML = `<i class="fa-solid fa-${analyticsIsEmpty ? 'circle-info' : 'database'}" aria-hidden="true"></i><span>${t(analyticsIsEmpty ? 'admin_empty_analytics_source' : 'admin_local_analytics_source')}</span><strong>${t(analyticsIsEmpty ? 'admin_empty_data' : 'admin_local_data')}</strong>`;
   renderAnalyticsMetrics(dataset);
   renderSalesChart(revenueOrders(dataset));
   renderStatusChart(dataset);

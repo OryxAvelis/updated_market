@@ -1,15 +1,14 @@
-/** AM MARKET admin dashboard: local orders + existing read-only catalog. */
+/** AM MARKET admin dashboard: device order data + existing read-only catalog. */
+Object.assign(I18N.en, {
+  admin_workspace_label: 'Administration workspace'
+});
+
+Object.assign(I18N.fr, {
+  admin_workspace_label: 'Espace d’administration'
+});
+
 (() => {
   'use strict';
-
-  // DEMO ONLY — shown solely when this browser has no local storefront orders.
-  const DEMO_FALLBACK = Object.freeze({
-    sales: 12840,
-    orders: 48,
-    customers: 31,
-    trend: [1540, 1880, 1730, 2420, 2290, 2980],
-    statuses: { processing: 15, confirmed: 9, preparing: 8, shipping: 7, delivered: 9 }
-  });
 
   let currentData = null;
   let loadSequence = 0;
@@ -146,11 +145,6 @@
     return buckets;
   }
 
-  function demoSeries() {
-    const labels = monthSeries([]);
-    return labels.map((bucket, index) => ({ ...bucket, value: DEMO_FALLBACK.trend[index] }));
-  }
-
   async function fetchCatalog() {
     if (typeof fetchProducts !== 'function' || typeof ensureCategories !== 'function') {
       throw new Error('Catalog helpers unavailable');
@@ -198,34 +192,38 @@
     AdminCore.state(document.getElementById('adminCatalogSnapshot'), { type: 'loading', title: translate('admin_loading'), body: translate('admin_loading_body') });
   }
 
-  function sourceNotice(demo) {
+  function sourceNotice() {
     const container = document.getElementById('adminDashboardSource');
     if (!container) return;
-    const titleKey = demo ? 'admin_dashboard_demo_banner_title' : 'admin_dashboard_local_banner_title';
-    const bodyKey = demo ? 'admin_dashboard_demo_banner' : 'admin_dashboard_local_banner';
+    const titleKey = 'admin_dashboard_local_banner_title';
+    const bodyKey = 'admin_dashboard_local_banner';
     container.innerHTML = `
       <div class="admin-inline-notice">
-        <i class="fa-solid ${demo ? 'fa-flask' : 'fa-hard-drive'}" aria-hidden="true"></i>
+        <i class="fa-solid fa-hard-drive" aria-hidden="true"></i>
         <div><strong data-i18n="${titleKey}">${escape(translate(titleKey))}</strong><p data-i18n="${bodyKey}">${escape(translate(bodyKey))}</p></div>
       </div>`;
   }
 
   function renderMetrics(data) {
-    const { orders, demo, catalog, catalogError } = data;
+    const { orders, catalog, catalogError } = data;
     const productSummary = productStatusSummary(catalog);
-    const sales = demo
-      ? DEMO_FALLBACK.sales
-      : orders.filter(order => normalizeStatus(order.status) !== 'cancelled').reduce((sum, order) => sum + orderTotal(order), 0);
-    const orderCount = demo ? DEMO_FALLBACK.orders : orders.length;
-    const customers = demo ? DEMO_FALLBACK.customers : uniqueCustomerCount(orders);
-    const source = demo ? translate('admin_dashboard_demo_label') : translate('admin_dashboard_local_orders');
+    const sales = orders
+      .filter(order => normalizeStatus(order.status) !== 'cancelled')
+      .reduce((sum, order) => sum + orderTotal(order), 0);
+    const orderCount = orders.length;
+    const customers = uniqueCustomerCount(orders);
+    const source = orders.length
+      ? translate('admin_dashboard_local_orders')
+      : translate('admin_dashboard_no_orders');
 
     document.getElementById('adminMetricSales').textContent = money(sales);
     document.getElementById('adminMetricOrders').textContent = formatCount(orderCount);
     document.getElementById('adminMetricCustomers').textContent = formatCount(customers);
     document.getElementById('adminMetricSalesNote').textContent = source;
     document.getElementById('adminMetricOrdersNote').textContent = source;
-    document.getElementById('adminMetricCustomersNote').textContent = demo ? translate('admin_dashboard_demo_label') : translate('admin_dashboard_unique_customers');
+    document.getElementById('adminMetricCustomersNote').textContent = orders.length
+      ? translate('admin_dashboard_unique_customers')
+      : translate('admin_dashboard_no_orders');
     document.getElementById('adminMetricProducts').textContent = catalogError ? '—' : formatCount(productSummary.total);
     document.getElementById('adminMetricProductsNote').textContent = catalogError ? translate('admin_not_available') : translate('admin_dashboard_catalog_total');
   }
@@ -234,7 +232,7 @@
     const container = document.getElementById('adminSalesChart');
     const badge = document.getElementById('adminSalesChartBadge');
     const subtitle = document.getElementById('adminSalesChartSubtitle');
-    const series = data.demo ? demoSeries() : monthSeries(data.orders);
+    const series = monthSeries(data.orders);
     const values = series.map(point => point.value);
     const maximum = Math.max(...values, 1);
     const width = 560;
@@ -253,7 +251,7 @@
     const linePoints = points.map(point => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' ');
     const areaPoints = `${left},${height - bottom} ${linePoints} ${width - right},${height - bottom}`;
     const total = values.reduce((sum, value) => sum + value, 0);
-    const sourceLabel = translate(data.demo ? 'admin_dashboard_demo_label' : 'admin_dashboard_local_label');
+    const sourceLabel = translate('admin_dashboard_local_label');
 
     badge.textContent = sourceLabel;
     subtitle.textContent = translate('admin_dashboard_six_months');
@@ -274,13 +272,25 @@
     const container = document.getElementById('adminStatusChart');
     const badge = document.getElementById('adminStatusChartBadge');
     const subtitle = document.getElementById('adminStatusChartSubtitle');
-    const counts = data.demo ? DEMO_FALLBACK.statuses : statusCounts(data.orders);
+    const counts = statusCounts(data.orders);
     const order = ['processing', 'confirmed', 'preparing', 'shipping', 'delivered', 'cancelled', 'other'];
     const entries = order.filter(status => counts[status] > 0).map(status => [status, counts[status]]);
     const maximum = Math.max(...entries.map(([, count]) => count), 1);
-    const sourceLabel = translate(data.demo ? 'admin_dashboard_demo_label' : 'admin_dashboard_local_label');
+    const sourceLabel = translate('admin_dashboard_local_label');
     badge.textContent = sourceLabel;
-    subtitle.textContent = translate(data.demo ? 'admin_dashboard_demo_banner_title' : 'admin_dashboard_local_orders');
+    subtitle.textContent = data.orders.length
+      ? translate('admin_dashboard_local_orders')
+      : translate('admin_dashboard_no_orders');
+    if (!entries.length) {
+      container.removeAttribute('role');
+      container.removeAttribute('aria-label');
+      AdminCore.state(container, {
+        type: 'empty',
+        title: translate('admin_dashboard_no_recent_title'),
+        body: translate('admin_dashboard_no_recent_body')
+      });
+      return;
+    }
     container.setAttribute('role', 'img');
     container.setAttribute('aria-label', translate('admin_dashboard_status_chart_label'));
     container.innerHTML = entries.map(([status, count]) => `
@@ -370,7 +380,7 @@
   }
 
   function render(data) {
-    sourceNotice(data.demo);
+    sourceNotice();
     renderMetrics(data);
     renderSalesChart(data);
     renderStatusChart(data);
@@ -393,7 +403,7 @@
       catalog = { total: 0, products: [], categories: [], complete: false };
     }
     if (sequence !== loadSequence) return;
-    currentData = { orders, demo: orders.length === 0, catalog, catalogError };
+    currentData = { orders, catalog, catalogError };
     render(currentData);
     if (refresh) AdminCore.setBusy(refresh, false);
     if (announce) AdminCore.toast(translate('admin_dashboard_refreshed'), catalogError ? 'warning' : 'success');

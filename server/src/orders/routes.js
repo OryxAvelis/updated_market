@@ -282,7 +282,19 @@ export function createOrdersRouter(catalog) {
         WHERE ci.cart_id = ? ORDER BY r.external_id`,
       [cartSnapshot.id]
     );
-    if (!itemRows.length) throw conflict('CART_EMPTY', 'Your cart is empty.');
+    if (!itemRows.length) {
+      // A same-key request can commit after the fast idempotency lookup above
+      // and clear the cart before this read. The committed order wins over the
+      // now-empty cart for that caller-owned key.
+      const replay = await existingOrderForKey(req.app.locals.db, req.auth.userId, idempotencyDigest);
+      if (replay) {
+        if (!Buffer.from(replay.request_digest).equals(bodyDigest)) {
+          throw conflict('IDEMPOTENCY_KEY_REUSED', 'This idempotency key was already used for a different checkout.');
+        }
+        return res.json({ order: await getOrder(req.app.locals.db, req.auth.userId, replay.public_id), replayed: true });
+      }
+      throw conflict('CART_EMPTY', 'Your cart is empty.');
+    }
 
     const verified = await Promise.all(itemRows.map(async (item) => ({
       quantity: item.quantity,
@@ -305,6 +317,13 @@ export function createOrdersRouter(catalog) {
 
     try {
       await inTransaction(req.app.locals.db, async (connection) => {
+        // Serialize checkout on the user's cart before taking an absent-key
+        // range lock. Otherwise two new same-key transactions can deadlock:
+        // each holds the idempotency-index gap while one waits for the cart.
+        const [lockedCarts] = await connection.execute(
+          'SELECT id, version FROM carts WHERE user_id = ? LIMIT 1 FOR UPDATE',
+          [req.auth.userId]
+        );
         const [replayRows] = await connection.execute(
           'SELECT public_id, request_digest FROM orders WHERE user_id = ? AND idempotency_digest = ? LIMIT 1 FOR UPDATE',
           [req.auth.userId, idempotencyDigest]
@@ -317,10 +336,6 @@ export function createOrdersRouter(catalog) {
           return;
         }
 
-        const [lockedCarts] = await connection.execute(
-          'SELECT id, version FROM carts WHERE user_id = ? LIMIT 1 FOR UPDATE',
-          [req.auth.userId]
-        );
         const cart = lockedCarts[0];
         if (!cart || cart.version !== cartSnapshot.version) {
           throw conflict('CART_CHANGED', 'Your cart changed during checkout. Review it and try again.');

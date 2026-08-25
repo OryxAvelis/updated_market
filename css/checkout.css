@@ -396,7 +396,7 @@ textarea.form-control.co-input {
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
-.co-demo-note {
+.co-security-note {
   display: flex;
   align-items: flex-start;
   gap: 8px;
@@ -405,7 +405,7 @@ textarea.form-control.co-input {
   font-size: 0.76rem;
   line-height: 1.45;
 }
-.co-demo-note i { color: var(--co-accent); margin-top: 2px; }
+.co-security-note i { color: var(--co-accent); margin-top: 2px; }
 .co-summary-skeleton {
   display: flex;
   flex-direction: column;

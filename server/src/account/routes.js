@@ -100,10 +100,10 @@ export function createAccountRouter() {
   router.patch('/', async (req, res) => {
     const input = profileSchema.parse(req.body);
     if (req.auth.accountKind === 'local_demo' && input.email !== undefined) {
-      throw forbidden('DEMO_ACCOUNT_RESTRICTED', 'The local demo account email cannot be changed.');
+      throw forbidden('DEMO_ACCOUNT_RESTRICTED', 'This system-managed account email cannot be changed.');
     }
     if (input.email !== undefined && isLocalDemoEmail(input.email)) {
-      throw conflict('EMAIL_RESERVED', 'This email domain is reserved for the local demo account.');
+      throw conflict('EMAIL_RESERVED', 'This email domain is reserved for system-managed accounts.');
     }
     const [rows] = await req.app.locals.db.execute(
       'SELECT email, password_hash FROM users WHERE id = ? AND status = \'active\' LIMIT 1',
@@ -155,7 +155,7 @@ export function createAccountRouter() {
   router.delete('/', async (req, res) => {
     const input = closeAccountSchema.parse(req.body);
     if (req.auth.accountKind === 'local_demo') {
-      throw forbidden('DEMO_ACCOUNT_RESTRICTED', 'The local demo account cannot be closed or deleted.');
+      throw forbidden('DEMO_ACCOUNT_RESTRICTED', 'This system-managed account cannot be closed or deleted.');
     }
     const [rows] = await req.app.locals.db.execute(
       'SELECT password_hash FROM users WHERE id = ? AND status = \'active\' LIMIT 1',

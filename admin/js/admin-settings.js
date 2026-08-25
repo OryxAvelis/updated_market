@@ -1,15 +1,15 @@
 /**
  * AM MARKET admin settings.
- * Store details are local-only; interface preferences reuse am_theme and am_lang.
+ * Store details are saved on this device; interface preferences reuse am_theme and am_lang.
  */
 Object.assign(I18N.en, {
   title_admin_settings: 'Settings — AM MARKET Admin',
   admin_configuration: 'Configuration',
   admin_settings_title: 'Settings',
-  admin_settings_intro: 'Manage local prototype store information and interface preferences.',
-  admin_settings_local_note: 'Store details below are saved only in this browser and are not published.',
+  admin_settings_intro: 'Manage store information saved on this device and choose interface preferences.',
+  admin_settings_local_note: 'Store details below are saved on this device and are not published.',
   admin_store_information: 'Store information',
-  admin_store_information_sub: 'Local prototype contact and identity fields.',
+  admin_store_information_sub: 'Contact and identity fields saved on this device.',
   admin_store_name: 'Store name',
   admin_contact_email: 'Contact email',
   admin_contact_phone: 'Contact phone',
@@ -17,33 +17,33 @@ Object.assign(I18N.en, {
   admin_name_required: 'Enter a name.',
   admin_valid_email: 'Enter a valid email address.',
   admin_cancel: 'Cancel',
-  admin_save_local: 'Save locally',
+  admin_save_local: 'Save on this device',
   admin_saving: 'Saving…',
   admin_appearance_language: 'Appearance & language',
-  admin_preferences_browser_note: 'Preferences use the same browser settings as the storefront.',
+  admin_preferences_browser_note: 'Preferences are shared with the storefront on this device.',
   admin_theme: 'Theme',
   admin_light: 'Light',
   admin_light_sub: 'Bright interface',
   admin_dark: 'Dark',
   admin_dark_sub: 'Low-light interface',
   admin_language: 'Language',
-  admin_requires_backend: 'Requires backend',
+  admin_requires_backend: 'Account security',
   admin_security_title: 'Security',
-  admin_security_inert: 'This prototype cannot provide password changes, roles, two-factor authentication, or audit logs. No controls are shown because those features require a real backend.',
-  admin_store_settings_saved: 'Store information was saved locally.',
+  admin_security_inert: 'Administrator sign-in is verified by the server. Password changes, role assignments, two-factor authentication, and audit-log controls are managed outside this page.',
+  admin_store_settings_saved: 'Store information was saved on this device.',
   admin_store_settings_reset: 'Unsaved store information was reset.',
-  admin_theme_changed: 'Theme preference was updated in this browser.',
-  admin_language_changed: 'Language preference was updated in this browser.'
+  admin_theme_changed: 'Theme preference was updated on this device.',
+  admin_language_changed: 'Language preference was updated on this device.'
 });
 
 Object.assign(I18N.fr, {
   title_admin_settings: 'Paramètres — Administration AM MARKET',
   admin_configuration: 'Configuration',
   admin_settings_title: 'Paramètres',
-  admin_settings_intro: 'Gérez les informations locales du magasin et les préférences de l’interface.',
-  admin_settings_local_note: 'Les informations ci-dessous sont enregistrées uniquement dans ce navigateur et ne sont pas publiées.',
+  admin_settings_intro: 'Gérez les informations du magasin enregistrées sur cet appareil et les préférences de l’interface.',
+  admin_settings_local_note: 'Les informations ci-dessous sont enregistrées sur cet appareil et ne sont pas publiées.',
   admin_store_information: 'Informations du magasin',
-  admin_store_information_sub: 'Champs locaux d’identité et de contact du prototype.',
+  admin_store_information_sub: 'Champs d’identité et de contact enregistrés sur cet appareil.',
   admin_store_name: 'Nom du magasin',
   admin_contact_email: 'E-mail de contact',
   admin_contact_phone: 'Téléphone de contact',
@@ -51,23 +51,23 @@ Object.assign(I18N.fr, {
   admin_name_required: 'Saisissez un nom.',
   admin_valid_email: 'Saisissez une adresse e-mail valide.',
   admin_cancel: 'Annuler',
-  admin_save_local: 'Enregistrer localement',
+  admin_save_local: 'Enregistrer sur cet appareil',
   admin_saving: 'Enregistrement…',
   admin_appearance_language: 'Apparence et langue',
-  admin_preferences_browser_note: 'Ces préférences utilisent les mêmes réglages de navigateur que la boutique.',
+  admin_preferences_browser_note: 'Ces préférences sont partagées avec la boutique sur cet appareil.',
   admin_theme: 'Thème',
   admin_light: 'Clair',
   admin_light_sub: 'Interface lumineuse',
   admin_dark: 'Sombre',
   admin_dark_sub: 'Interface pour faible luminosité',
   admin_language: 'Langue',
-  admin_requires_backend: 'Nécessite un backend',
+  admin_requires_backend: 'Sécurité du compte',
   admin_security_title: 'Sécurité',
-  admin_security_inert: 'Ce prototype ne peut pas gérer les changements de mot de passe, les rôles, la double authentification ou les journaux d’audit. Aucun contrôle n’est affiché car ces fonctions exigent un vrai backend.',
-  admin_store_settings_saved: 'Les informations du magasin ont été enregistrées localement.',
+  admin_security_inert: 'La connexion administrateur est vérifiée par le serveur. Les changements de mot de passe, l’attribution des rôles, la double authentification et les journaux d’audit sont gérés en dehors de cette page.',
+  admin_store_settings_saved: 'Les informations du magasin ont été enregistrées sur cet appareil.',
   admin_store_settings_reset: 'Les modifications non enregistrées ont été annulées.',
-  admin_theme_changed: 'La préférence de thème a été modifiée dans ce navigateur.',
-  admin_language_changed: 'La préférence de langue a été modifiée dans ce navigateur.'
+  admin_theme_changed: 'La préférence de thème a été modifiée sur cet appareil.',
+  admin_language_changed: 'La préférence de langue a été modifiée sur cet appareil.'
 });
 
 const DEFAULT_ADMIN_SETTINGS = {

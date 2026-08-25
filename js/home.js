@@ -137,7 +137,7 @@ async function loadHomeCategories({ restoreFocus = false } = {}) {
   }
 }
 
-// ---------- Seasonal products (real catalogue, no fake promos) ----------
+// ---------- Seasonal products backed by the live catalogue ----------
 async function renderSeasonProducts() {
   const box = $('seasonProducts');
   if (!box) return;

@@ -1,17 +1,17 @@
 /**
  * AM MARKET admin delivery configuration.
- * All rules and zones are local prototype records. Storefront delivery logic is untouched.
+ * Rules and zones are saved on this device. Storefront delivery logic is untouched.
  */
 Object.assign(I18N.en, {
   title_admin_delivery: 'Delivery — AM MARKET Admin',
   admin_operations: 'Operations',
   admin_delivery_title: 'Delivery',
-  admin_delivery_intro: 'Configure prototype delivery rules and service zones.',
+  admin_delivery_intro: 'Configure delivery rules and service zones.',
   admin_add_zone: 'Add zone',
   admin_edit_zone: 'Edit zone',
-  admin_delivery_local_note: 'These settings stay in this browser. Storefront checkout remains at 20 DH and free over 200 DH.',
+  admin_delivery_local_note: 'These settings are saved on this device. Storefront checkout remains at 20 DH and free over 200 DH.',
   admin_delivery_rules: 'Delivery rules',
-  admin_delivery_rules_sub: 'Prototype defaults mirror the storefront.',
+  admin_delivery_rules_sub: 'Current defaults match the storefront.',
   admin_default_fee: 'Default delivery fee',
   admin_free_threshold: 'Free-delivery threshold',
   admin_nonnegative_required: 'Enter zero or a positive amount.',
@@ -22,9 +22,9 @@ Object.assign(I18N.en, {
   admin_coverage_required: 'Describe the service area.',
   admin_zone_fee: 'Zone fee',
   admin_enable_zone: 'Enable this zone',
-  admin_local_only: 'Local only',
+  admin_local_only: 'Saved on this device',
   admin_cancel: 'Cancel',
-  admin_save_local: 'Save locally',
+  admin_save_local: 'Save on this device',
   admin_saving: 'Saving…',
   admin_loading: 'Loading…',
   admin_name_required: 'Enter a name.',
@@ -36,20 +36,18 @@ Object.assign(I18N.en, {
   admin_delete: 'Delete',
   admin_enable: 'Enable',
   admin_disable: 'Disable',
-  admin_standard_zone: 'Standard delivery',
-  admin_standard_coverage: 'Morocco-wide prototype coverage',
   admin_zone_count: '{n} delivery zone(s)',
   admin_no_zones: 'No delivery zones',
-  admin_no_zones_body: 'Add a local zone to explore the delivery configuration flow.',
+  admin_no_zones_body: 'Add a delivery zone to configure a service area.',
   admin_create_zone: 'Create zone',
-  admin_delivery_rules_saved: 'Delivery rules were updated locally.',
-  admin_zone_created: '{name} was created locally.',
-  admin_zone_updated: '{name} was updated locally.',
-  admin_zone_deleted: '{name} was deleted locally.',
-  admin_zone_status_changed: '{name} status was updated locally.',
+  admin_delivery_rules_saved: 'Delivery rules were saved on this device.',
+  admin_zone_created: '{name} was saved on this device.',
+  admin_zone_updated: '{name} was updated on this device.',
+  admin_zone_deleted: '{name} was deleted from this device.',
+  admin_zone_status_changed: '{name} status was updated on this device.',
   admin_delete_zone_title: 'Delete delivery zone?',
-  admin_delete_zone_body: 'Delete “{name}” from this browser?',
-  admin_delete_local: 'Delete locally',
+  admin_delete_zone_body: 'Delete “{name}” from this device?',
+  admin_delete_local: 'Delete from this device',
   admin_edit_named: 'Edit {name}',
   admin_delete_named: 'Delete {name}',
   admin_toggle_named: 'Change status for {name}',
@@ -60,12 +58,12 @@ Object.assign(I18N.fr, {
   title_admin_delivery: 'Livraison — Administration AM MARKET',
   admin_operations: 'Opérations',
   admin_delivery_title: 'Livraison',
-  admin_delivery_intro: 'Configurez les règles de livraison du prototype et les zones desservies.',
+  admin_delivery_intro: 'Configurez les règles de livraison et les zones desservies.',
   admin_add_zone: 'Ajouter une zone',
   admin_edit_zone: 'Modifier la zone',
-  admin_delivery_local_note: 'Ces paramètres restent dans ce navigateur. La boutique conserve 20 DH et la gratuité dès 200 DH.',
+  admin_delivery_local_note: 'Ces paramètres sont enregistrés sur cet appareil. La boutique conserve 20 DH et la gratuité dès 200 DH.',
   admin_delivery_rules: 'Règles de livraison',
-  admin_delivery_rules_sub: 'Les valeurs du prototype reprennent celles de la boutique.',
+  admin_delivery_rules_sub: 'Les valeurs actuelles correspondent à celles de la boutique.',
   admin_default_fee: 'Frais de livraison par défaut',
   admin_free_threshold: 'Seuil de livraison gratuite',
   admin_nonnegative_required: 'Saisissez zéro ou un montant positif.',
@@ -76,9 +74,9 @@ Object.assign(I18N.fr, {
   admin_coverage_required: 'Décrivez la zone desservie.',
   admin_zone_fee: 'Frais de la zone',
   admin_enable_zone: 'Activer cette zone',
-  admin_local_only: 'Local uniquement',
+  admin_local_only: 'Enregistré sur cet appareil',
   admin_cancel: 'Annuler',
-  admin_save_local: 'Enregistrer localement',
+  admin_save_local: 'Enregistrer sur cet appareil',
   admin_saving: 'Enregistrement…',
   admin_loading: 'Chargement…',
   admin_name_required: 'Saisissez un nom.',
@@ -90,20 +88,18 @@ Object.assign(I18N.fr, {
   admin_delete: 'Supprimer',
   admin_enable: 'Activer',
   admin_disable: 'Désactiver',
-  admin_standard_zone: 'Livraison standard',
-  admin_standard_coverage: 'Couverture prototype dans tout le Maroc',
   admin_zone_count: '{n} zone(s) de livraison',
   admin_no_zones: 'Aucune zone de livraison',
-  admin_no_zones_body: 'Ajoutez une zone locale pour explorer la configuration de livraison.',
+  admin_no_zones_body: 'Ajoutez une zone de livraison pour configurer une zone desservie.',
   admin_create_zone: 'Créer une zone',
-  admin_delivery_rules_saved: 'Les règles de livraison ont été modifiées localement.',
-  admin_zone_created: '{name} a été créée localement.',
-  admin_zone_updated: '{name} a été modifiée localement.',
-  admin_zone_deleted: '{name} a été supprimée localement.',
-  admin_zone_status_changed: 'Le statut de {name} a été modifié localement.',
+  admin_delivery_rules_saved: 'Les règles de livraison ont été enregistrées sur cet appareil.',
+  admin_zone_created: '{name} a été enregistrée sur cet appareil.',
+  admin_zone_updated: '{name} a été modifiée sur cet appareil.',
+  admin_zone_deleted: '{name} a été supprimée de cet appareil.',
+  admin_zone_status_changed: 'Le statut de {name} a été modifié sur cet appareil.',
   admin_delete_zone_title: 'Supprimer la zone de livraison ?',
-  admin_delete_zone_body: 'Supprimer « {name} » de ce navigateur ?',
-  admin_delete_local: 'Supprimer localement',
+  admin_delete_zone_body: 'Supprimer « {name} » de cet appareil ?',
+  admin_delete_local: 'Supprimer de cet appareil',
   admin_edit_named: 'Modifier {name}',
   admin_delete_named: 'Supprimer {name}',
   admin_toggle_named: 'Modifier le statut de {name}',
@@ -114,14 +110,7 @@ const DELIVERY_DEFAULTS = {
   version: 1,
   defaultFee: 20,
   freeThreshold: 200,
-  zones: [{
-    id: 'default-standard',
-    system: true,
-    name: '',
-    coverage: '',
-    fee: 20,
-    enabled: true
-  }]
+  zones: []
 };
 
 let deliveryState;
@@ -136,6 +125,7 @@ function loadDeliveryState() {
   deliveryState = saved && Array.isArray(saved.zones)
     ? saved
     : structuredClone(DELIVERY_DEFAULTS);
+  deliveryState.zones = deliveryState.zones.filter(zone => zone && zone.system !== true);
   deliveryState.defaultFee = Number.isFinite(Number(deliveryState.defaultFee)) ? Number(deliveryState.defaultFee) : 20;
   deliveryState.freeThreshold = Number.isFinite(Number(deliveryState.freeThreshold)) ? Number(deliveryState.freeThreshold) : 200;
 }
@@ -158,11 +148,11 @@ function showDeliveryStorageError() {
 }
 
 function zoneName(zone) {
-  return zone.system ? t('admin_standard_zone') : zone.name;
+  return zone.name;
 }
 
 function zoneCoverage(zone) {
-  return zone.system ? t('admin_standard_coverage') : zone.coverage;
+  return zone.coverage;
 }
 
 function fillDeliveryRules() {
@@ -286,7 +276,6 @@ async function submitZone(event) {
   const existing = deliveryState.zones.find(item => String(item.id) === String(id));
   const record = {
     id: existing?.id || `local-zone-${Date.now()}`,
-    system: false,
     name: nameField.value.trim(),
     coverage: coverageField.value.trim(),
     fee: Number(feeField.value),

@@ -1,4 +1,4 @@
-/** AM MARKET admin login page. Credential checks remain in admin-auth.js. */
+/** AM MARKET administrator login page. */
 (() => {
   'use strict';
 
@@ -60,15 +60,17 @@
 
     form.setAttribute('aria-busy', 'true');
     AdminCore.setBusy(submitButton, true, translate('admin_login_signing_in'));
-    await new Promise(resolve => setTimeout(resolve, 260));
-
-    const result = window.AdminAuth.login(emailInput.value.trim(), passwordInput.value);
+    const result = await window.AdminAuth.login(emailInput.value.trim(), passwordInput.value);
     passwordInput.value = '';
 
     if (!result.ok) {
       form.removeAttribute('aria-busy');
       AdminCore.setBusy(submitButton, false);
-      alertKey = 'admin_login_wrong';
+      alertKey = result.error?.code === 'RATE_LIMITED'
+        ? 'admin_login_rate_limited'
+        : (['NETWORK_ERROR', 'REQUEST_TIMEOUT'].includes(result.error?.code)
+            ? 'admin_login_unavailable'
+            : (result.error?.code === 'ADMIN_CSRF_INVALID' ? 'admin_login_retry' : 'admin_login_wrong'));
       fieldErrors.password = '';
       renderFeedback();
       document.getElementById('adminLoginAlert')?.focus();
@@ -81,8 +83,8 @@
     setTimeout(() => location.replace(safeNextPage()), 520);
   }
 
-  window.addEventListener('admin:ready', () => {
-    if (window.AdminAuth.getSession()) {
+  window.addEventListener('admin:ready', event => {
+    if (event.detail?.session) {
       location.replace(safeNextPage());
       return;
     }

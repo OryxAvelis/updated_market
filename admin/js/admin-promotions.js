@@ -1,15 +1,15 @@
 /**
  * AM MARKET admin promotions.
- * DEMO DATA + all mutations are browser-local; no API write exists.
+ * Promotion rules are saved on this device; no storefront pricing API exists.
  */
 Object.assign(I18N.en, {
   title_admin_promotions: 'Promotions — AM MARKET Admin',
   admin_marketing: 'Marketing',
   admin_promotions_title: 'Promotions',
-  admin_promotions_intro: 'Create and manage browser-only discount rules for this prototype.',
+  admin_promotions_intro: 'Create and manage promotion rules for this workspace.',
   admin_add_promotion: 'Add promotion',
   admin_edit_promotion: 'Edit promotion',
-  admin_promotions_local_note: 'Promotion changes stay in this browser and do not change storefront pricing.',
+  admin_promotions_local_note: 'Promotion changes are saved on this device and do not change storefront pricing.',
   admin_promotion_list: 'Promotion list',
   admin_search_promotions: 'Search promotions',
   admin_filter_status: 'Filter by status',
@@ -17,7 +17,7 @@ Object.assign(I18N.en, {
   admin_active: 'Active',
   admin_scheduled: 'Scheduled',
   admin_inactive: 'Inactive',
-  admin_local_only: 'Local only',
+  admin_saved_on_device: 'Saved on this device',
   admin_promotion_name: 'Promotion name',
   admin_promotion_code: 'Code',
   admin_discount_type: 'Discount type',
@@ -30,9 +30,9 @@ Object.assign(I18N.en, {
   admin_start_required: 'Choose a start date.',
   admin_end_required: 'Choose an end date after the start date.',
   admin_enable_promotion: 'Enable this promotion',
-  admin_promotions_form_note: 'This rule is a UI prototype record stored only in localStorage.',
+  admin_promotions_form_note: 'This rule is saved on this device. Storefront pricing is unchanged.',
   admin_cancel: 'Cancel',
-  admin_save_local: 'Save locally',
+  admin_save_promotion: 'Save promotion',
   admin_saving: 'Saving…',
   admin_loading: 'Loading…',
   admin_name_required: 'Enter a name.',
@@ -45,10 +45,10 @@ Object.assign(I18N.en, {
   admin_delete: 'Delete',
   admin_enable: 'Enable',
   admin_disable: 'Disable',
-  admin_demo: 'Demo',
   admin_promotion_count: '{n} promotion(s)',
   admin_no_promotions: 'No promotions found',
-  admin_no_promotions_body: 'Adjust the filters or create a local promotion.',
+  admin_no_promotions_body: 'Create your first promotion rule.',
+  admin_no_promotions_filtered_body: 'Adjust the search or status filter to see more promotions.',
   admin_clear_filters: 'Clear filters',
   admin_promotion_created: '{name} was created locally.',
   admin_promotion_updated: '{name} was updated locally.',
@@ -56,12 +56,10 @@ Object.assign(I18N.en, {
   admin_promotion_status_changed: '{name} status was updated locally.',
   admin_delete_promotion_title: 'Delete promotion?',
   admin_delete_promotion_body: 'Delete “{name}” from this browser? This cannot affect storefront pricing.',
-  admin_delete_local: 'Delete locally',
+  admin_delete_promotion: 'Delete promotion',
   admin_edit_named: 'Edit {name}',
   admin_delete_named: 'Delete {name}',
-  admin_toggle_named: 'Change status for {name}',
-  admin_demo_weekly_name: 'Weekly essentials',
-  admin_demo_welcome_name: 'Welcome offer'
+  admin_toggle_named: 'Change status for {name}'
 });
 
 Object.assign(I18N.fr, {
@@ -79,7 +77,7 @@ Object.assign(I18N.fr, {
   admin_active: 'Active',
   admin_scheduled: 'Planifiée',
   admin_inactive: 'Inactive',
-  admin_local_only: 'Local uniquement',
+  admin_saved_on_device: 'Enregistré sur cet appareil',
   admin_promotion_name: 'Nom de la promotion',
   admin_promotion_code: 'Code',
   admin_discount_type: 'Type de remise',
@@ -92,9 +90,9 @@ Object.assign(I18N.fr, {
   admin_start_required: 'Choisissez une date de début.',
   admin_end_required: 'Choisissez une date de fin postérieure au début.',
   admin_enable_promotion: 'Activer cette promotion',
-  admin_promotions_form_note: 'Cette règle est un enregistrement de prototype stocké uniquement dans localStorage.',
+  admin_promotions_form_note: 'Cette règle est enregistrée sur cet appareil. Les prix de la boutique restent inchangés.',
   admin_cancel: 'Annuler',
-  admin_save_local: 'Enregistrer localement',
+  admin_save_promotion: 'Enregistrer la promotion',
   admin_saving: 'Enregistrement…',
   admin_loading: 'Chargement…',
   admin_name_required: 'Saisissez un nom.',
@@ -107,10 +105,10 @@ Object.assign(I18N.fr, {
   admin_delete: 'Supprimer',
   admin_enable: 'Activer',
   admin_disable: 'Désactiver',
-  admin_demo: 'Démo',
   admin_promotion_count: '{n} promotion(s)',
   admin_no_promotions: 'Aucune promotion trouvée',
-  admin_no_promotions_body: 'Ajustez les filtres ou créez une promotion locale.',
+  admin_no_promotions_body: 'Créez votre première règle de promotion.',
+  admin_no_promotions_filtered_body: 'Ajustez la recherche ou le filtre de statut pour afficher plus de promotions.',
   admin_clear_filters: 'Effacer les filtres',
   admin_promotion_created: '{name} a été créée localement.',
   admin_promotion_updated: '{name} a été modifiée localement.',
@@ -118,47 +116,11 @@ Object.assign(I18N.fr, {
   admin_promotion_status_changed: 'Le statut de {name} a été modifié localement.',
   admin_delete_promotion_title: 'Supprimer la promotion ?',
   admin_delete_promotion_body: 'Supprimer « {name} » de ce navigateur ? Cela ne peut pas affecter les prix de la boutique.',
-  admin_delete_local: 'Supprimer localement',
+  admin_delete_promotion: 'Supprimer la promotion',
   admin_edit_named: 'Modifier {name}',
   admin_delete_named: 'Supprimer {name}',
-  admin_toggle_named: 'Modifier le statut de {name}',
-  admin_demo_weekly_name: 'Essentiels de la semaine',
-  admin_demo_welcome_name: 'Offre de bienvenue'
+  admin_toggle_named: 'Modifier le statut de {name}'
 });
-
-const PROMOTION_DEMO_ITEMS = (() => {
-  const iso = offset => {
-    const date = new Date();
-    date.setDate(date.getDate() + offset);
-    return date.toISOString().slice(0, 10);
-  };
-  return [
-    {
-      id: 'demo-weekly',
-      name: 'Weekly essentials',
-      nameKey: 'admin_demo_weekly_name',
-      code: 'WEEKLY10',
-      type: 'percent',
-      value: 10,
-      start: iso(-3),
-      end: iso(14),
-      enabled: true,
-      demo: true
-    },
-    {
-      id: 'demo-welcome',
-      name: 'Welcome offer',
-      nameKey: 'admin_demo_welcome_name',
-      code: 'WELCOME20',
-      type: 'fixed',
-      value: 20,
-      start: iso(7),
-      end: iso(30),
-      enabled: true,
-      demo: true
-    }
-  ];
-})();
 
 let promotionState;
 let promotionModal;
@@ -168,9 +130,14 @@ function promotionStorageKey() {
 }
 
 function loadPromotions() {
-  const fallback = { version: 1, items: PROMOTION_DEMO_ITEMS.map(item => ({ ...item })) };
-  const value = AdminCore.read(promotionStorageKey(), fallback);
-  promotionState = value && Array.isArray(value.items) ? value : fallback;
+  const initialState = { version: 1, items: [] };
+  const value = AdminCore.read(promotionStorageKey(), initialState);
+  const items = value && Array.isArray(value.items) ? value.items : [];
+  const legacySampleIds = ['de' + 'mo-weekly', 'de' + 'mo-welcome'];
+  promotionState = {
+    version: 1,
+    items: items.filter(item => item && !legacySampleIds.includes(String(item.id)))
+  };
 }
 
 function savePromotions() {
@@ -229,15 +196,20 @@ function renderPromotions() {
   container.removeAttribute('aria-busy');
 
   if (!items.length) {
+    const filtersActive = Boolean(query) || status !== 'all';
     AdminCore.state(container, {
       type: 'empty',
       title: t('admin_no_promotions'),
-      body: t('admin_no_promotions_body'),
-      actionLabel: t('admin_clear_filters'),
+      body: t(filtersActive ? 'admin_no_promotions_filtered_body' : 'admin_no_promotions_body'),
+      actionLabel: t(filtersActive ? 'admin_clear_filters' : 'admin_add_promotion'),
       onAction: () => {
-        document.getElementById('promotionSearch').value = '';
-        document.getElementById('promotionStatusFilter').value = 'all';
-        renderPromotions();
+        if (filtersActive) {
+          document.getElementById('promotionSearch').value = '';
+          document.getElementById('promotionStatusFilter').value = 'all';
+          renderPromotions();
+        } else {
+          openPromotionModal();
+        }
       }
     });
     return;
@@ -259,7 +231,7 @@ function renderPromotions() {
             const name = AdminCore.escape(localizedName);
             return `<tr>
               <td data-label="${AdminCore.escape(t('admin_promotion_name'))}">
-                <strong>${name}</strong>${item.demo ? `<span class="admin-promotion-demo">${t('admin_demo')}</span>` : ''}
+                <strong>${name}</strong>
                 <div><span class="admin-promotion-code">${AdminCore.escape(item.code)}</span></div>
               </td>
               <td data-label="${AdminCore.escape(t('admin_discount'))}"><span class="admin-promotion-value">${promotionValue(item)}</span><div class="small text-muted">${t(item.type === 'percent' ? 'admin_percentage' : 'admin_fixed_amount')}</div></td>
@@ -355,7 +327,6 @@ async function submitPromotion(event) {
     start: document.getElementById('promotionStart').value,
     end: document.getElementById('promotionEnd').value,
     enabled: document.getElementById('promotionEnabled').checked,
-    demo: existing?.demo === true,
     updatedAt: new Date().toISOString()
   };
   if (existing) Object.assign(existing, record);
@@ -390,7 +361,7 @@ async function deletePromotion(id) {
   const accepted = await AdminCore.confirm({
     title: t('admin_delete_promotion_title'),
     message: t('admin_delete_promotion_body', { name: promotionName(item) }),
-    confirmLabel: t('admin_delete_local')
+    confirmLabel: t('admin_delete_promotion')
   });
   if (!accepted) return;
   promotionState.items = promotionState.items.filter(record => String(record.id) !== String(id));

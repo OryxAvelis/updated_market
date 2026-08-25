@@ -142,6 +142,13 @@ function cartMergeKey() {
   return `am1.${Date.now().toString(36)}.${randomUUID()}`;
 }
 
+function uniqueGmailEmail(label) {
+  const suffix = randomUUID().replaceAll('-', '');
+  const email = `am.market.${label}.${suffix}@gmail.com`.toLowerCase();
+  trackedEmails.add(email);
+  return email;
+}
+
 databaseDescribe('user API with MySQL', () => {
   beforeAll(async () => {
     if (!pool) throw new Error('TEST_USE_DATABASE=true did not create a database pool.');
@@ -202,7 +209,7 @@ databaseDescribe('user API with MySQL', () => {
       localDemo: true,
       user: {
         email: config.auth.localDevLoginUserEmail,
-        displayName: 'Local Demo Shopper'
+        displayName: 'AM MARKET Shopper'
       }
     });
 
@@ -278,7 +285,7 @@ databaseDescribe('user API with MySQL', () => {
     expect(reservedStrictLogin.body.error.code).toBe('INVALID_CREDENTIALS');
   }, 60_000);
 
-  it('enforces origin and CSRF, rotates real sessions, and makes password resets generic and one-use', async () => {
+  it('enforces origin and CSRF, keeps independent device sessions, and makes password resets generic and one-use', async () => {
     const email = uniqueEmail('auth', trackedEmails);
     const { app, mailer } = testApp();
     const primary = request.agent(app);
@@ -341,9 +348,10 @@ databaseDescribe('user API with MySQL', () => {
       .set('X-CSRF-Token', secondLoginCsrf)
       .send({ email, password: testPassword });
     expect(secondLogin.status).toBe(200);
-    const rotatedOutSession = await primary.get('/api/v1/auth/session');
-    expect(rotatedOutSession.status).toBe(200);
-    expect(rotatedOutSession.body.authenticated).toBe(false);
+    const stillActivePrimary = await primary.get('/api/v1/auth/session');
+    expect(stillActivePrimary.status).toBe(200);
+    expect(stillActivePrimary.body.authenticated).toBe(true);
+    expect(stillActivePrimary.body.user.email).toBe(email);
 
     const resetClient = request.agent(app);
     const resetCsrf = await csrfFor(resetClient);
@@ -382,6 +390,9 @@ databaseDescribe('user API with MySQL', () => {
     const revokedSession = await secondSession.get('/api/v1/auth/session');
     expect(revokedSession.status).toBe(200);
     expect(revokedSession.body.authenticated).toBe(false);
+    const revokedPrimary = await primary.get('/api/v1/auth/session');
+    expect(revokedPrimary.status).toBe(200);
+    expect(revokedPrimary.body.authenticated).toBe(false);
 
     const fresh = request.agent(app);
     const freshCsrf = await csrfFor(fresh);
@@ -397,6 +408,182 @@ databaseDescribe('user API with MySQL', () => {
       .set('X-CSRF-Token', freshCsrf)
       .send({ email, password: changedPassword });
     expect(newPasswordLogin.status).toBe(200);
+  }, 60_000);
+
+  it('persists normalized Gmail accounts and restores account data across concurrent devices', async () => {
+    const cartProduct = uniqueProduct('gmail-cart', trackedProductIds, { price: '18.25', stock_quantity: 20 });
+    const wishlistProduct = uniqueProduct('gmail-wishlist', trackedProductIds, { price: '31.50', stock_quantity: 12 });
+    const { app } = testApp([cartProduct, wishlistProduct]);
+    const primaryEmail = uniqueGmailEmail('primary');
+    const otherEmail = uniqueGmailEmail('other');
+    const registrationDevice = request.agent(app);
+    const primaryAccount = await register(
+      registrationDevice,
+      `  ${primaryEmail.toUpperCase()}  `,
+      'Gmail Integration Customer'
+    );
+    const primaryPublicId = primaryAccount.response.body.user.id;
+
+    expect(primaryAccount.response.body.user).toMatchObject({
+      id: primaryPublicId,
+      email: primaryEmail,
+      displayName: 'Gmail Integration Customer'
+    });
+
+    const [primaryRows] = await pool.execute(
+      `SELECT u.id, u.public_id, u.email, u.email_normalized, u.password_hash,
+              (SELECT COUNT(*) FROM user_preferences p WHERE p.user_id = u.id) AS preference_count,
+              (SELECT COUNT(*) FROM carts c WHERE c.user_id = u.id) AS cart_count,
+              (SELECT COUNT(*) FROM wishlists w WHERE w.user_id = u.id) AS wishlist_count
+         FROM users u
+        WHERE u.email_normalized = ?`,
+      [primaryEmail]
+    );
+    expect(primaryRows).toHaveLength(1);
+    expect(primaryRows[0]).toMatchObject({
+      public_id: primaryPublicId,
+      email: primaryEmail,
+      email_normalized: primaryEmail
+    });
+    expect(primaryRows[0].password_hash).toMatch(/^\$argon2id\$/);
+    expect(primaryRows[0].password_hash).not.toBe(testPassword);
+    expect({
+      preferences: Number(primaryRows[0].preference_count),
+      carts: Number(primaryRows[0].cart_count),
+      wishlists: Number(primaryRows[0].wishlist_count)
+    }).toEqual({ preferences: 1, carts: 1, wishlists: 1 });
+
+    const otherRegistrationDevice = request.agent(app);
+    const otherAccount = await register(otherRegistrationDevice, otherEmail, 'Other Gmail Customer');
+    expect(otherAccount.response.body.user.id).not.toBe(primaryPublicId);
+    const [gmailAccounts] = await pool.execute(
+      `SELECT email_normalized, public_id
+         FROM users
+        WHERE email_normalized IN (?, ?)
+        ORDER BY email_normalized`,
+      [primaryEmail, otherEmail]
+    );
+    expect(gmailAccounts).toHaveLength(2);
+    expect(new Set(gmailAccounts.map((row) => row.public_id)).size).toBe(2);
+
+    const preferences = await registrationDevice
+      .patch('/api/v1/me/preferences')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', primaryAccount.csrfToken)
+      .send({ language: 'fr', theme: 'dark', defaultPayment: 'wafacash' });
+    expect(preferences.status).toBe(200);
+
+    const address = await registrationDevice
+      .post('/api/v1/me/addresses')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', primaryAccount.csrfToken)
+      .send(addressPayload('Cross-device home'));
+    expect(address.status).toBe(201);
+
+    const cart = await registrationDevice
+      .post('/api/v1/cart/items')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', primaryAccount.csrfToken)
+      .send({ productId: cartProduct.id, quantity: 2 });
+    expect(cart.status).toBe(201);
+
+    const wishlist = await registrationDevice
+      .post('/api/v1/wishlist/items')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', primaryAccount.csrfToken)
+      .send({ productId: wishlistProduct.id });
+    expect(wishlist.status).toBe(201);
+
+    const logout = await registrationDevice
+      .post('/api/v1/auth/logout')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', primaryAccount.csrfToken)
+      .send({});
+    expect(logout.status).toBe(200);
+
+    const firstDevice = request.agent(app);
+    const firstLoginCsrf = await csrfFor(firstDevice);
+    const firstLogin = await firstDevice
+      .post('/api/v1/auth/login')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', firstLoginCsrf)
+      .send({ email: primaryEmail.toUpperCase(), password: testPassword });
+    expect(firstLogin.status).toBe(200);
+    expect(firstLogin.body.user.id).toBe(primaryPublicId);
+
+    const secondDevice = request.agent(app);
+    const secondLoginCsrf = await csrfFor(secondDevice);
+    const secondLogin = await secondDevice
+      .post('/api/v1/auth/login')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', secondLoginCsrf)
+      .send({ email: ` ${primaryEmail} `, password: testPassword });
+    expect(secondLogin.status).toBe(200);
+    expect(secondLogin.body.user.id).toBe(primaryPublicId);
+
+    const firstDeviceSession = await firstDevice.get('/api/v1/auth/session');
+    expect(firstDeviceSession.status).toBe(200);
+    expect(firstDeviceSession.body).toMatchObject({
+      authenticated: true,
+      user: { id: primaryPublicId, email: primaryEmail }
+    });
+
+    const [restoredPreferences, restoredAddresses, restoredCart, restoredWishlist] = await Promise.all([
+      secondDevice.get('/api/v1/me/preferences'),
+      secondDevice.get('/api/v1/me/addresses'),
+      secondDevice.get('/api/v1/cart'),
+      secondDevice.get('/api/v1/wishlist')
+    ]);
+    expect(restoredPreferences.status).toBe(200);
+    expect(restoredPreferences.body.preferences).toMatchObject({
+      language: 'fr',
+      theme: 'dark',
+      defaultPayment: 'wafacash'
+    });
+    expect(restoredAddresses.status).toBe(200);
+    expect(restoredAddresses.body.addresses).toContainEqual(expect.objectContaining({
+      id: address.body.address.id,
+      label: 'Cross-device home',
+      isDefault: true
+    }));
+    expect(restoredCart.status).toBe(200);
+    expect(restoredCart.body.cart.items).toContainEqual(expect.objectContaining({
+      productId: cartProduct.id,
+      quantity: 2
+    }));
+    expect(restoredWishlist.status).toBe(200);
+    expect(restoredWishlist.body.items).toContainEqual(expect.objectContaining({
+      productId: wishlistProduct.id
+    }));
+
+    const duplicateDevice = request.agent(app);
+    const duplicateCsrf = await csrfFor(duplicateDevice);
+    const duplicate = await duplicateDevice
+      .post('/api/v1/auth/register')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', duplicateCsrf)
+      .send({
+        displayName: 'Duplicate Gmail Customer',
+        email: ` ${primaryEmail.toUpperCase()} `,
+        password: testPassword,
+        language: 'en'
+      });
+    expect(duplicate.status).toBe(409);
+    expect(duplicate.body.error.code).toBe('EMAIL_ALREADY_REGISTERED');
+    const [duplicateRows] = await pool.execute(
+      'SELECT COUNT(*) AS total FROM users WHERE email_normalized = ?',
+      [primaryEmail]
+    );
+    expect(Number(duplicateRows[0].total)).toBe(1);
+
+    const passwordChange = await firstDevice
+      .post('/api/v1/auth/password/change')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', firstDeviceSession.body.csrfToken)
+      .send({ currentPassword: testPassword, newPassword: changedPassword });
+    expect(passwordChange.status).toBe(200);
+    expect((await firstDevice.get('/api/v1/auth/session')).body.authenticated).toBe(true);
+    expect((await secondDevice.get('/api/v1/auth/session')).body.authenticated).toBe(false);
   }, 60_000);
 
   it('isolates saved addresses by session user and persists preferences', async () => {
@@ -590,8 +777,12 @@ databaseDescribe('user API with MySQL', () => {
     const concurrent = await Promise.all([submitCheckout(), submitCheckout()]);
     const placed = concurrent.find((response) => response.status === 201);
     const concurrentReplay = concurrent.find((response) => response.status === 200);
-    expect(placed).toBeDefined();
-    expect(concurrentReplay).toBeDefined();
+    const concurrentResults = JSON.stringify(concurrent.map((response) => ({
+      status: response.status,
+      error: response.body.error
+    })));
+    expect(placed, concurrentResults).toBeDefined();
+    expect(concurrentReplay, concurrentResults).toBeDefined();
     expect(placed.status).toBe(201);
     expect(placed.body.replayed).toBe(false);
     expect(placed.body.order).toMatchObject({
@@ -1370,7 +1561,12 @@ databaseDescribe('user API with MySQL', () => {
       .send({ lowStockNotifications: false });
     expect(disabled.status).toBe(200);
     catalog.records.get(product.id).stock_quantity = 1;
-    expect((await evaluator.runNow()).subscriptions).toBe(0);
+    const disabledStatus = await shopper.get(`/api/v1/me/low-stock-subscriptions/${product.id}`);
+    expect(disabledStatus.body.subscription).toMatchObject({
+      subscribed: true,
+      notificationsEnabled: false
+    });
+    await evaluator.runNow();
     notifications = await shopper.get('/api/v1/notifications');
     expect(notifications.body.notifications.filter((item) => item.productId === product.id)).toHaveLength(2);
 

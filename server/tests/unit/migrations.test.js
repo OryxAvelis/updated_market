@@ -84,9 +84,10 @@ describe('migration source safety', () => {
       '0006_guest_orders.sql',
       '0007_guest_checkout_hardening.sql',
       '0008_inventory_allocation_policy.sql',
-      '0009_local_demo_safety.sql'
+      '0009_local_demo_safety.sql',
+      '0010_admin_auth.sql'
     ]);
-    expect(migrations.map((migration) => migration.statements.length)).toEqual([25, 1, 2, 1, 1, 1, 8, 1, 2]);
+    expect(migrations.map((migration) => migration.statements.length)).toEqual([25, 1, 2, 1, 1, 1, 8, 1, 2, 2]);
     for (const migration of migrations) {
       expect(migration.checksum).toMatch(/^[a-f0-9]{64}$/);
       expect(migration.statements.every((statement) => (statement.match(/;/g) || []).length === 1)).toBe(true);
@@ -100,9 +101,9 @@ describe('migration execution safety', () => {
     const first = await runMigrations({ database: fake.database, log: silentLog });
     const second = await runMigrations({ database: fake.database, log: silentLog });
 
-    expect(first).toEqual({ applied: 9, total: 9 });
-    expect(second).toEqual({ applied: 0, total: 9 });
-    expect(fake.applied.size).toBe(9);
+    expect(first).toEqual({ applied: 10, total: 10 });
+    expect(second).toEqual({ applied: 0, total: 10 });
+    expect(fake.applied.size).toBe(10);
     expect(fake.calls.filter((call) => call.sql?.includes('GET_LOCK'))).toHaveLength(2);
     expect(fake.calls.filter((call) => call.sql?.includes('RELEASE_LOCK'))).toHaveLength(2);
     expect(fake.calls.some((call) => /multipleStatements/i.test(call.sql || ''))).toBe(false);

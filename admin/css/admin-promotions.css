@@ -67,15 +67,6 @@ body[data-admin-page="promotions"] .admin-promotion-dates {
   font-size: 0.75rem;
 }
 
-body[data-admin-page="promotions"] .admin-promotion-demo {
-  margin-left: 7px;
-  color: var(--muted);
-  font-size: 0.63rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
 body[data-admin-page="promotions"] .admin-status-badge {
   display: inline-flex;
   min-height: 28px;

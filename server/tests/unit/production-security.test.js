@@ -255,7 +255,7 @@ describe('local demo login fail-closed configuration', () => {
         public_id: '00000000-0000-4000-8000-000000000041',
         email: config.auth.localDevLoginUserEmail,
         email_normalized: config.auth.localDevLoginUserEmail,
-        display_name: 'Local Demo Shopper',
+        display_name: 'AM MARKET Shopper',
         phone_e164: null,
         password_hash: 'not-used-by-demo-login',
         account_kind: 'local_demo',
@@ -320,7 +320,7 @@ describe('local demo login fail-closed configuration', () => {
       localDemo: true,
       user: {
         email: 'demo@local.am-market.test',
-        displayName: 'Local Demo Shopper'
+        displayName: 'AM MARKET Shopper'
       }
     });
     expect(result.selectedEmails).toEqual(['demo@local.am-market.test']);

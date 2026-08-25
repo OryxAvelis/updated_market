@@ -306,7 +306,7 @@
     return `<tr data-product-row="${esc(id)}">
       <td data-label="${esc(t('admin_inventory_col_product'))}">
         <div class="admin-inventory-product">
-          <img class="admin-inventory-product-image" src="${esc(product.image_url || '../img/placeholder.svg')}" alt="" width="48" height="48" loading="lazy" onerror="this.onerror=null;this.src='../img/placeholder.svg'">
+          <img class="admin-inventory-product-image" src="${esc(product.image_url || '../img/placeholder.svg')}" alt="" width="48" height="48" loading="lazy">
           <div><span class="admin-inventory-product-name">${esc(productName)}</span><span class="admin-inventory-product-meta">${esc(product.brand_name || t('admin_inventory_id', { id }))}</span></div>
         </div>
       </td>
@@ -360,7 +360,11 @@
       return;
     }
 
-    byId('adminInventoryBody').innerHTML = pageProducts.map(inventoryRow).join('');
+    const tableBody = byId('adminInventoryBody');
+    tableBody.innerHTML = pageProducts.map(inventoryRow).join('');
+    tableBody.querySelectorAll('.admin-inventory-product-image').forEach(image => {
+      image.addEventListener('error', () => { image.src = '../img/placeholder.svg'; }, { once: true });
+    });
     byId('adminInventoryState').hidden = true;
     byId('adminInventoryTableWrap').hidden = false;
 

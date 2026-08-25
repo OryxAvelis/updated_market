@@ -86,7 +86,7 @@ const I18N = {
     faq_data_a: 'Guest cart items stay in this browser. After sign-in, carts, wishlists and orders are saved securely to your account.',
     logout: 'Logout',
     guest: 'Guest',
-    soon: 'Available soon!',
+    soon: 'Currently unavailable',
     logged_out: 'Logged out',
     view_all_cats: 'View All Categories',
     tab_home: 'Home',
@@ -267,7 +267,7 @@ const I18N = {
     cod: 'Cash on Delivery',
     card_label: 'Credit / Debit Card',
     cod_sub: 'Pay at your door — most popular',
-    card_sub: 'Coming soon — card details are not collected',
+    card_sub: 'Currently unavailable — card details are not collected',
     wafacash_sub: 'Pay at an agency after confirmation',
     cashplus_sub: 'Pay at a partner shop after confirmation',
     recommended: 'Recommended',
@@ -279,7 +279,6 @@ const I18N = {
     step_confirm: 'Confirmation',
     back_to_cart: 'Back to Cart',
     secure_checkout: 'Secure server-verified order',
-    demo_payment_note: 'Prices and availability are verified by the server before the order is created.',
     checkout_unavailable: 'Some cart items are no longer available. Return to your cart to review them.',
     quantity_unavailable: 'Only {n} available',
     checkout_unverified: 'Some cart items couldn’t be verified. Return to your cart and retry.',
@@ -546,7 +545,6 @@ const I18N = {
     hide_pass: 'Hide password',
     remember: 'Remember me',
     forgot: 'Forgot password?',
-    demo_password_note: 'Passwords are protected with Argon2id. Use at least 12 characters.',
     sign_in_btn: 'Sign In',
     or_continue: 'or continue with',
     new_to: 'New to AM Market?',
@@ -649,7 +647,7 @@ const I18N = {
     faq_data_a: 'Le panier invité reste dans ce navigateur. Après connexion, le panier, les favoris et les commandes sont enregistrés dans votre compte.',
     logout: 'Déconnexion',
     guest: 'Invité',
-    soon: 'Bientôt disponible !',
+    soon: 'Actuellement indisponible',
     logged_out: 'Déconnecté',
     view_all_cats: 'Voir toutes les catégories',
     tab_home: 'Accueil',
@@ -830,7 +828,7 @@ const I18N = {
     cod: 'Paiement à la Livraison',
     card_label: 'Carte Bancaire',
     cod_sub: 'Payez à la livraison — le plus utilisé',
-    card_sub: 'Bientôt disponible — aucune donnée bancaire collectée',
+    card_sub: 'Actuellement indisponible — aucune donnée bancaire collectée',
     wafacash_sub: 'Payez en agence après confirmation',
     cashplus_sub: 'Payez chez un partenaire après confirmation',
     recommended: 'Recommandé',
@@ -842,7 +840,6 @@ const I18N = {
     step_confirm: 'Confirmation',
     back_to_cart: 'Retour au panier',
     secure_checkout: 'Commande sécurisée et vérifiée côté serveur',
-    demo_payment_note: 'Les prix et la disponibilité sont vérifiés par le serveur avant la création de la commande.',
     checkout_unavailable: 'Certains articles du panier ne sont plus disponibles. Retournez au panier pour les vérifier.',
     quantity_unavailable: 'Seulement {n} disponible(s)',
     checkout_unverified: 'Certains articles du panier n’ont pas pu être vérifiés. Retournez au panier et réessayez.',
@@ -1109,7 +1106,6 @@ const I18N = {
     hide_pass: 'Masquer le mot de passe',
     remember: 'Se souvenir de moi',
     forgot: 'Mot de passe oublié ?',
-    demo_password_note: 'Les mots de passe sont protégés avec Argon2id. Utilisez au moins 12 caractères.',
     sign_in_btn: 'Se connecter',
     or_continue: 'ou continuer avec',
     new_to: 'Nouveau sur AM Market ?',
@@ -1206,17 +1202,32 @@ function applyI18n(root) {
   if (lbl) lbl.textContent = getLang() === 'en' ? 'EN' : 'FR';
 }
 
-function setLang(lang, options = {}) {
-  const value = lang === 'en' ? 'en' : 'fr';
+function applyLanguageLocally(value) {
   localStorage.setItem('am_lang', value);
   applyI18n();
   window.dispatchEvent(new CustomEvent('am:langchange', { detail: { lang: value } }));
+}
+
+function setLang(lang, options = {}) {
+  const value = lang === 'en' ? 'en' : 'fr';
+  const previous = getLang();
+  applyLanguageLocally(value);
   if (options.persist !== false && window.StoreAPI && typeof getUser === 'function' && getUser()) {
-    StoreAPI.preferences.update({ language: value }).catch(error => {
-      if (typeof handleStoreUnauthorized === 'function' && handleStoreUnauthorized(error)) return;
-      console.error('Language preference update failed', error);
-    });
+    return StoreAPI.preferences.update({ language: value })
+      .then(payload => {
+        const saved = payload?.preferences?.language === 'en' ? 'en' : payload?.preferences?.language === 'fr' ? 'fr' : value;
+        if (saved !== getLang()) applyLanguageLocally(saved);
+        return saved;
+      })
+      .catch(error => {
+        if (typeof handleStoreUnauthorized === 'function' && handleStoreUnauthorized(error)) return value;
+        if (getLang() === value && previous !== value) applyLanguageLocally(previous);
+        if (typeof toast === 'function') toast(t('settings_preferences_error_retry'));
+        console.error('Language preference update failed', error);
+        return previous;
+      });
   }
+  return Promise.resolve(value);
 }
 
 function toggleLang() {

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { hashPassword } from '../security/passwords.js';
 import { randomToken } from '../security/tokens.js';
 
-export const LOCAL_DEMO_DISPLAY_NAME = 'Local Demo Shopper';
+export const LOCAL_DEMO_DISPLAY_NAME = 'AM MARKET Shopper';
 export const LOCAL_DEMO_EMAIL_SUFFIX = '@local.am-market.test';
 
 export function isLocalDemoEmail(email) {

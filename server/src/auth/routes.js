@@ -122,19 +122,9 @@ async function findLocalDemoUser(database, email) {
   return rows[0] || null;
 }
 
-async function replaceUserSession(req, res, user) {
+async function replaceCurrentSession(req, res, user) {
   await revokeCurrentSession(req, res);
-  return inTransaction(req.app.locals.db, async (connection) => {
-    await connection.execute(
-      `UPDATE auth_sessions
-          SET revoked_at = UTC_TIMESTAMP(3)
-        WHERE user_id = ? AND revoked_at IS NULL
-        ORDER BY created_at DESC
-        LIMIT 100`,
-      [user.id]
-    );
-    return createSession(connection, user.id, res);
-  });
+  return inTransaction(req.app.locals.db, (connection) => createSession(connection, user.id, res));
 }
 
 function authenticatedResponse(user, session, extra = {}) {
@@ -172,7 +162,7 @@ export function createAuthRouter({ mailService = createMailService() } = {}) {
   router.post('/register', authLimiter, async (req, res) => {
     const input = registerSchema.parse(req.body);
     if (isLocalDemoEmail(input.email)) {
-      throw conflict('EMAIL_RESERVED', 'This email domain is reserved for the local demo account.');
+      throw conflict('EMAIL_RESERVED', 'This email domain is reserved for system-managed accounts.');
     }
     const passwordHash = await hashPassword(input.password);
     const userPublicId = randomUUID();
@@ -240,7 +230,7 @@ export function createAuthRouter({ mailService = createMailService() } = {}) {
       await req.app.locals.db.execute('UPDATE users SET password_hash = ? WHERE id = ?', [upgraded, passwordUser.id]);
     }
 
-    const session = await replaceUserSession(req, res, passwordUser);
+    const session = await replaceCurrentSession(req, res, passwordUser);
     res.set('Cache-Control', 'no-store').json(authenticatedResponse(passwordUser, session));
   });
 
@@ -249,9 +239,9 @@ export function createAuthRouter({ mailService = createMailService() } = {}) {
       localDemoLoginSchema.parse(req.body);
       const user = await findLocalDemoUser(req.app.locals.db, config.auth.localDevLoginUserEmail);
       if (!user || user.status !== 'active') {
-        throw unavailable('LOCAL_DEV_LOGIN_UNAVAILABLE', 'The local demo account is unavailable.');
+        throw unavailable('LOCAL_DEV_LOGIN_UNAVAILABLE', 'The local development account is unavailable.');
       }
-      const session = await replaceUserSession(req, res, user);
+      const session = await replaceCurrentSession(req, res, user);
       res.set('Cache-Control', 'no-store').json(authenticatedResponse(user, session, { localDemo: true }));
     });
   }
@@ -376,7 +366,7 @@ export function createAuthRouter({ mailService = createMailService() } = {}) {
   router.post('/password/change', requireAuth, async (req, res) => {
     const input = passwordChangeSchema.parse(req.body);
     if (req.auth.accountKind === 'local_demo') {
-      throw forbidden('DEMO_ACCOUNT_RESTRICTED', 'The local demo account password cannot be changed.');
+      throw forbidden('DEMO_ACCOUNT_RESTRICTED', 'The system-managed account password cannot be changed.');
     }
     const [rows] = await req.app.locals.db.execute(
       'SELECT password_hash FROM users WHERE id = ? AND status = \'active\' LIMIT 1',

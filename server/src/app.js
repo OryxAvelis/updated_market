@@ -5,6 +5,9 @@ import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
 import pinoHttp from 'pino-http';
+import { createAdminAuthRouter } from './admin/routes.js';
+import { requireAdminCsrf } from './admin/csrf.js';
+import { loadAdminSession, requireAdminPage } from './admin/session.js';
 import { createAccountRouter } from './account/routes.js';
 import { createAuthRouter } from './auth/routes.js';
 import { loadSession } from './auth/session.js';
@@ -38,6 +41,11 @@ const userPages = new Set([
   'cart.html', 'checkout.html', 'wishlist.html', 'orders.html',
   'settings.html', 'help.html', 'login.html', 'reset-password.html'
 ]);
+const adminPages = new Set([
+  'index.html', 'analytics.html', 'categories.html', 'customers.html',
+  'delivery.html', 'inventory.html', 'orders.html', 'products.html',
+  'promotions.html', 'settings.html'
+]);
 const publicCatalogFallbackOrigin = 'https://api.mmarket.ma';
 
 function securityHeaders() {
@@ -55,7 +63,10 @@ function securityHeaders() {
         scriptSrc: ["'self'", 'https://cdn.jsdelivr.net'],
         scriptSrcAttr: ["'none'"],
         styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com', 'https://fonts.googleapis.com'],
-        upgradeInsecureRequests: config.isProduction ? [] : null
+        // The storefront is HTTPS in local development as well as production.
+        // Upgrade catalog-provided image URLs too, so one legacy HTTP asset
+        // cannot downgrade the browser's security indicator.
+        upgradeInsecureRequests: []
       }
     },
     crossOriginEmbedderPolicy: false,
@@ -126,6 +137,31 @@ function staticAssets(app) {
   });
 }
 
+function adminAssets(app) {
+  const options = {
+    dotfiles: 'deny',
+    fallthrough: false,
+    immutable: false,
+    maxAge: 0,
+    index: false
+  };
+  const adminRoot = path.join(storefrontRoot, 'admin');
+  app.use('/admin/css', express.static(path.join(adminRoot, 'css'), options));
+  app.use('/admin/js', express.static(path.join(adminRoot, 'js'), options));
+  app.get('/admin/login.html', (_req, res) => {
+    res.set('Cache-Control', 'no-store').sendFile(path.join(adminRoot, 'login.html'));
+  });
+  app.get('/admin', loadAdminSession, requireAdminPage, (_req, res) => {
+    res.redirect(302, '/admin/index.html');
+  });
+  app.get('/admin/:page', loadAdminSession, (req, res, next) => {
+    if (!adminPages.has(req.params.page)) return next();
+    return requireAdminPage(req, res, () => {
+      res.set('Cache-Control', 'no-store').sendFile(path.join(adminRoot, req.params.page));
+    });
+  });
+}
+
 export function createApp({
   database,
   catalog = createCatalogService(),
@@ -161,6 +197,7 @@ export function createApp({
   app.use(cookieParser());
   app.use(express.json({ limit: '32kb', strict: true }));
   app.use(requireJsonForBody);
+  app.use('/api/v1/admin', requireTrustedOrigin, loadAdminSession, requireAdminCsrf, createAdminAuthRouter());
   app.use('/api/v1', requireTrustedOrigin, loadSession, requireCsrf);
 
   app.use('/api/v1/health', createHealthRouter());
@@ -182,6 +219,7 @@ export function createApp({
   app.use('/api/v1/catalog', createCatalogRouter(catalog));
 
   staticAssets(app);
+  adminAssets(app);
   app.use('/api', notFoundHandler);
   app.use((_req, res) => res.status(404).type('text/plain').send('Not found'));
   app.use(errorHandler);

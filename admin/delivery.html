@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Delivery — AM MARKET Admin</title>
-  <meta name="description" content="Frontend-only AM MARKET admin delivery prototype.">
-  <script>(function(){var t=localStorage.getItem('am_theme')==='dark'?'dark':'light';document.documentElement.setAttribute('data-theme',t);document.documentElement.setAttribute('data-bs-theme',t);}());</script>
+  <meta name="description" content="AM MARKET delivery administration workspace.">
+  <script src="js/admin-theme-init.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -21,18 +21,18 @@
       <div>
         <p class="admin-page-eyebrow" data-i18n="admin_operations">Operations</p>
         <h1 class="admin-page-title" id="deliveryPageTitle" data-i18n="admin_delivery_title">Delivery</h1>
-        <p class="admin-page-intro" data-i18n="admin_delivery_intro">Configure prototype delivery rules and service zones.</p>
+        <p class="admin-page-intro" data-i18n="admin_delivery_intro">Configure delivery rules and service zones.</p>
       </div>
       <button class="admin-button admin-button--primary" id="addZoneButton" type="button"><i class="fa-solid fa-plus" aria-hidden="true"></i><span data-i18n="admin_add_zone">Add zone</span></button>
     </header>
 
     <aside class="admin-inline-notice admin-delivery-notice" role="note">
       <i class="fa-solid fa-laptop" aria-hidden="true"></i>
-      <div><strong data-i18n="admin_local_only">Local only</strong><p data-i18n="admin_delivery_local_note">These settings stay in this browser. Storefront checkout remains at 20 DH and free over 200 DH.</p></div>
+      <div><strong data-i18n="admin_local_only">Saved on this device</strong><p data-i18n="admin_delivery_local_note">These settings are saved on this device. Storefront checkout remains at 20 DH and free over 200 DH.</p></div>
     </aside>
 
     <section class="admin-card admin-delivery-rules" aria-labelledby="deliveryRulesTitle">
-      <header class="admin-card-header"><div><h2 class="admin-card-title" id="deliveryRulesTitle" data-i18n="admin_delivery_rules">Delivery rules</h2><p class="admin-card-subtitle" data-i18n="admin_delivery_rules_sub">Prototype defaults mirror the storefront.</p></div></header>
+      <header class="admin-card-header"><div><h2 class="admin-card-title" id="deliveryRulesTitle" data-i18n="admin_delivery_rules">Delivery rules</h2><p class="admin-card-subtitle" data-i18n="admin_delivery_rules_sub">Current defaults match the storefront.</p></div></header>
       <form id="deliveryRulesForm" class="admin-card-body admin-inline-form" novalidate>
         <div class="admin-field-group">
           <label class="form-label admin-form-label" for="defaultDeliveryFee"><span data-i18n="admin_default_fee">Default delivery fee</span> <span class="admin-required" aria-hidden="true">*</span></label>
@@ -46,7 +46,7 @@
         </div>
         <div class="admin-inline-actions">
           <button class="admin-button admin-button--secondary" id="deliveryRulesCancel" type="button" data-i18n="admin_cancel">Cancel</button>
-          <button class="admin-button admin-button--primary" id="deliveryRulesSubmit" type="submit"><span data-i18n="admin_save_local">Save locally</span></button>
+          <button class="admin-button admin-button--primary" id="deliveryRulesSubmit" type="submit"><span data-i18n="admin_save_local">Save on this device</span></button>
         </div>
       </form>
     </section>
@@ -62,7 +62,7 @@
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
         <form id="deliveryZoneForm" novalidate>
-          <div class="modal-header"><div><p class="admin-page-eyebrow mb-1" data-i18n="admin_local_only">Local only</p><h2 class="modal-title fs-5" id="deliveryZoneModalTitle" data-i18n="admin_add_zone">Add zone</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" data-i18n-aria="close" aria-label="Close"></button></div>
+          <div class="modal-header"><div><p class="admin-page-eyebrow mb-1" data-i18n="admin_local_only">Saved on this device</p><h2 class="modal-title fs-5" id="deliveryZoneModalTitle" data-i18n="admin_add_zone">Add zone</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" data-i18n-aria="close" aria-label="Close"></button></div>
           <div class="modal-body">
             <input id="deliveryZoneId" type="hidden">
             <div class="mb-3"><label class="form-label admin-form-label" for="deliveryZoneName"><span data-i18n="admin_zone_name">Zone name</span> <span class="admin-required" aria-hidden="true">*</span></label><input class="form-control admin-input" id="deliveryZoneName" required maxlength="80"><div class="invalid-feedback" data-i18n="admin_name_required">Enter a name.</div></div>
@@ -70,7 +70,7 @@
             <div class="mb-3"><label class="form-label admin-form-label" for="deliveryZoneFee"><span data-i18n="admin_zone_fee">Zone fee</span> <span class="admin-required" aria-hidden="true">*</span></label><div class="input-group"><input class="form-control admin-input" id="deliveryZoneFee" type="number" min="0" step="1" required><span class="input-group-text">DH</span></div><div class="invalid-feedback" data-i18n="admin_nonnegative_required">Enter zero or a positive amount.</div></div>
             <div class="form-check form-switch admin-switch-row"><input class="form-check-input" id="deliveryZoneEnabled" type="checkbox" role="switch" checked><label class="form-check-label" for="deliveryZoneEnabled" data-i18n="admin_enable_zone">Enable this zone</label></div>
           </div>
-          <div class="modal-footer"><button type="button" class="admin-button admin-button--secondary" data-bs-dismiss="modal" data-i18n="admin_cancel">Cancel</button><button type="submit" class="admin-button admin-button--primary" id="deliveryZoneSubmit"><span data-i18n="admin_save_local">Save locally</span></button></div>
+          <div class="modal-footer"><button type="button" class="admin-button admin-button--secondary" data-bs-dismiss="modal" data-i18n="admin_cancel">Cancel</button><button type="submit" class="admin-button admin-button--primary" id="deliveryZoneSubmit"><span data-i18n="admin_save_local">Save on this device</span></button></div>
         </form>
       </div>
     </div>

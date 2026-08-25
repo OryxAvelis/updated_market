@@ -1895,7 +1895,7 @@ function initSafeImageFallbacks() {
   }, true);
 }
 
-// "Coming soon" links + logout (account panel, header dropdown, settings)
+// Unavailable action links + logout (account panel, header dropdown, settings)
 document.addEventListener('click', e => {
   const soon = e.target.closest('[data-soon]');
   if (soon) { e.preventDefault(); toast(t('soon')); return; }
