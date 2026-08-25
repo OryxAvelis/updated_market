@@ -1,4 +1,4 @@
-/** AM MARKET — authenticated, server-authoritative checkout. */
+/** AM MARKET — server-authoritative authenticated and guest checkout. */
 
 let checkoutReady = false;
 let checkoutSubmitting = false;
@@ -13,6 +13,13 @@ let checkoutSessionExpired = false;
 let checkoutRedirectStarted = false;
 let checkoutAddressRequestSequence = 0;
 let checkoutCartRequestSequence = 0;
+let checkoutMode = 'guest';
+let checkoutConfirmedOrder = null;
+let checkoutGuestAccess = null;
+let checkoutPageInitialized = false;
+
+const GUEST_CHECKOUT_ATTEMPT_KEY = 'am_guest_checkout_attempt_v1';
+const GUEST_ORDER_ACCESS_KEY = 'am_guest_order_access_v1';
 
 const checkoutCopy = (en, fr) => getLang() === 'fr' ? fr : en;
 const CHECKOUT_FIELDS = [
@@ -22,6 +29,97 @@ const CHECKOUT_FIELDS = [
   { id: 'cQuartier', key: 'quartier_required', valid: value => value.length >= 2 },
   { id: 'cAddress', key: 'address_required', valid: value => value.length >= 4 }
 ];
+
+function stableCheckoutJson(value) {
+  if (Array.isArray(value)) return `[${value.map(stableCheckoutJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${stableCheckoutJson(value[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+async function guestCheckoutSignature(input) {
+  if (!globalThis.crypto?.subtle || typeof globalThis.TextEncoder !== 'function') {
+    throw Object.assign(new Error('Secure guest checkout storage is unavailable.'), { code: 'GUEST_CHECKOUT_STORAGE_UNAVAILABLE' });
+  }
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', new globalThis.TextEncoder().encode(stableCheckoutJson(input)));
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function validGuestAttempt(value) {
+  return Boolean(value && value.version === 2 &&
+    typeof value.signature === 'string' && /^[a-f0-9]{64}$/.test(value.signature) &&
+    typeof value.idempotencyKey === 'string' && value.idempotencyKey.length >= 8 && value.idempotencyKey.length <= 128 &&
+    typeof value.guestOrderToken === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value.guestOrderToken) &&
+    typeof value.expiresAt === 'string' && Date.parse(value.expiresAt) > Date.now() + 5000);
+}
+
+function readGuestStorage(key) {
+  try { return JSON.parse(sessionStorage.getItem(key) || 'null'); } catch { return null; }
+}
+
+function writeGuestStorage(key, value) {
+  try {
+    sessionStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function removeGuestStorage(key) {
+  try { sessionStorage.removeItem(key); } catch { /* Best effort after a completed request. */ }
+}
+
+async function prepareGuestCheckoutAttempt(input) {
+  const signature = await guestCheckoutSignature(input);
+  const stored = readGuestStorage(GUEST_CHECKOUT_ATTEMPT_KEY);
+  if (validGuestAttempt(stored) && stored.signature === signature) return stored;
+  const issued = await StoreAPI.guestOrders.issueAccess();
+  const serverAccess = issued?.access;
+  const attempt = {
+    version: 2,
+    signature,
+    idempotencyKey: String(serverAccess?.idempotencyKey || ''),
+    guestOrderToken: String(serverAccess?.token || ''),
+    expiresAt: String(serverAccess?.expiresAt || '')
+  };
+  if (!validGuestAttempt(attempt)) {
+    throw Object.assign(new Error('The server did not issue valid guest checkout access.'), { code: 'INVALID_RESPONSE' });
+  }
+  if (!writeGuestStorage(GUEST_CHECKOUT_ATTEMPT_KEY, attempt)) {
+    throw Object.assign(new Error('Secure guest checkout storage is unavailable.'), { code: 'GUEST_CHECKOUT_STORAGE_UNAVAILABLE' });
+  }
+  return attempt;
+}
+
+function persistGuestOrderAccess(orderId, guestOrderToken, expiresAt) {
+  const access = {
+    version: 2,
+    orderId: String(orderId || ''),
+    guestOrderToken: String(guestOrderToken || ''),
+    expiresAt: String(expiresAt || '')
+  };
+  if (!access.orderId || !/^[A-Za-z0-9_-]{43}$/.test(access.guestOrderToken) ||
+      !Number.isFinite(Date.parse(access.expiresAt)) || !writeGuestStorage(GUEST_ORDER_ACCESS_KEY, access)) {
+    return null;
+  }
+  return access;
+}
+
+function readGuestOrderAccess() {
+  const value = readGuestStorage(GUEST_ORDER_ACCESS_KEY);
+  const expiryMs = Date.parse(String(value?.expiresAt || ''));
+  if (!value || value.version !== 2 || !String(value.orderId || '').trim() ||
+      !/^[A-Za-z0-9_-]{43}$/.test(String(value.guestOrderToken || '')) ||
+      !Number.isFinite(expiryMs) || expiryMs <= Date.now()) return null;
+  return {
+    version: 2,
+    orderId: String(value.orderId),
+    guestOrderToken: String(value.guestOrderToken),
+    expiresAt: String(value.expiresAt)
+  };
+}
 
 function showCheckoutError(message = '', { key = '', retry = false, retryDisabled = false } = {}) {
   const box = $('checkoutError');
@@ -45,6 +143,9 @@ function savedAddressErrorMessage() {
 }
 
 function checkoutRuntimeErrorKey(error) {
+  if (error?.code === 'GUEST_CHECKOUT_STORAGE_UNAVAILABLE' || error?.code === 'CRYPTO_UNAVAILABLE') return 'guest_checkout_storage_error';
+  if (error?.code === 'GUEST_CHECKOUT_ACCESS_INVALID') return 'guest_checkout_access_error';
+  if (['IDEMPOTENCY_KEY_REUSED', 'GUEST_ORDER_TOKEN_REUSED', 'GUEST_ORDER_CONFLICT', 'GUEST_CHECKOUT_CREDENTIALS_REUSED'].includes(error?.code)) return 'guest_checkout_conflict';
   if (error?.code === 'CART_SYNC_FAILED') return 'api_error';
   if (['CART_CHANGED', 'CART_EMPTY', 'CART_NOT_FOUND'].includes(error?.code)) return 'checkout_cart_changed';
   if (error?.code === 'ADDRESS_NOT_FOUND') return 'checkout_address_missing';
@@ -127,6 +228,7 @@ function formatPhoneInput(value) {
 
 function fillAddressForm(address) {
   const profile = getProfile();
+  const guestDelivery = checkoutMode === 'guest' ? getDeliveryInfo() : {};
   const citySelect = $('cCity');
   citySelect?.querySelector('option[data-saved-city]')?.remove();
   if (address?.city && citySelect && ![...citySelect.options].some(option => option.value === address.city)) {
@@ -145,9 +247,13 @@ function fillAddressForm(address) {
     cQuartier: address.district,
     cNote: address.deliveryInstructions || ''
   } : {
-    cName: profile.displayName || profile.name || '',
-    cPhone: formatPhoneInput(profile.phone || ''),
-    cEmail: profile.email || '', cAddress: '', cCity: '', cQuartier: '', cNote: ''
+    cName: guestDelivery.name || profile.displayName || profile.name || '',
+    cPhone: formatPhoneInput(guestDelivery.phone || profile.phone || ''),
+    cEmail: guestDelivery.email || profile.email || '',
+    cAddress: guestDelivery.address || '',
+    cCity: guestDelivery.city || '',
+    cQuartier: guestDelivery.quartier || '',
+    cNote: guestDelivery.instructions || ''
   };
   Object.entries(values).forEach(([id, value]) => { if ($(id)) $(id).value = value || ''; });
   const locked = Boolean(address);
@@ -161,6 +267,10 @@ function renderAddressChooser({ preserveForm = false } = {}) {
   const group = $('savedAddressGroup');
   const select = $('savedAddressSelect');
   if (!group || !select) return;
+  if (checkoutMode === 'guest') {
+    group.hidden = true;
+    return;
+  }
   group.hidden = false;
   const sorted = [...savedAddresses].sort((a, b) => Number(b.isDefault) - Number(a.isDefault));
   select.innerHTML = `${sorted.map(address => `<option value="${escapeHtml(address.id)}">${escapeHtml(address.label)} — ${escapeHtml(address.addressLine1)}, ${escapeHtml(address.city)}${address.isDefault ? ` (${checkoutCopy('default', 'par défaut')})` : ''}</option>`).join('')}
@@ -223,8 +333,9 @@ function renderCheckoutSummary(serverCart = checkoutCartSnapshot) {
   if (!serverCart) return;
   checkoutItems = serverCart.items || [];
   const unavailable = checkoutItems.filter(item => !item.verified || !item.isAvailable || item.quantityAvailable === false);
+  const guestLimitExceeded = checkoutMode === 'guest' && checkoutItems.length > 100;
   const availabilityKey = unavailable.some(item => !item.verified) ? 'checkout_unverified' : 'checkout_unavailable';
-  $('coItems').innerHTML = `${unavailable.length ? `<div class="alert alert-danger small co-availability-alert" role="alert">${t(availabilityKey)} <a class="alert-link" href="cart.html">${t('review_cart')}</a></div>` : ''}${checkoutItems.map(item => `
+  $('coItems').innerHTML = `${guestLimitExceeded ? `<div class="alert alert-danger small co-availability-alert" role="alert">${t('guest_checkout_item_limit')} <a class="alert-link" href="cart.html">${t('review_cart')}</a></div>` : ''}${unavailable.length ? `<div class="alert alert-danger small co-availability-alert" role="alert">${t(availabilityKey)} <a class="alert-link" href="cart.html">${t('review_cart')}</a></div>` : ''}${checkoutItems.map(item => `
     <div class="co-line-item d-flex justify-content-between small mb-2">
       <span class="co-line-name">${escapeHtml(item.name)} × ${item.quantity}${(!item.verified || !item.isAvailable || item.quantityAvailable === false)
         ? ` · ${t(!item.verified ? 'item_unverified' : item.quantityAvailable === false ? 'quantity_unavailable' : 'out_stock', { n: item.stockQuantity })}`
@@ -234,7 +345,7 @@ function renderCheckoutSummary(serverCart = checkoutCartSnapshot) {
   $('coSub').textContent = formatPrice(serverCart.subtotal);
   $('coFee').textContent = Number(serverCart.deliveryFee) === 0 ? t('free') : formatPrice(serverCart.deliveryFee);
   $('coTotal').textContent = formatPrice(serverCart.total);
-  checkoutReady = Boolean(serverCart.checkoutReady);
+  checkoutReady = Boolean(serverCart.checkoutReady) && !guestLimitExceeded;
 }
 
 function renderCheckoutSubmit() {
@@ -252,9 +363,41 @@ function renderCheckoutSubmit() {
   }
 }
 
+async function guestCartForCheckout() {
+  const detailed = await getCartItems();
+  const items = detailed.map(({ id, qty, product }) => {
+    const verified = product.load_failed !== true;
+    const isAvailable = product.is_available !== false;
+    const quantityAvailable = !Number.isInteger(product.stock_quantity) || qty <= product.stock_quantity;
+    return {
+      productId: String(id),
+      name: product.name || t('product_crumb'),
+      imageUrl: product.image_url || null,
+      unitPrice: Number(product.price) || 0,
+      quantity: qty,
+      verified,
+      isAvailable,
+      quantityAvailable,
+      stockQuantity: Number.isInteger(product.stock_quantity) ? product.stock_quantity : null
+    };
+  });
+  const available = detailed.filter(({ qty, product }) => product.load_failed !== true &&
+    product.is_available !== false && (!Number.isInteger(product.stock_quantity) || qty <= product.stock_quantity));
+  const subtotal = itemsSubtotal(available);
+  const fee = deliveryFee(subtotal);
+  return {
+    items,
+    subtotal,
+    deliveryFee: fee,
+    total: subtotal + fee,
+    checkoutReady: items.length > 0 && available.length === items.length
+  };
+}
+
 async function renderCheckout({ fromRetry = false } = {}) {
   const requestSequence = ++checkoutCartRequestSequence;
-  const authContext = captureAuthenticatedRequest();
+  const authenticated = checkoutMode === 'authenticated' && Boolean(getUser());
+  const authContext = authenticated ? captureAuthenticatedRequest() : null;
   checkoutReady = false;
   const summary = $('checkoutSummary');
   summary?.setAttribute('aria-busy', 'true');
@@ -263,12 +406,16 @@ async function renderCheckout({ fromRetry = false } = {}) {
   if (fromRetry) showCheckoutError(t('loading'), { key: 'loading', retry: true, retryDisabled: true });
   else showCheckoutError();
   try {
-    const payload = await StoreAPI.cart.get();
+    const payload = authenticated ? await StoreAPI.cart.get() : null;
     if (checkoutSessionExpired || requestSequence !== checkoutCartRequestSequence ||
-        !isAuthenticatedRequestCurrent(authContext)) return false;
-    const serverCart = payload.cart;
-    cart = cartFromApi(payload);
-    updateBadges();
+        (authenticated && !isAuthenticatedRequestCurrent(authContext))) return false;
+    const serverCart = authenticated ? payload.cart : await guestCartForCheckout();
+    if (checkoutSessionExpired || requestSequence !== checkoutCartRequestSequence ||
+        (authenticated && !isAuthenticatedRequestCurrent(authContext))) return false;
+    if (authenticated) {
+      cart = cartFromApi(payload);
+      updateBadges();
+    }
     checkoutCartSnapshot = serverCart;
     if (!(serverCart.items || []).length) {
       location.replace('cart.html');
@@ -279,9 +426,9 @@ async function renderCheckout({ fromRetry = false } = {}) {
     if (fromRetry) $('orderSummaryHeading')?.focus({ preventScroll: true });
     return true;
   } catch (error) {
-    if (handleStoreUnauthorized(error)) return false;
+    if (authenticated && handleStoreUnauthorized(error)) return false;
     if (checkoutSessionExpired || requestSequence !== checkoutCartRequestSequence ||
-        !isAuthenticatedRequestCurrent(authContext)) return false;
+        (authenticated && !isAuthenticatedRequestCurrent(authContext))) return false;
     checkoutCartSnapshot = null;
     checkoutItems = [];
     $('coItems').innerHTML = '';
@@ -295,9 +442,8 @@ async function renderCheckout({ fromRetry = false } = {}) {
   }
 }
 
-function newAddressPayload() {
+function checkoutDeliveryPayload() {
   return {
-    label: checkoutCopy('Checkout address', 'Adresse de livraison'),
     recipientName: $('cName').value.trim(),
     phone: `+212${normalizeMoroccanPhone($('cPhone').value)}`,
     email: $('cEmail').value.trim() || null,
@@ -306,7 +452,24 @@ function newAddressPayload() {
     district: $('cQuartier').value.trim(),
     city: $('cCity').value.trim(),
     postalCode: null,
-    deliveryInstructions: $('cNote').value.trim() || null,
+    country: 'MA',
+    deliveryInstructions: $('cNote').value.trim() || null
+  };
+}
+
+function newAddressPayload() {
+  const delivery = checkoutDeliveryPayload();
+  return {
+    label: checkoutCopy('Checkout address', 'Adresse de livraison'),
+    recipientName: delivery.recipientName,
+    phone: delivery.phone,
+    email: delivery.email,
+    addressLine1: delivery.addressLine1,
+    addressLine2: delivery.addressLine2,
+    district: delivery.district,
+    city: delivery.city,
+    postalCode: delivery.postalCode,
+    deliveryInstructions: delivery.deliveryInstructions,
     isDefault: !savedAddressLoadFailed && savedAddresses.length === 0
   };
 }
@@ -360,6 +523,164 @@ async function resolveCheckoutAddress(authContext, input = newAddressPayload()) 
   }
 }
 
+function guestOrderInput() {
+  return {
+    items: cart.map(item => ({ productId: String(item.id), quantity: Number(item.qty) }))
+      .sort((left, right) => left.productId.localeCompare(right.productId)),
+    delivery: checkoutDeliveryPayload(),
+    paymentMethod: document.querySelector('input[name="pay"]:checked')?.value || 'cod',
+    note: $('cNote').value.trim() || null
+  };
+}
+
+function guestOrderStatusLabel(status) {
+  const normalized = String(status || 'confirmed').toLowerCase().replace(/[^a-z0-9_-]/g, '');
+  const key = `status_${normalized}`;
+  const translated = t(key);
+  return translated === key ? (normalized || t('order_confirmed')) : translated;
+}
+
+function guestAccessExpiryLabel(value) {
+  const date = new Date(value || '');
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat(getLang() === 'fr' ? 'fr-MA' : 'en-MA', {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  }).format(date);
+}
+
+function setCheckoutConfirmationStep() {
+  document.querySelectorAll('.co-step').forEach((step, index) => {
+    step.classList.toggle('active', index === 2);
+    step.classList.toggle('completed', index < 2);
+    if (index === 2) step.setAttribute('aria-current', 'step');
+    else step.removeAttribute('aria-current');
+  });
+}
+
+function renderGuestConfirmation(order, access, { focus = true, persist = true } = {}) {
+  if (!order || !access?.guestOrderToken) return false;
+  checkoutConfirmed = true;
+  checkoutConfirmedOrder = order;
+  checkoutGuestAccess = {
+    orderId: String(order.id),
+    guestOrderToken: access.guestOrderToken,
+    expiresAt: access.expiresAt || order.accessExpiresAt || ''
+  };
+  if (persist) persistGuestOrderAccess(order.id, access.guestOrderToken, checkoutGuestAccess.expiresAt);
+  const form = $('checkoutForm');
+  if (form) form.hidden = true;
+  if ($('guestCheckoutContext')) $('guestCheckoutContext').hidden = true;
+  const confirmation = $('checkoutConfirmation');
+  if (confirmation) confirmation.hidden = false;
+  if ($('guestOrderReference')) $('guestOrderReference').textContent = order.orderNumber || order.id;
+  if ($('guestOrderStatus')) $('guestOrderStatus').textContent = guestOrderStatusLabel(order.status);
+  if ($('guestOrderTotal')) $('guestOrderTotal').textContent = formatPrice(order.total);
+  if ($('guestOrderAccessExpiry')) {
+    $('guestOrderAccessExpiry').textContent = guestAccessExpiryLabel(checkoutGuestAccess.expiresAt);
+  }
+  if ($('guestTrackingMessage')) {
+    $('guestTrackingMessage').textContent = t('guest_tracking_updated', {
+      status: guestOrderStatusLabel(order.status)
+    });
+  }
+  const refresh = $('guestTrackingRefresh');
+  if (refresh) refresh.onclick = refreshGuestTracking;
+  setCheckoutConfirmationStep();
+  if (focus) requestAnimationFrame(() => confirmation?.focus({ preventScroll: true }));
+  return true;
+}
+
+async function refreshGuestTracking() {
+  const access = checkoutGuestAccess;
+  const button = $('guestTrackingRefresh');
+  if (!access || !button) return;
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  try {
+    const result = await StoreAPI.guestOrders.tracking(access.orderId, {
+      guestOrderToken: access.guestOrderToken
+    });
+    const status = guestOrderStatusLabel(result.status);
+    if ($('guestOrderStatus')) $('guestOrderStatus').textContent = status;
+    if ($('guestTrackingMessage')) $('guestTrackingMessage').textContent = t('guest_tracking_updated', { status });
+    if (checkoutConfirmedOrder) checkoutConfirmedOrder.status = result.status;
+  } catch {
+    if ($('guestTrackingMessage')) $('guestTrackingMessage').textContent = t('guest_tracking_refresh_error');
+  } finally {
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
+  }
+}
+
+async function loadPersistedGuestOrder() {
+  const access = readGuestOrderAccess();
+  if (!access || cart.length) return null;
+  const result = await StoreAPI.guestOrders.get(access.orderId, {
+    guestOrderToken: access.guestOrderToken
+  });
+  return result?.order ? { order: result.order, access } : null;
+}
+
+async function restoreGuestConfirmation() {
+  try {
+    const restored = await loadPersistedGuestOrder();
+    return restored ? renderGuestConfirmation(restored.order, restored.access, { persist: false }) : false;
+  } catch {
+    return false;
+  }
+}
+
+async function submitGuestOrder(input) {
+  const attempt = await prepareGuestCheckoutAttempt(input);
+  let result;
+  try {
+    result = await StoreAPI.guestOrders.create(input, {
+      idempotencyKey: attempt.idempotencyKey,
+      guestOrderToken: attempt.guestOrderToken
+    });
+  } catch (error) {
+    if (error?.code === 'GUEST_CHECKOUT_ACCESS_INVALID') removeGuestStorage(GUEST_CHECKOUT_ATTEMPT_KEY);
+    throw error;
+  }
+  if (!result?.order?.id) {
+    throw Object.assign(new Error('The guest checkout response did not include an order.'), { code: 'INVALID_RESPONSE' });
+  }
+
+  const access = {
+    orderId: String(result.order.id),
+    guestOrderToken: attempt.guestOrderToken,
+    expiresAt: result.order.accessExpiresAt || attempt.expiresAt
+  };
+  persistGuestOrderAccess(access.orderId, access.guestOrderToken, access.expiresAt);
+  const delivery = input.delivery;
+  try {
+    saveDeliveryInfo({
+      name: delivery.recipientName,
+      phone: delivery.phone,
+      email: delivery.email || '',
+      address: delivery.addressLine1,
+      city: delivery.city,
+      quartier: delivery.district,
+      instructions: delivery.deliveryInstructions || ''
+    });
+  } catch (storageError) {
+    console.warn('[AM MARKET checkout] Delivery details could not be remembered after the guest order completed.', storageError);
+  }
+
+  cart = [];
+  try {
+    await saveCart();
+  } catch (storageError) {
+    console.warn('[AM MARKET checkout] The completed guest cart could not be cleared normally.', storageError);
+    try { localStorage.removeItem('am_cart'); } catch { /* The in-memory cart is still cleared after success. */ }
+    updateBadges();
+  }
+  if (typeof broadcastStoreGuestCommerceChanged === 'function') broadcastStoreGuestCommerceChanged();
+  removeGuestStorage(GUEST_CHECKOUT_ATTEMPT_KEY);
+  return { order: result.order, access };
+}
+
 function setCheckoutPending(pending) {
   checkoutSubmitting = pending;
   if (pending) checkoutConfirmed = false;
@@ -373,46 +694,50 @@ async function placeOrder(event) {
   if (checkoutConfirmed || checkoutSubmitting || !checkoutReady || !validateCheckout()) return;
   showCheckoutError();
   setCheckoutPending(true);
-  const authContext = captureAuthenticatedRequest();
+  const authenticated = checkoutMode === 'authenticated' && Boolean(getUser());
+  const authContext = authenticated ? captureAuthenticatedRequest() : null;
   try {
-    await waitForStoreMutations();
-    if (checkoutSessionExpired || !isAuthenticatedRequestCurrent(authContext)) return;
-    let addressId = checkoutAddressId;
-    if (addressId === 'new') {
-      addressId = await resolveCheckoutAddress(authContext);
-      if (checkoutSessionExpired || !isAuthenticatedRequestCurrent(authContext)) return;
-      checkoutAddressId = addressId;
-      renderAddressChooser();
-    }
-    checkoutIdempotencyKey ||= StoreAPI.createIdempotencyKey();
     const paymentMethod = document.querySelector('input[name="pay"]:checked')?.value || 'cod';
-    const result = await StoreAPI.orders.create({
-      addressId,
-      paymentMethod,
-      note: $('cNote').value.trim() || null
-    }, { idempotencyKey: checkoutIdempotencyKey });
-    if (checkoutSessionExpired || !isAuthenticatedRequestCurrent(authContext)) return;
-    cart = [];
-    updateBadges();
+    let result;
+    if (authenticated) {
+      await waitForStoreMutations();
+      if (checkoutSessionExpired || !isAuthenticatedRequestCurrent(authContext)) return;
+      let addressId = checkoutAddressId;
+      if (addressId === 'new') {
+        addressId = await resolveCheckoutAddress(authContext);
+        if (checkoutSessionExpired || !isAuthenticatedRequestCurrent(authContext)) return;
+        checkoutAddressId = addressId;
+        renderAddressChooser();
+      }
+      checkoutIdempotencyKey ||= StoreAPI.createIdempotencyKey();
+      result = await StoreAPI.orders.create({
+        addressId,
+        paymentMethod,
+        note: $('cNote').value.trim() || null
+      }, { idempotencyKey: checkoutIdempotencyKey });
+      if (checkoutSessionExpired || !isAuthenticatedRequestCurrent(authContext)) return;
+      cart = [];
+      updateBadges();
+    } else {
+      const input = guestOrderInput();
+      const guestResult = await submitGuestOrder(input);
+      result = { order: guestResult.order };
+      renderGuestConfirmation(guestResult.order, guestResult.access, { persist: false });
+    }
     checkoutSubmitting = false;
     checkoutConfirmed = true;
     $('checkoutForm')?.removeAttribute('aria-busy');
     renderCheckoutSubmit();
-    document.querySelectorAll('.co-step').forEach((step, index) => {
-      step.classList.toggle('active', index === 2);
-      step.classList.toggle('completed', index < 2);
-      if (index === 2) step.setAttribute('aria-current', 'step');
-      else step.removeAttribute('aria-current');
-    });
+    setCheckoutConfirmationStep();
     toast(t('order_ok'));
-    setTimeout(() => { location.href = `orders.html?placed=${encodeURIComponent(result.order.id)}`; }, 650);
+    if (authenticated) setTimeout(() => { location.href = `orders.html?placed=${encodeURIComponent(result.order.id)}`; }, 650);
   } catch (error) {
-    if (handleStoreUnauthorized(error)) return;
-    if (checkoutSessionExpired || !isAuthenticatedRequestCurrent(authContext)) return;
+    if (authenticated && handleStoreUnauthorized(error)) return;
+    if (checkoutSessionExpired || (authenticated && !isAuthenticatedRequestCurrent(authContext))) return;
     const errorKey = checkoutRuntimeErrorKey(error);
     if (error?.code === 'IDEMPOTENCY_KEY_REUSED') checkoutIdempotencyKey = null;
     let recoverySucceeded = true;
-    if (['CART_CHANGED', 'CART_EMPTY', 'CART_NOT_FOUND', 'CART_SYNC_FAILED'].includes(error?.code)) {
+    if (authenticated && ['CART_CHANGED', 'CART_EMPTY', 'CART_NOT_FOUND', 'CART_SYNC_FAILED'].includes(error?.code)) {
       recoverySucceeded = await renderCheckout();
     }
     if (checkoutSessionExpired) return;
@@ -436,6 +761,7 @@ function localizeCheckoutDynamicCopy() {
 }
 
 function expireCheckoutPage() {
+  if (checkoutMode === 'guest') return;
   if (checkoutSessionExpired) return;
   checkoutSessionExpired = true;
   checkoutAddressRequestSequence += 1;
@@ -478,14 +804,21 @@ function expireCheckoutPage() {
 }
 
 async function initCheckout() {
-  if (!getUser()) {
-    location.replace('login.html?next=checkout.html');
-    return;
-  }
+  checkoutMode = getUser() ? 'authenticated' : 'guest';
+  if ($('guestCheckoutContext')) $('guestCheckoutContext').hidden = checkoutMode !== 'guest';
   localizeCheckoutDynamicCopy();
-  $('savedAddressRetry')?.addEventListener('click', () => loadSavedAddresses({ fromRetry: true }));
-  await loadSavedAddresses();
-  if (checkoutSessionExpired) return;
+  if (checkoutMode === 'authenticated') {
+    $('savedAddressRetry')?.addEventListener('click', () => loadSavedAddresses({ fromRetry: true }));
+    await loadSavedAddresses();
+    if (checkoutSessionExpired) return;
+  } else {
+    checkoutAddressId = 'new';
+    savedAddresses = [];
+    if ($('savedAddressGroup')) $('savedAddressGroup').hidden = true;
+    showSavedAddressError();
+    fillAddressForm(null);
+    if (await restoreGuestConfirmation()) return;
+  }
   const preferredPayment = getDefaultPay();
   const radio = $({ cod: 'pay1', card: 'pay2', wafacash: 'pay3', cashplus: 'pay4' }[preferredPayment] || 'pay1');
   if (radio && !radio.disabled) radio.checked = true;
@@ -505,6 +838,7 @@ async function initCheckout() {
     if (/^[5-7]\d{8}$/.test(digits)) $('cPhone').value = digits;
   });
   $('checkoutRetry')?.addEventListener('click', () => renderCheckout({ fromRetry: true }));
+  checkoutPageInitialized = true;
   await renderCheckout();
 }
 
@@ -513,6 +847,10 @@ window.addEventListener('am:langchange', () => {
   localizeCheckoutDynamicCopy();
   if (checkoutSessionExpired) {
     showCheckoutError(t('checkout_session_expired'), { key: 'checkout_session_expired' });
+    return;
+  }
+  if (checkoutMode === 'guest' && checkoutConfirmedOrder && checkoutGuestAccess) {
+    renderGuestConfirmation(checkoutConfirmedOrder, checkoutGuestAccess, { focus: false, persist: false });
     return;
   }
   if (savedAddressLoadFailed) showSavedAddressError(savedAddressErrorMessage());
@@ -531,3 +869,7 @@ window.addEventListener('am:langchange', () => {
 });
 
 window.addEventListener('am:session-expired', expireCheckoutPage);
+window.addEventListener('am:guest-commerce-changed', () => {
+  if (!checkoutPageInitialized || checkoutMode !== 'guest' || checkoutSubmitting || checkoutConfirmed) return;
+  renderCheckout();
+});

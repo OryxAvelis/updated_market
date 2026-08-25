@@ -1202,6 +1202,14 @@ function renderNotifMenu() {
     });
     return;
   }
+  if (!currentUser) {
+    const signInCopy = getLang() === 'fr'
+      ? 'Connectez-vous pour recevoir les mises à jour de commande et de stock sur tous vos appareils.'
+      : 'Sign in to receive order and stock updates across devices.';
+    const signInLabel = getLang() === 'fr' ? 'Se connecter' : 'Sign in';
+    menu.innerHTML = `<li class="notif-empty"><p class="mb-2">${escapeHtml(signInCopy)}</p><a class="btn btn-sm btn-outline-orange state-action" href="login.html?next=index.html">${escapeHtml(signInLabel)}</a></li>`;
+    return;
+  }
   if (!accountNotifications.length) {
     menu.innerHTML = `<li class="notif-empty">${t('notif_empty')}</li>`;
     return;

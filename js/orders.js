@@ -97,7 +97,7 @@ function renderOrdersGuestRecovery(focus = false) {
   if (!box) return;
   const returnTarget = `orders.html${location.search || ''}`;
   box.removeAttribute('aria-busy');
-  box.innerHTML = `<div class="text-center py-5"><i class="fa-solid fa-lock fa-3x text-muted mb-3" aria-hidden="true"></i><h2 class="h5">${orderCopy('Your session expired', 'Votre session a expiré')}</h2><p class="text-muted">${orderCopy('Sign in again to view your private order history.', 'Reconnectez-vous pour consulter votre historique de commandes privé.')}</p><a class="btn btn-orange mt-2" data-orders-signin href="login.html?next=${encodeURIComponent(returnTarget)}">${orderCopy('Sign in', 'Se connecter')}</a></div>`;
+  box.innerHTML = `<div class="text-center py-5"><i class="fa-solid fa-lock fa-3x text-muted mb-3" aria-hidden="true"></i><h2 class="h5">${orderCopy('Your session expired', 'Votre session a expiré')}</h2><p class="text-muted">${orderCopy('Sign in again to view your private order history across devices. You can keep shopping without an account.', 'Reconnectez-vous pour consulter votre historique privé sur tous vos appareils. Vous pouvez continuer vos achats sans compte.')}</p><div class="d-flex flex-wrap justify-content-center gap-2"><a class="btn btn-orange" data-orders-signin href="login.html?next=${encodeURIComponent(returnTarget)}">${orderCopy('Sign in', 'Se connecter')}</a><a class="btn btn-outline-orange" href="categories.html">${orderCopy('Continue shopping', 'Continuer vos achats')}</a></div></div>`;
   if (focus) requestAnimationFrame(() => box.querySelector('[data-orders-signin]')?.focus({ preventScroll: true }));
 }
 
@@ -996,7 +996,7 @@ function renderCurrentOrders(options = {}) {
   if (!box) return;
   if (!getUser()) {
     const returnTarget = `orders.html${location.search || ''}`;
-    box.innerHTML = `<div class="text-center py-5"><i class="fa-solid fa-lock fa-3x text-muted mb-3" aria-hidden="true"></i><h2 class="h5">${orderCopy('Sign in to view your orders', 'Connectez-vous pour voir vos commandes')}</h2><a class="btn btn-orange mt-2" href="login.html?next=${encodeURIComponent(returnTarget)}">${orderCopy('Sign in', 'Se connecter')}</a></div>`;
+    box.innerHTML = `<div class="text-center py-5"><i class="fa-solid fa-lock fa-3x text-muted mb-3" aria-hidden="true"></i><h2 class="h5">${orderCopy('Sign in to view your orders', 'Connectez-vous pour voir vos commandes')}</h2><p class="text-muted">${orderCopy('An account keeps your private order history available across devices. Shopping and guest checkout remain available without signing in.', 'Un compte conserve votre historique privé sur tous vos appareils. Les achats et la commande invité restent disponibles sans connexion.')}</p><div class="d-flex flex-wrap justify-content-center gap-2"><a class="btn btn-orange" href="login.html?next=${encodeURIComponent(returnTarget)}">${orderCopy('Sign in', 'Se connecter')}</a><a class="btn btn-outline-orange" href="categories.html">${orderCopy('Continue shopping', 'Continuer vos achats')}</a></div></div>`;
     return;
   }
   const query = new URLSearchParams(location.search);

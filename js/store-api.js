@@ -95,6 +95,15 @@
     return `am1.${estimatedServerTime.toString(36)}.${global.crypto.randomUUID()}`;
   }
 
+  function guestOrderTokenFrom(options = {}) {
+    if (options.guestOrderToken == null) return null;
+    const token = String(options.guestOrderToken).trim();
+    if (!/^[A-Za-z0-9_-]{43}$/.test(token)) {
+      throw clientError('INVALID_GUEST_ORDER_TOKEN', 'Guest order tokens must contain exactly 43 base64url characters.');
+    }
+    return token;
+  }
+
   function observeServerClock(response) {
     const serverDate = Date.parse(response.headers.get('date') || '');
     if (Number.isFinite(serverDate)) serverClockOffsetMs = serverDate - Date.now();
@@ -277,6 +286,8 @@
         headers.set('X-CSRF-Token', csrfToken);
       }
       if (options.idempotencyKey) headers.set('Idempotency-Key', options.idempotencyKey);
+      const guestOrderToken = guestOrderTokenFrom(options);
+      if (guestOrderToken) headers.set('X-Guest-Order-Token', guestOrderToken);
 
       const response = await global.fetch(`${BASE_URL}${path}`, {
         method,
@@ -387,7 +398,8 @@
       signal: options.signal,
       timeoutMs: options.timeoutMs,
       longTimeout: options.longTimeout,
-      cache: options.cache
+      cache: options.cache,
+      guestOrderToken: options.guestOrderToken
     });
   }
 
@@ -400,7 +412,8 @@
       timeoutMs: options.timeoutMs,
       longTimeout: options.longTimeout,
       idempotencyKey,
-      retryCsrf: options.retryCsrf
+      retryCsrf: options.retryCsrf,
+      guestOrderToken: options.guestOrderToken
     });
   }
 
@@ -477,6 +490,32 @@
     requestReturn: (publicId, input, options) => write('POST', `/orders/${encodeSegment(publicId, 'order ID')}/returns`, input, options)
   });
 
+  const guestOrders = Object.freeze({
+    issueAccess: (options = {}) => write('POST', '/guest-orders/access', undefined, {
+      ...options,
+      idempotent: false
+    }),
+    create: (input, options = {}) => write('POST', '/guest-orders', input, {
+      ...options,
+      longTimeout: true,
+      retryCsrf: false,
+      guestOrderToken: options.guestOrderToken
+    }),
+    get: (publicId, options = {}) => read(`/guest-orders/${encodeSegment(publicId, 'order ID')}`, null, {
+      ...options,
+      guestOrderToken: options.guestOrderToken
+    }),
+    tracking: (publicId, options = {}) => read(`/guest-orders/${encodeSegment(publicId, 'order ID')}/tracking`, null, {
+      ...options,
+      guestOrderToken: options.guestOrderToken
+    }),
+    revokeAccess: (publicId, options = {}) => write('DELETE', `/guest-orders/${encodeSegment(publicId, 'order ID')}/access`, undefined, {
+      ...options,
+      idempotent: false,
+      guestOrderToken: options.guestOrderToken
+    })
+  });
+
   const returns = Object.freeze({
     get: (publicId, options) => read(`/returns/${encodeSegment(publicId, 'return ID')}`, null, options)
   });
@@ -538,6 +577,7 @@
     cart,
     wishlist,
     orders,
+    guestOrders,
     returns,
     reviews,
     recent,

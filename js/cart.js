@@ -134,12 +134,10 @@ async function renderCart(focusTarget = null) {
       <div class="sum-row"><span>${t('subtotal')}</span><span>${formatPrice(sub)}</span></div>
       <div class="sum-row"><span>${t('delivery')}</span><span>${fee === 0 ? t('free') : formatPrice(fee)}</span></div>
       <div class="sum-total"><span>${t('total')}</span><span class="text-orange">${formatPrice(sub + fee)}</span></div>
-      ${!unavailableItems.length && !signedIn ? `<p class="cart-checkout-note" id="cartCheckoutNote"><i class="fa-solid fa-lock" aria-hidden="true"></i><span>${t('checkout_sign_in_note')}</span></p>` : ''}
+      ${!unavailableItems.length && !signedIn ? `<div class="cart-checkout-note" id="cartCheckoutNote"><i class="fa-solid fa-user-check" aria-hidden="true"></i><span>${t('guest_checkout_note')} <a href="login.html?next=checkout.html">${t('sign_in_for_order_history')}</a></span></div>` : ''}
       ${unavailableItems.length
         ? `<button type="button" class="btn-checkout" disabled>${t('resolve_before_checkout')}</button>`
-        : signedIn
-          ? `<a href="checkout.html" class="btn-checkout">${t('proceed')} <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>`
-          : `<a href="login.html?next=checkout.html" class="btn-checkout" aria-describedby="cartCheckoutNote">${t('sign_in_to_checkout')} <i class="fa-solid fa-lock" aria-hidden="true"></i></a>`}
+        : `<a href="checkout.html" class="btn-checkout"${signedIn ? '' : ' aria-describedby="cartCheckoutNote"'}>${t('proceed')} <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>`}
       <a href="categories.html" class="cart-continue-link"><i class="fa-solid fa-arrow-left"></i> ${t('continue_shopping')}</a>
     </div>`;
 

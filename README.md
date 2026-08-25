@@ -7,8 +7,8 @@ AM MARKET is a customer-facing e-commerce storefront backed by a secure Node.js 
 - Real registration, login, logout, current-session, password change, and one-time password reset.
 - Secure `HttpOnly`, `Secure`, `SameSite=Lax` session cookies with rotation, expiration, CSRF protection, and exact-origin checks.
 - Customer profiles, synchronized language/theme/notification preferences, and multiple owned delivery addresses.
-- Persistent authenticated carts and wishlists, with safe guest-cart/wishlist merge after sign-in.
-- Server-priced, transactional, idempotent checkout with immutable order/address/product snapshots.
+- Local guest carts and wishlists plus persistent account versions, with an explicit, non-destructive merge choice after sign-in.
+- Genuine guest and authenticated checkout, both server-priced, transactional and idempotent with immutable order/address/product snapshots.
 - Order history, cancellation, tracking events, return requests, and customer notifications.
 - Product ratings and reviews with ownership enforcement and verified-purchase markers.
 - Autocomplete, recent searches, recently viewed products, and personalized recommendations.
@@ -17,7 +17,7 @@ AM MARKET is a customer-facing e-commerce storefront backed by a secure Node.js 
 
 ## Architecture
 
-The browser calls only the same-origin `/api/v1` service. Authentication credentials never enter Web Storage; only guest cart/wishlist product IDs and non-sensitive display preferences may be cached locally. The backend validates every customer input and derives ownership from the authenticated session.
+The browser calls only the same-origin `/api/v1` service. Account authentication credentials never enter Web Storage. Guest cart/wishlist snapshots and the server-issued, expiring bearer token for the latest guest-order confirmation may be retained in that tab's session storage; the server stores only token and idempotency digests. The backend validates every customer input, derives account ownership from the authenticated session, and requires the separate bearer token for access to a guest order.
 
 The MySQL schema and migrations are in `server/src/db/migrations/`. It covers users, preferences, addresses, sessions, password resets, cart, wishlist, orders, tracking, cancellations, returns, reviews, activity history, notifications, low-stock subscriptions, recommendations, and outbox events.
 
@@ -61,7 +61,7 @@ Generate and trust the local HTTPS certificate, apply migrations, and start the 
 
 Open [https://localhost:3443](https://localhost:3443). Requests to `http://localhost:3000` are redirected with HTTP 308. The backend intentionally serves only the allowlisted customer pages and static asset directories.
 
-A plain static preview can still browse the public product and category catalog: customer pages try the same-origin `/api/v1/catalog` proxy first, then fall back to the allowlisted read-only `https://api.mmarket.ma/api` catalog when that route is unavailable. Registration, authenticated carts, checkout, orders, reviews, and other account features still require the Node application, so use `https://localhost:3443` for full end-to-end development.
+A plain static preview can still browse the public product and category catalog: customer pages try the same-origin `/api/v1/catalog` proxy first, then fall back to the allowlisted read-only `https://api.mmarket.ma/api` catalog when that route is unavailable. Guest order creation, registration, authenticated carts, checkout, orders, reviews, and other database-backed features require the Node application, so use `https://localhost:3443` for full end-to-end development.
 
 ## Password-reset email
 
@@ -95,6 +95,7 @@ Database details and invariants are documented in `server/docs/database.md`.
 ## External-service boundaries
 
 - Card entry is disabled until a PCI-compliant payment provider is connected; the application never collects card details itself.
+- Guest order detail and tracking require the server-issued token retained by the current tab and remain available only until its configured expiry (30 days by default); closing the tab can end local access sooner. Guest cancellation, returns and cross-device history require a customer account or support workflow.
 - Password-reset delivery requires production SMTP credentials.
-- Low-stock evaluation is exact only when the upstream product payload includes `stock_quantity`.
+- Finite inventory reservation and low-stock evaluation are exact only when the upstream product payload includes `stock_quantity`; availability-only products remain orderable but cannot have a mathematical oversell guarantee without an upstream quantity.
 - Carrier-specific tracking locations and delivery progress require the configured fulfillment integration to send authenticated status updates.

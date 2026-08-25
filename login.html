@@ -43,10 +43,28 @@
     <section class="auth-form-side" aria-label="Account access" data-i18n-aria="account_access">
       <div class="auth-form-stack">
         <div class="auth-context" id="checkoutAuthContext" role="note" hidden>
-          <i class="fa-solid fa-lock" aria-hidden="true"></i>
-          <span data-auth-copy="checkoutPrompt">Sign in or create an account to continue to secure checkout. Your cart is saved.</span>
+          <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+          <div>
+            <span data-auth-copy="checkoutPrompt">An account is optional. Sign in to save this order to your history, or continue checkout as a guest.</span>
+            <a class="auth-context-link" id="continueGuestLink" href="checkout.html" data-auth-copy="continueGuest">Continue as Guest</a>
+          </div>
         </div>
         <div class="auth-alert" id="authAlert" role="alert" aria-live="assertive" tabindex="-1" hidden></div>
+
+        <section class="guest-merge" id="guestMergePanel" aria-labelledby="guestMergeTitle" aria-describedby="guestMergeSummary guestMergeNote" tabindex="-1" hidden>
+          <div class="guest-merge-icon" aria-hidden="true"><i class="fa-solid fa-basket-shopping"></i></div>
+          <h2 id="guestMergeTitle" data-auth-copy="mergeTitle">Keep your shopping together?</h2>
+          <p class="guest-merge-summary" id="guestMergeSummary"></p>
+          <p class="guest-merge-note" id="guestMergeNote" data-auth-copy="mergeNote">Choose whether to add this browser's guest items to your account. Nothing is removed unless the merge is confirmed.</p>
+          <div class="guest-merge-actions">
+            <button class="btn-submit guest-merge-primary" id="mergeGuestBtn" type="button">
+              <i class="auth-spinner fa-solid fa-circle-notch fa-spin" aria-hidden="true" hidden></i>
+              <span data-auth-copy="mergeAction">Merge shopping</span>
+            </button>
+            <button class="guest-merge-secondary" id="keepGuestBtn" type="button" data-auth-copy="keepSeparate">Keep separate</button>
+            <button class="guest-merge-continue" id="continueAfterAuthBtn" type="button" data-auth-copy="continueAfterAuth" hidden>Continue</button>
+          </div>
+        </section>
 
         <div class="form-box anim" id="loginBox" data-auth-panel="login">
           <h2 id="loginTitle" tabindex="-1" data-i18n="sign_in_h">Sign In</h2>

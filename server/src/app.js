@@ -28,6 +28,7 @@ import { errorHandler, notFoundHandler } from './http/error-handler.js';
 import { forbidden } from './http/errors.js';
 import { createFulfillmentRouter } from './integrations/fulfillment-routes.js';
 import { logger } from './logger.js';
+import { createGuestOrdersRouter } from './orders/guest-routes.js';
 import { createOrdersRouter, createReturnsRouter } from './orders/routes.js';
 import { requireCsrf } from './security/csrf.js';
 import { requireTrustedOrigin } from './security/origin.js';
@@ -78,7 +79,7 @@ function exactCors(req, callback) {
     origin,
     credentials: true,
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'X-CSRF-Token', 'Idempotency-Key'],
+    allowedHeaders: ['Content-Type', 'X-CSRF-Token', 'Idempotency-Key', 'X-Guest-Order-Token'],
     exposedHeaders: ['X-Request-Id', 'RateLimit', 'RateLimit-Policy', 'Retry-After'],
     maxAge: 600
   });
@@ -146,7 +147,7 @@ export function createApp({
       res.setHeader('X-Request-Id', id);
       return id;
     },
-    redact: ['req.headers.cookie', 'req.headers.authorization', 'req.headers.x-csrf-token', 'req.headers.idempotency-key', 'req.headers.x-am-fulfillment-signature', 'res.headers.set-cookie', 'req.body.password', 'req.body.currentPassword', 'req.body.newPassword', 'req.body.token']
+    redact: ['req.headers.cookie', 'req.headers.authorization', 'req.headers.x-csrf-token', 'req.headers.idempotency-key', 'req.headers.x-guest-order-token', 'req.headers.x-am-fulfillment-signature', 'res.headers.set-cookie', 'req.body.password', 'req.body.currentPassword', 'req.body.newPassword', 'req.body.token']
   }));
   app.use(securityHeaders());
   app.use(enforceProxyHttps);
@@ -168,6 +169,7 @@ export function createApp({
   app.use('/api/v1/me/low-stock-subscriptions', createLowStockSubscriptionsRouter(catalog));
   app.use('/api/v1/cart', createCartRouter(catalog));
   app.use('/api/v1/wishlist', createWishlistRouter(catalog));
+  app.use('/api/v1/guest-orders', createGuestOrdersRouter(catalog, { database }));
   app.use('/api/v1/orders', createOrdersRouter(catalog));
   app.use('/api/v1/returns', createReturnsRouter());
   app.use('/api/v1/catalog/products/:productId/reviews', createProductReviewsRouter(catalog));

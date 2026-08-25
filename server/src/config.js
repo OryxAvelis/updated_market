@@ -56,6 +56,11 @@ const schema = z.object({
   PASSWORD_RESET_TTL_MINUTES: z.coerce.number().int().min(5).max(120).default(20),
   PASSWORD_RESET_URL: z.string().url().default('https://localhost:3443/reset-password.html'),
 
+  GUEST_CHECKOUT_CREDENTIAL_TTL_MINUTES: z.coerce.number().int().min(5).max(120).default(30),
+  GUEST_ORDER_ACCESS_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),
+  GUEST_CHECKOUT_LEASE_SECONDS: z.coerce.number().int().min(10).max(120).default(30),
+  GUEST_CHECKOUT_WAIT_MS: z.coerce.number().int().min(250).max(30000).default(10000),
+
   CATALOG_API_ORIGIN: z.string().url().default('https://api.mmarket.ma'),
   CATALOG_API_BASE_URL: z.string().url().default('https://api.mmarket.ma/api'),
   CATALOG_TIMEOUT_MS: z.coerce.number().int().min(500).max(30000).default(8000),
@@ -193,6 +198,12 @@ export const config = Object.freeze({
     sessionIdleMs: env.SESSION_IDLE_HOURS * 60 * 60 * 1000,
     resetTtlMs: env.PASSWORD_RESET_TTL_MINUTES * 60 * 1000,
     resetUrl: env.PASSWORD_RESET_URL
+  },
+  guestCheckout: {
+    credentialTtlMs: env.GUEST_CHECKOUT_CREDENTIAL_TTL_MINUTES * 60 * 1000,
+    orderAccessTtlMs: env.GUEST_ORDER_ACCESS_TTL_DAYS * 24 * 60 * 60 * 1000,
+    leaseMs: env.GUEST_CHECKOUT_LEASE_SECONDS * 1000,
+    waitMs: env.GUEST_CHECKOUT_WAIT_MS
   },
   catalog: {
     origin: new URL(env.CATALOG_API_ORIGIN).origin,

@@ -17,9 +17,10 @@
       secureAccount: 'Secure account sessions',
       loginSubtitle: 'Good to see you again.',
       signupSubtitle: 'Join AM Market in less than a minute.',
-      checkoutPrompt: 'Sign in or create an account to continue to secure checkout. Your cart is saved.',
-      checkoutBrandTitle: 'Complete your order',
-      checkoutBrandText: 'Sign in or create an account, then we’ll return you to checkout with your cart ready.',
+      checkoutPrompt: 'An account is optional. Sign in to save this order to your history, or continue checkout as a guest.',
+      checkoutBrandTitle: 'Checkout your way',
+      checkoutBrandText: 'Continue as a guest, or sign in for saved order history and an easier return visit.',
+      continueGuest: 'Continue as Guest',
       backToCart: 'Back to cart',
       passwordPlaceholder: 'Password',
       passwordRule: 'Use 12–128 characters.',
@@ -40,6 +41,22 @@
       loginSuccess: 'Signed in securely. Taking you to the store…',
       registerSuccess: 'Your account is ready. Taking you to the store…',
       mergeWarning: 'You are signed in. Some guest items could not be synchronized and remain saved in this browser.',
+      mergeTitle: 'Keep your shopping together?',
+      mergeSummary: '{cart} cart product(s) and {wishlist} saved item(s) are stored in this browser.',
+      mergePendingSummary: '{cart} cart product(s), {wishlist} saved item(s), and an unfinished cart merge are stored in this browser.',
+      mergeNote: "Choose whether to add this browser's guest items to your account. Nothing is removed unless the merge is confirmed.",
+      mergeAction: 'Merge shopping',
+      retryMerge: 'Retry merge',
+      keepSeparate: 'Keep separate',
+      continueAfterAuth: 'Continue',
+      continueGuestCheckout: 'Sign out & continue guest checkout',
+      mergeWorking: 'Merging your guest shopping securely…',
+      mergeSuccess: 'Your guest cart and saved items are now in your account. No duplicate products were created.',
+      keptSeparate: 'Your guest cart and saved items remain in this browser and were not added to this account.',
+      keptSeparateCheckout: 'Your guest cart remains separate and intact. Sign out below to continue this guest checkout; your account cart will not replace it.',
+      signingOutGuest: 'Signing out so you can continue this guest checkout…',
+      signOutGuestFailed: 'We could not sign out safely. Your guest cart is still intact; try again.',
+      guestDataUnreadable: 'Some guest shopping data could not be read. It remains stored in this browser and was not removed.',
       resetSent: 'If an account exists for that email, a secure reset link will be sent shortly.',
       accountDeactivated: 'Your account has been deactivated. You are now signed out.',
       accountDeleted: 'Your account has been permanently deleted. You are now signed out.',
@@ -49,9 +66,10 @@
       secureAccount: 'Sessions de compte sécurisées',
       loginSubtitle: 'Ravi de vous revoir.',
       signupSubtitle: 'Rejoignez AM Market en moins d’une minute.',
-      checkoutPrompt: 'Connectez-vous ou créez un compte pour continuer vers la commande sécurisée. Votre panier est conservé.',
-      checkoutBrandTitle: 'Finalisez votre commande',
-      checkoutBrandText: 'Connectez-vous ou créez un compte, puis nous vous ramènerons à la commande avec votre panier.',
+      checkoutPrompt: 'Le compte est facultatif. Connectez-vous pour enregistrer cette commande dans votre historique, ou continuez en invité.',
+      checkoutBrandTitle: 'Commandez à votre façon',
+      checkoutBrandText: 'Continuez en invité, ou connectez-vous pour enregistrer vos commandes et faciliter votre prochaine visite.',
+      continueGuest: 'Continuer en invité',
       backToCart: 'Retour au panier',
       passwordPlaceholder: 'Mot de passe',
       passwordRule: 'Utilisez entre 12 et 128 caractères.',
@@ -72,6 +90,22 @@
       loginSuccess: 'Connexion sécurisée réussie. Redirection vers la boutique…',
       registerSuccess: 'Votre compte est prêt. Redirection vers la boutique…',
       mergeWarning: 'Vous êtes connecté. Certains articles invités n’ont pas pu être synchronisés et restent enregistrés dans ce navigateur.',
+      mergeTitle: 'Regrouper vos achats ?',
+      mergeSummary: '{cart} produit(s) dans le panier et {wishlist} favori(s) sont enregistrés dans ce navigateur.',
+      mergePendingSummary: '{cart} produit(s) dans le panier, {wishlist} favori(s) et une fusion inachevée sont enregistrés dans ce navigateur.',
+      mergeNote: 'Choisissez si vous souhaitez ajouter les articles invités de ce navigateur à votre compte. Rien ne sera supprimé sans confirmation de la fusion.',
+      mergeAction: 'Fusionner mes achats',
+      retryMerge: 'Réessayer la fusion',
+      keepSeparate: 'Garder séparément',
+      continueAfterAuth: 'Continuer',
+      continueGuestCheckout: 'Se déconnecter et continuer en invité',
+      mergeWorking: 'Fusion sécurisée de vos achats invités…',
+      mergeSuccess: 'Votre panier invité et vos favoris sont maintenant dans votre compte. Aucun produit en double n’a été créé.',
+      keptSeparate: 'Votre panier invité et vos favoris restent dans ce navigateur et n’ont pas été ajoutés à ce compte.',
+      keptSeparateCheckout: 'Votre panier invité reste séparé et intact. Déconnectez-vous ci-dessous pour poursuivre cette commande invitée ; le panier du compte ne le remplacera pas.',
+      signingOutGuest: 'Déconnexion pour poursuivre cette commande invitée…',
+      signOutGuestFailed: 'La déconnexion sécurisée a échoué. Votre panier invité est toujours intact ; réessayez.',
+      guestDataUnreadable: 'Certaines données d’achat invité sont illisibles. Elles restent enregistrées dans ce navigateur et n’ont pas été supprimées.',
       resetSent: 'Si un compte correspond à cette adresse, un lien sécurisé sera envoyé sous peu.',
       accountDeactivated: 'Votre compte a été désactivé. Vous êtes maintenant déconnecté.',
       accountDeleted: 'Votre compte a été supprimé définitivement. Vous êtes maintenant déconnecté.',
@@ -90,6 +124,9 @@
 
   let currentMode = 'login';
   let authBusy = false;
+  let activeGuestMergeState = null;
+  let postAuthContinuation = 'authenticated';
+  let activeAuthenticatedUserId = '';
 
   function safeNextPage() {
     const candidate = new URLSearchParams(location.search).get('next') || '';
@@ -113,6 +150,13 @@
 
   function copy(key) {
     return currentCopy()[key] || AUTH_COPY.en[key] || key;
+  }
+
+  function formattedCopy(key, values = {}) {
+    return Object.entries(values).reduce(
+      (message, [name, value]) => message.replaceAll(`{${name}}`, String(value)),
+      copy(key)
+    );
   }
 
   function applyLocalCopy(root = document) {
@@ -321,6 +365,32 @@
     }
   }
 
+  function guestShoppingState() {
+    const cartState = guestCart();
+    const wishlistState = guestWishlist();
+    const unresolvedCart = hasCartMergeAttempt();
+    const cartProducts = cartState.valid ? cartState.items.length : 0;
+    const wishlistItems = wishlistState.valid ? wishlistState.items.length : 0;
+    return {
+      cart: cartState,
+      wishlist: wishlistState,
+      unresolvedCart,
+      cartProducts,
+      wishlistItems,
+      hasMergeable: cartProducts > 0 || wishlistItems > 0 || unresolvedCart,
+      hasInvalid: (cartState.present && !cartState.valid) || (wishlistState.present && !wishlistState.valid)
+    };
+  }
+
+  function confirmedWishlistIds(payload, requested) {
+    if (!Array.isArray(payload?.items)) return null;
+    const confirmed = new Set(payload.items.map((item) => {
+      if (item && typeof item === 'object') return String(item.productId ?? '').trim();
+      return String(item ?? '').trim();
+    }).filter(id => PRODUCT_ID_PATTERN.test(id)));
+    return requested.filter(id => confirmed.has(String(id)));
+  }
+
   function canonicalCartItems(items) {
     return items.map(item => ({ productId: String(item.productId), quantity: Number(item.quantity) }))
       .sort((left, right) => left.productId.localeCompare(right.productId));
@@ -489,10 +559,16 @@
     let failures = Number(wish.present && !wish.valid);
 
     jobs.push(mergeGuestCartSafely().then(ok => { if (!ok) failures += 1; }));
-    if (wish.present && wish.valid) {
+    if (wish.present && wish.valid && wish.items.length) {
       jobs.push(StoreAPI.wishlist.mergeGuest({ items: wish.items })
-        .then(() => {
-          if (!subtractMergedGuestWishlist(wish.items)) failures += 1;
+        .then((payload) => {
+          const confirmed = confirmedWishlistIds(payload, wish.items);
+          if (!confirmed) {
+            failures += 1;
+            return;
+          }
+          if (confirmed.length && !subtractMergedGuestWishlist(confirmed)) failures += 1;
+          if (confirmed.length !== wish.items.length) failures += 1;
         })
         .catch(() => { failures += 1; }));
     }
@@ -501,7 +577,99 @@
     return failures;
   }
 
-  async function completeAuthentication(kind) {
+  function guestMergeSummary(state = activeGuestMergeState || guestShoppingState()) {
+    return formattedCopy(state.unresolvedCart ? 'mergePendingSummary' : 'mergeSummary', {
+      cart: state.cartProducts,
+      wishlist: state.wishlistItems
+    });
+  }
+
+  function broadcastSignedOut(userId = activeAuthenticatedUserId) {
+    if (typeof globalThis.BroadcastChannel !== 'function') return false;
+    const normalizedUserId = String(userId || '').trim();
+    let channel;
+    try {
+      channel = new globalThis.BroadcastChannel(AUTH_STATE_CHANNEL);
+      channel.postMessage({
+        version: 1,
+        type: normalizedUserId ? 'signed-out' : 'session-invalidated',
+        reason: 'logout',
+        ...(normalizedUserId ? { userId: normalizedUserId } : {})
+      });
+      globalThis.setTimeout(() => {
+        try { channel.close(); } catch { /* Best effort. */ }
+      }, 0);
+      return true;
+    } catch (error) {
+      try { channel?.close(); } catch { /* Best effort. */ }
+      console.warn('[AM MARKET auth] Could not notify other tabs about sign-out', error);
+      return false;
+    }
+  }
+
+  function renderGuestMergeSummary(state = activeGuestMergeState || guestShoppingState()) {
+    activeGuestMergeState = state;
+    const summary = $('guestMergeSummary');
+    if (summary) summary.textContent = guestMergeSummary(state);
+  }
+
+  function setGuestMergePending(pending) {
+    const mergeButton = $('mergeGuestBtn');
+    const keepButton = $('keepGuestBtn');
+    if (mergeButton) {
+      mergeButton.disabled = pending;
+      mergeButton.toggleAttribute('aria-busy', pending);
+      const spinner = mergeButton.querySelector('.auth-spinner');
+      if (spinner) spinner.hidden = !pending;
+    }
+    if (keepButton) keepButton.disabled = pending;
+  }
+
+  function showGuestMergeChoice(kind, state) {
+    activeGuestMergeState = state;
+    postAuthContinuation = 'authenticated';
+    if ($('checkoutAuthContext')) $('checkoutAuthContext').hidden = true;
+    document.querySelectorAll('[data-auth-panel]').forEach((panel) => {
+      panel.hidden = true;
+      panel.setAttribute('aria-hidden', 'true');
+    });
+    const panel = $('guestMergePanel');
+    panel.hidden = false;
+    panel.dataset.authKind = kind;
+    const mergeButton = $('mergeGuestBtn');
+    const mergeLabel = mergeButton?.querySelector('[data-auth-copy]');
+    if (mergeLabel) mergeLabel.dataset.authCopy = 'mergeAction';
+    if (mergeButton) mergeButton.hidden = !state.hasMergeable;
+    if ($('keepGuestBtn')) $('keepGuestBtn').hidden = false;
+    if ($('continueAfterAuthBtn')) $('continueAfterAuthBtn').hidden = true;
+    setGuestMergePending(false);
+    renderGuestMergeSummary(state);
+    if (state.hasInvalid) showCopyAlert('guestDataUnreadable', 'warning');
+    else hideAlert();
+    applyLocalCopy(panel);
+    requestAnimationFrame(() => panel.focus({ preventScroll: true }));
+  }
+
+  function finishGuestMergeChoice(messageKey, type, { continuation = 'authenticated' } = {}) {
+    postAuthContinuation = continuation;
+    showCopyAlert(messageKey, type, true);
+    const mergeButton = $('mergeGuestBtn');
+    const keepButton = $('keepGuestBtn');
+    if (mergeButton) mergeButton.hidden = true;
+    if (keepButton) keepButton.hidden = true;
+    const continueButton = $('continueAfterAuthBtn');
+    if (continueButton) {
+      continueButton.dataset.authCopy = continuation === 'guest' ? 'continueGuestCheckout' : 'continueAfterAuth';
+      applyLocalCopy(continueButton);
+      continueButton.hidden = false;
+      requestAnimationFrame(() => continueButton.focus({ preventScroll: true }));
+    }
+  }
+
+  async function acceptGuestMerge() {
+    if ($('mergeGuestBtn')?.disabled) return false;
+    setGuestMergePending(true);
+    showCopyAlert('mergeWorking', 'success');
     let failures = 0;
     try {
       failures = await mergeGuestShopping();
@@ -511,9 +679,77 @@
     } finally {
       broadcastGuestCommerceChanged();
     }
-    if (failures) showCopyAlert('mergeWarning', 'warning', true);
-    else showCopyAlert(kind === 'register' ? 'registerSuccess' : 'loginSuccess', 'success', true);
-    globalThis.setTimeout(() => location.replace(safeNextPage()), failures ? 1600 : 700);
+
+    const remaining = guestShoppingState();
+    renderGuestMergeSummary(remaining);
+    setGuestMergePending(false);
+    if (!failures && !remaining.hasMergeable && !remaining.hasInvalid) {
+      finishGuestMergeChoice('mergeSuccess', 'success');
+      return true;
+    }
+
+    const mergeButton = $('mergeGuestBtn');
+    const mergeLabel = mergeButton?.querySelector('[data-auth-copy]');
+    if (mergeLabel) {
+      mergeLabel.dataset.authCopy = 'retryMerge';
+      applyLocalCopy(mergeButton);
+    }
+    if (mergeButton) mergeButton.hidden = !remaining.hasMergeable;
+    showCopyAlert(remaining.hasInvalid && !remaining.hasMergeable ? 'guestDataUnreadable' : 'mergeWarning', 'warning', true);
+    return false;
+  }
+
+  function keepGuestShoppingSeparate() {
+    const checkoutIntent = isCheckoutIntent();
+    finishGuestMergeChoice(checkoutIntent ? 'keptSeparateCheckout' : 'keptSeparate', 'success', {
+      continuation: checkoutIntent ? 'guest' : 'authenticated'
+    });
+    return true;
+  }
+
+  async function continueAfterAuthentication() {
+    if (postAuthContinuation !== 'guest') {
+      location.replace(safeNextPage());
+      return true;
+    }
+
+    const button = $('continueAfterAuthBtn');
+    if (button?.disabled) return false;
+    if (button) {
+      button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
+    }
+    showCopyAlert('signingOutGuest', 'success', true);
+    try {
+      await withAuthSessionLock(async () => {
+        await StoreAPI.auth.logout();
+        broadcastSignedOut();
+      });
+      location.replace('checkout.html');
+      return true;
+    } catch (error) {
+      console.error('[AM MARKET auth] Could not leave the account session for guest checkout', error);
+      showCopyAlert('signOutGuestFailed', 'warning', true);
+      return false;
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.removeAttribute('aria-busy');
+      }
+    }
+  }
+
+  async function completeAuthentication(kind, userId = '') {
+    activeAuthenticatedUserId = String(userId || activeAuthenticatedUserId || '').trim();
+    const state = guestShoppingState();
+    if (state.hasMergeable || state.hasInvalid) {
+      showGuestMergeChoice(kind, state);
+      return 'choice';
+    }
+    if ($('checkoutAuthContext')) $('checkoutAuthContext').hidden = true;
+    showCopyAlert(kind === 'register' ? 'registerSuccess' : 'loginSuccess', 'success', true);
+    globalThis.setTimeout(() => location.replace(safeNextPage()), 900);
+    return 'redirect';
   }
 
   async function submitLogin(event) {
@@ -535,7 +771,7 @@
       await withAuthSessionLock(async () => {
         const result = await StoreAPI.auth.login({ email, password });
         broadcastAccountChanged(result?.user?.id);
-        await completeAuthentication('login');
+        await completeAuthentication('login', result?.user?.id);
       });
       completed = true;
     } catch (error) {
@@ -568,7 +804,7 @@
       await withAuthSessionLock(async () => {
         const result = await StoreAPI.auth.register({ displayName, email, password, language: getLang() });
         broadcastAccountChanged(result?.user?.id);
-        await completeAuthentication('register');
+        await completeAuthentication('register', result?.user?.id);
       });
       completed = true;
     } catch (error) {
@@ -649,6 +885,7 @@
     applyLocalCopy();
     setBrand(currentMode);
     applyCheckoutIntent();
+    if (activeGuestMergeState && !$('guestMergePanel')?.hidden) renderGuestMergeSummary(activeGuestMergeState);
     const alert = $('authAlert');
     if (!alert.hidden) {
       const key = alert.dataset.authAlertKey;
@@ -667,7 +904,10 @@
   function applyCheckoutIntent() {
     const checkoutIntent = isCheckoutIntent();
     const context = $('checkoutAuthContext');
-    if (context) context.hidden = !checkoutIntent;
+    const mergeChoiceVisible = activeGuestMergeState && !$('guestMergePanel')?.hidden;
+    if (context) context.hidden = !checkoutIntent || Boolean(mergeChoiceVisible);
+    const continueGuestLink = $('continueGuestLink');
+    if (continueGuestLink) continueGuestLink.href = 'checkout.html';
     const backLink = $('authBackLink');
     const backLabel = $('authBackLabel');
     if (backLink) backLink.href = checkoutIntent ? 'cart.html' : 'index.html';
@@ -692,6 +932,9 @@
     $('loginForm').addEventListener('submit', submitLogin);
     $('signupForm').addEventListener('submit', submitSignup);
     $('forgotForm').addEventListener('submit', submitForgot);
+    $('mergeGuestBtn').addEventListener('click', acceptGuestMerge);
+    $('keepGuestBtn').addEventListener('click', keepGuestShoppingSeparate);
+    $('continueAfterAuthBtn').addEventListener('click', continueAfterAuthentication);
 
     const loginForm = $('loginForm');
     setPending(loginForm, true);
@@ -701,7 +944,7 @@
       if (session?.authenticated) {
         redirecting = true;
         broadcastAccountChanged(session.user?.id);
-        await completeAuthentication('login');
+        await completeAuthentication('login', session.user?.id);
       }
     })
       .then(() => {

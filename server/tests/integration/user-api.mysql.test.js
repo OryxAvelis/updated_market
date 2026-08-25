@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from '../../src/app.js';
@@ -23,6 +23,8 @@ const changedPassword = 'AM-changed-password-2026';
 const fulfillmentSecret = 'integration-fulfillment-secret-that-is-longer-than-32-bytes';
 const trackedEmails = new Set();
 const trackedProductIds = new Set();
+const trackedGuestOrderIds = new Set();
+const trackedGuestTokens = new Set();
 let databaseReady = false;
 
 function testApp(products = []) {
@@ -66,6 +68,18 @@ async function csrfFor(agent) {
   return response.body.csrfToken;
 }
 
+async function issueGuestAccess(agent, csrfToken) {
+  const response = await agent
+    .post('/api/v1/guest-orders/access')
+    .set('Origin', origin)
+    .set('X-CSRF-Token', csrfToken);
+  if (response.status !== 201 || typeof response.body.access?.token !== 'string') {
+    throw new Error(`Guest checkout access issuance failed with HTTP ${response.status}.`);
+  }
+  trackedGuestTokens.add(response.body.access.token);
+  return response.body.access;
+}
+
 async function register(agent, email, displayName = 'Integration Customer') {
   const csrfToken = await csrfFor(agent);
   const response = await agent
@@ -95,6 +109,26 @@ function addressPayload(label = 'Home') {
   };
 }
 
+function guestOrderPayload(productId, overrides = {}) {
+  return {
+    items: [{ productId, quantity: overrides.quantity ?? 1 }],
+    delivery: {
+      recipientName: overrides.recipientName || 'Guest Integration Customer',
+      phone: '+212612345678',
+      email: overrides.email || 'guest-integration@example.test',
+      addressLine1: '10 Guest Integration Street',
+      addressLine2: null,
+      district: 'Maarif',
+      city: 'Casablanca',
+      postalCode: '20000',
+      country: 'MA',
+      deliveryInstructions: null
+    },
+    paymentMethod: 'cod',
+    note: null
+  };
+}
+
 function cartMergeKey() {
   return `am1.${Date.now().toString(36)}.${randomUUID()}`;
 }
@@ -110,7 +144,15 @@ databaseDescribe('user API with MySQL', () => {
 
   afterAll(async () => {
     try {
-      if (databaseReady) await cleanupIntegrationData(pool, trackedEmails, trackedProductIds);
+      if (databaseReady) {
+        await cleanupIntegrationData(
+          pool,
+          trackedEmails,
+          trackedProductIds,
+          trackedGuestOrderIds,
+          trackedGuestTokens
+        );
+      }
     } finally {
       await pool?.end();
     }
@@ -474,6 +516,494 @@ databaseDescribe('user API with MySQL', () => {
     expect(tracking.status).toBe(200);
     expect(tracking.body.status).toBe('cancelled');
     expect(tracking.body.events.map((event) => event.status)).toEqual(['confirmed', 'cancelled']);
+  }, 60_000);
+
+  it('creates and privately retrieves an idempotent server-priced guest order', async () => {
+    const product = uniqueProduct('guest-checkout', trackedProductIds, {
+      price: '45.00',
+      stock_quantity: 10
+    });
+    const { app, catalog } = testApp([product]);
+    const guest = request.agent(app);
+    const csrfToken = await csrfFor(guest);
+    const missingOriginAccess = await guest
+      .post('/api/v1/guest-orders/access')
+      .set('X-CSRF-Token', csrfToken);
+    expect(missingOriginAccess.status).toBe(403);
+    expect(missingOriginAccess.body.error.code).toBe('ORIGIN_REJECTED');
+
+    const missingCsrfAccess = await guest
+      .post('/api/v1/guest-orders/access')
+      .set('Origin', origin);
+    expect(missingCsrfAccess.status).toBe(403);
+    expect(missingCsrfAccess.body.error.code).toBe('CSRF_INVALID');
+
+    const access = await issueGuestAccess(guest, csrfToken);
+    expect(access.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(access.idempotencyKey).toMatch(/^[a-f0-9-]{36}$/);
+    expect(Date.parse(access.expiresAt)).toBeGreaterThan(Date.now());
+    const guestToken = access.token;
+    const idempotencyKey = access.idempotencyKey;
+    const body = {
+      items: [{ productId: product.id, quantity: 2 }],
+      delivery: {
+        recipientName: 'Guest Customer',
+        phone: '+212612345678',
+        email: 'guest-checkout@example.test',
+        addressLine1: '10 Guest Checkout Street',
+        addressLine2: null,
+        district: 'Maarif',
+        city: 'Casablanca',
+        postalCode: '20000',
+        country: 'MA',
+        deliveryInstructions: 'Ring once'
+      },
+      paymentMethod: 'cod',
+      note: 'Leave at reception'
+    };
+
+    const missingOrigin = await guest
+      .post('/api/v1/guest-orders')
+      .set('X-CSRF-Token', csrfToken)
+      .set('Idempotency-Key', `missing-origin-${randomUUID()}`)
+      .set('X-Guest-Order-Token', randomBytes(32).toString('base64url'))
+      .send(body);
+    expect(missingOrigin.status).toBe(403);
+    expect(missingOrigin.body.error.code).toBe('ORIGIN_REJECTED');
+
+    const missingCsrf = await guest
+      .post('/api/v1/guest-orders')
+      .set('Origin', origin)
+      .set('Idempotency-Key', `missing-csrf-${randomUUID()}`)
+      .set('X-Guest-Order-Token', randomBytes(32).toString('base64url'))
+      .send(body);
+    expect(missingCsrf.status).toBe(403);
+    expect(missingCsrf.body.error.code).toBe('CSRF_INVALID');
+
+    const missingToken = await guest
+      .post('/api/v1/guest-orders')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', csrfToken)
+      .set('Idempotency-Key', `missing-token-${randomUUID()}`)
+      .send(body);
+    expect(missingToken.status).toBe(400);
+    expect(missingToken.body.error.code).toBe('GUEST_ORDER_TOKEN_REQUIRED');
+
+    const tampered = await guest
+      .post('/api/v1/guest-orders')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', csrfToken)
+      .set('Idempotency-Key', `tampered-${randomUUID()}`)
+      .set('X-Guest-Order-Token', randomBytes(32).toString('base64url'))
+      .send({ ...body, total: '0.01' });
+    expect(tampered.status).toBe(422);
+    expect(tampered.body.error.code).toBe('VALIDATION_FAILED');
+
+    const submit = () => guest
+      .post('/api/v1/guest-orders')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', csrfToken)
+      .set('Idempotency-Key', idempotencyKey)
+      .set('X-Guest-Order-Token', guestToken)
+      .send(body);
+    const concurrent = await Promise.all([submit(), submit()]);
+    const placed = concurrent.find((response) => response.status === 201);
+    const concurrentReplay = concurrent.find((response) => response.status === 200);
+    expect(placed, JSON.stringify(concurrent.map((response) => ({
+      status: response.status,
+      error: response.body.error
+    })))).toBeDefined();
+    expect(concurrentReplay, JSON.stringify(concurrent.map((response) => ({
+      status: response.status,
+      error: response.body.error
+    })))).toBeDefined();
+    expect(placed.body).toMatchObject({
+      replayed: false,
+      order: {
+        status: 'confirmed',
+        subtotal: '90.00',
+        deliveryFee: '20.00',
+        total: '110.00',
+        address: {
+          recipientName: 'Guest Customer',
+          email: 'guest-checkout@example.test',
+          city: 'Casablanca'
+        }
+      }
+    });
+    expect(Date.parse(placed.body.order.accessExpiresAt)).toBeGreaterThan(Date.now());
+    expect(placed.body.order.items).toHaveLength(1);
+    expect(placed.body.order.items[0]).toMatchObject({
+      productId: product.id,
+      unitPrice: '45.00',
+      quantity: 2,
+      lineTotal: '90.00'
+    });
+    const orderId = placed.body.order.id;
+    trackedGuestOrderIds.add(orderId);
+    expect(concurrentReplay.body).toMatchObject({ replayed: true, order: { id: orderId } });
+
+    const replay = await submit();
+    expect(replay.status).toBe(200);
+    expect(replay.body).toMatchObject({ replayed: true, order: { id: orderId } });
+
+    const changedRequest = await guest
+      .post('/api/v1/guest-orders')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', csrfToken)
+      .set('Idempotency-Key', idempotencyKey)
+      .set('X-Guest-Order-Token', guestToken)
+      .send({ ...body, note: 'Changed after checkout' });
+    expect(changedRequest.status).toBe(409);
+    expect(changedRequest.body.error.code).toBe('GUEST_CHECKOUT_CREDENTIALS_REUSED');
+
+    const reusedToken = await guest
+      .post('/api/v1/guest-orders')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', csrfToken)
+      .set('Idempotency-Key', `new-key-${randomUUID()}`)
+      .set('X-Guest-Order-Token', guestToken)
+      .send(body);
+    expect(reusedToken.status).toBe(409);
+    expect(reusedToken.body.error.code).toBe('GUEST_CHECKOUT_CREDENTIALS_REUSED');
+
+    const reusedIdempotencyKey = await guest
+      .post('/api/v1/guest-orders')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', csrfToken)
+      .set('Idempotency-Key', idempotencyKey)
+      .set('X-Guest-Order-Token', randomBytes(32).toString('base64url'))
+      .send(body);
+    expect(reusedIdempotencyKey.status).toBe(409);
+    expect(reusedIdempotencyKey.body.error.code).toBe('GUEST_CHECKOUT_CREDENTIALS_REUSED');
+
+    const duplicateItems = await guest
+      .post('/api/v1/guest-orders')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', csrfToken)
+      .set('Idempotency-Key', `duplicate-items-${randomUUID()}`)
+      .set('X-Guest-Order-Token', randomBytes(32).toString('base64url'))
+      .send({ ...body, items: [body.items[0], body.items[0]] });
+    expect(duplicateItems.status).toBe(422);
+    expect(duplicateItems.body.error.code).toBe('VALIDATION_FAILED');
+
+    const noToken = await guest.get(`/api/v1/guest-orders/${orderId}`);
+    expect(noToken.status).toBe(404);
+    expect(noToken.body.error.code).toBe('ORDER_NOT_FOUND');
+    expect(noToken.headers['cache-control']).toBe('no-store');
+
+    const wrongToken = await guest
+      .get(`/api/v1/guest-orders/${orderId}`)
+      .set('X-Guest-Order-Token', randomBytes(32).toString('base64url'));
+    expect(wrongToken.status).toBe(404);
+    expect(wrongToken.body.error.code).toBe('ORDER_NOT_FOUND');
+
+    const detail = await guest
+      .get(`/api/v1/guest-orders/${orderId}`)
+      .set('X-Guest-Order-Token', guestToken);
+    expect(detail.status).toBe(200);
+    expect(detail.headers['cache-control']).toBe('no-store');
+    expect(detail.body.order).toMatchObject({
+      id: orderId,
+      orderNumber: placed.body.order.orderNumber,
+      address: { phone: '+212612345678' }
+    });
+
+    const privateList = await guest.get('/api/v1/orders');
+    expect(privateList.status).toBe(401);
+    expect(privateList.body.error.code).toBe('AUTH_REQUIRED');
+
+    const account = request.agent(app);
+    await register(account, uniqueEmail('guest-order-stranger', trackedEmails), 'Account Customer');
+    const foreignDetail = await account.get(`/api/v1/orders/${orderId}`);
+    expect(foreignDetail.status).toBe(404);
+    expect(foreignDetail.body.error.code).toBe('ORDER_NOT_FOUND');
+
+    const prepared = await sendFulfillmentEvent(app, {
+      type: 'order.status.updated',
+      orderId,
+      status: 'preparing'
+    });
+    expect(prepared.status).toBe(200);
+    expect(prepared.body.order).toMatchObject({ id: orderId, status: 'preparing' });
+
+    const tracking = await guest
+      .get(`/api/v1/guest-orders/${orderId}/tracking`)
+      .set('X-Guest-Order-Token', guestToken);
+    expect(tracking.status).toBe(200);
+    expect(tracking.body).toMatchObject({ orderId, status: 'preparing' });
+    expect(tracking.body.events.map((event) => event.status)).toEqual(['confirmed', 'preparing']);
+
+    const [orderRows] = await pool.execute(
+      `SELECT user_id, cart_version, guest_access_digest, guest_idempotency_digest,
+              idempotency_digest, guest_access_expires_at, guest_access_revoked_at
+         FROM orders WHERE public_id = ? LIMIT 1`,
+      [orderId]
+    );
+    expect(orderRows[0].user_id).toBeNull();
+    expect(orderRows[0].cart_version).toBeNull();
+    expect(Buffer.from(orderRows[0].guest_access_digest)).toHaveLength(32);
+    expect(Buffer.from(orderRows[0].guest_idempotency_digest).equals(
+      Buffer.from(orderRows[0].idempotency_digest)
+    )).toBe(true);
+    expect(new Date(orderRows[0].guest_access_expires_at).getTime()).toBeGreaterThan(Date.now());
+    expect(orderRows[0].guest_access_revoked_at).toBeNull();
+    const [claimRows] = await pool.execute(
+      `SELECT state, request_digest, lease_digest, order_id
+         FROM guest_checkout_claims WHERE access_digest = ? LIMIT 1`,
+      [orderRows[0].guest_access_digest]
+    );
+    expect(claimRows[0].state).toBe('completed');
+    expect(Buffer.from(claimRows[0].request_digest)).toHaveLength(32);
+    expect(claimRows[0].lease_digest).toBeNull();
+    expect(claimRows[0].order_id).toBeDefined();
+    const [inventoryRows] = await pool.execute(
+      `SELECT i.available_quantity, a.quantity, a.inventory_policy
+         FROM catalog_inventory i
+         JOIN catalog_product_refs r ON r.id = i.product_ref_id
+         JOIN order_inventory_allocations a ON a.product_ref_id = i.product_ref_id
+        WHERE r.external_id = ? AND a.order_id = ?`,
+      [product.id, claimRows[0].order_id]
+    );
+    expect(inventoryRows[0]).toMatchObject({
+      available_quantity: 8,
+      quantity: 2,
+      inventory_policy: 'finite'
+    });
+    const [notificationRows] = await pool.execute(
+      `SELECT COUNT(*) AS total FROM notifications
+        WHERE order_id = (SELECT id FROM orders WHERE public_id = ? LIMIT 1)`,
+      [orderId]
+    );
+    expect(Number(notificationRows[0].total)).toBe(0);
+
+    catalog.records.get(product.id).stock_quantity = 0;
+    const unavailableAccess = await issueGuestAccess(guest, csrfToken);
+    const unavailable = await guest
+      .post('/api/v1/guest-orders')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', csrfToken)
+      .set('Idempotency-Key', unavailableAccess.idempotencyKey)
+      .set('X-Guest-Order-Token', unavailableAccess.token)
+      .send(body);
+    expect(unavailable.status).toBe(409);
+    expect(unavailable.body.error.code).toBe('CART_CHANGED');
+    const unavailableRetry = await guest
+      .post('/api/v1/guest-orders')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', csrfToken)
+      .set('Idempotency-Key', unavailableAccess.idempotencyKey)
+      .set('X-Guest-Order-Token', unavailableAccess.token)
+      .send(body);
+    expect(unavailableRetry.status).toBe(409);
+    expect(unavailableRetry.body.error.code).toBe('CART_CHANGED');
+  }, 60_000);
+
+  it('expires and revokes guest bearer access without disclosing order PII', async () => {
+    const product = uniqueProduct('guest-access-lifecycle', trackedProductIds, {
+      price: '18.00',
+      stock_quantity: null
+    });
+    const { app } = testApp([product]);
+    const guest = request.agent(app);
+    const csrfToken = await csrfFor(guest);
+    const body = guestOrderPayload(product.id);
+
+    const availabilityAccess = await issueGuestAccess(guest, csrfToken);
+    const placed = await guest
+      .post('/api/v1/guest-orders')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', csrfToken)
+      .set('Idempotency-Key', availabilityAccess.idempotencyKey)
+      .set('X-Guest-Order-Token', availabilityAccess.token)
+      .send(body);
+    expect(placed.status).toBe(201);
+    trackedGuestOrderIds.add(placed.body.order.id);
+    const [allocationRows] = await pool.execute(
+      `SELECT a.inventory_policy, a.quantity,
+              (SELECT COUNT(*) FROM catalog_inventory i
+                WHERE i.product_ref_id = a.product_ref_id) AS finite_rows
+         FROM order_inventory_allocations a
+         JOIN order_items oi
+           ON oi.order_id = a.order_id AND oi.product_ref_id = a.product_ref_id
+        WHERE oi.external_product_id = ? AND oi.order_id = (
+          SELECT id FROM orders WHERE public_id = ? LIMIT 1
+        )`,
+      [product.id, placed.body.order.id]
+    );
+    expect(allocationRows[0]).toMatchObject({
+      inventory_policy: 'availability_only',
+      quantity: 1,
+      finite_rows: 0
+    });
+
+    const revoked = await guest
+      .delete(`/api/v1/guest-orders/${placed.body.order.id}/access`)
+      .set('Origin', origin)
+      .set('X-CSRF-Token', csrfToken)
+      .set('X-Guest-Order-Token', availabilityAccess.token);
+    expect(revoked.status).toBe(204);
+    const concealedRevoked = await guest
+      .get(`/api/v1/guest-orders/${placed.body.order.id}`)
+      .set('X-Guest-Order-Token', availabilityAccess.token);
+    expect(concealedRevoked.status).toBe(404);
+    expect(concealedRevoked.body.error).toEqual({
+      code: 'ORDER_NOT_FOUND',
+      message: 'The order was not found.'
+    });
+    expect(JSON.stringify(concealedRevoked.body)).not.toContain('guest-integration@example.test');
+    const revokedReplay = await guest
+      .post('/api/v1/guest-orders')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', csrfToken)
+      .set('Idempotency-Key', availabilityAccess.idempotencyKey)
+      .set('X-Guest-Order-Token', availabilityAccess.token)
+      .send(body);
+    expect(revokedReplay.status).toBe(404);
+    expect(revokedReplay.body.error.code).toBe('ORDER_NOT_FOUND');
+
+    const expiredCredential = await issueGuestAccess(guest, csrfToken);
+    await pool.execute(
+      `UPDATE guest_checkout_claims
+          SET created_at = DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 2 DAY),
+              access_expires_at = DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 DAY)
+        WHERE access_digest = UNHEX(SHA2(?, 256))`,
+      [expiredCredential.token]
+    );
+    const expiredCredentialAttempt = await guest
+      .post('/api/v1/guest-orders')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', csrfToken)
+      .set('Idempotency-Key', expiredCredential.idempotencyKey)
+      .set('X-Guest-Order-Token', expiredCredential.token)
+      .send(body);
+    expect(expiredCredentialAttempt.status).toBe(400);
+    expect(expiredCredentialAttempt.body.error.code).toBe('GUEST_CHECKOUT_ACCESS_INVALID');
+
+    const expiringOrderAccess = await issueGuestAccess(guest, csrfToken);
+    const expiringOrder = await guest
+      .post('/api/v1/guest-orders')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', csrfToken)
+      .set('Idempotency-Key', expiringOrderAccess.idempotencyKey)
+      .set('X-Guest-Order-Token', expiringOrderAccess.token)
+      .send(body);
+    expect(expiringOrder.status).toBe(201);
+    trackedGuestOrderIds.add(expiringOrder.body.order.id);
+    await pool.execute(
+      `UPDATE orders
+          SET placed_at = DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 2 DAY),
+              guest_access_expires_at = DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 DAY)
+        WHERE public_id = ?`,
+      [expiringOrder.body.order.id]
+    );
+    const concealedExpired = await guest
+      .get(`/api/v1/guest-orders/${expiringOrder.body.order.id}`)
+      .set('X-Guest-Order-Token', expiringOrderAccess.token);
+    expect(concealedExpired.status).toBe(404);
+    expect(concealedExpired.body.error).toEqual({
+      code: 'ORDER_NOT_FOUND',
+      message: 'The order was not found.'
+    });
+    expect(JSON.stringify(concealedExpired.body)).not.toContain('guest-integration@example.test');
+  }, 60_000);
+
+  it('serializes finite guest inventory so concurrent buyers cannot oversell it', async () => {
+    const product = uniqueProduct('guest-inventory-race', trackedProductIds, {
+      price: '25.00',
+      stock_quantity: 3
+    });
+    const { app } = testApp([product]);
+    const firstGuest = request.agent(app);
+    const secondGuest = request.agent(app);
+    const firstCsrf = await csrfFor(firstGuest);
+    const secondCsrf = await csrfFor(secondGuest);
+    const firstAccess = await issueGuestAccess(firstGuest, firstCsrf);
+    const secondAccess = await issueGuestAccess(secondGuest, secondCsrf);
+    const submit = (agent, csrfToken, access, suffix) => agent
+      .post('/api/v1/guest-orders')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', csrfToken)
+      .set('Idempotency-Key', access.idempotencyKey)
+      .set('X-Guest-Order-Token', access.token)
+      .send(guestOrderPayload(product.id, {
+        quantity: 2,
+        email: `inventory-${suffix}@example.test`,
+        recipientName: `Inventory Guest ${suffix}`
+      }));
+    const responses = await Promise.all([
+      submit(firstGuest, firstCsrf, firstAccess, 'one'),
+      submit(secondGuest, secondCsrf, secondAccess, 'two')
+    ]);
+    expect(responses.map((response) => response.status).sort()).toEqual([201, 409]);
+    const winner = responses.find((response) => response.status === 201);
+    const loser = responses.find((response) => response.status === 409);
+    trackedGuestOrderIds.add(winner.body.order.id);
+    expect(loser.body.error.code).toBe('CART_CHANGED');
+    const [inventoryRows] = await pool.execute(
+      `SELECT i.available_quantity,
+              (SELECT COUNT(*) FROM order_inventory_allocations a
+                WHERE a.product_ref_id = i.product_ref_id) AS allocations
+         FROM catalog_inventory i
+         JOIN catalog_product_refs r ON r.id = i.product_ref_id
+        WHERE r.external_id = ?`,
+      [product.id]
+    );
+    expect(inventoryRows[0]).toMatchObject({ available_quantity: 1, allocations: 1 });
+  }, 60_000);
+
+  it('uses one finite inventory ledger for authenticated and guest checkout races', async () => {
+    const product = uniqueProduct('mixed-inventory-race', trackedProductIds, {
+      price: '31.00',
+      stock_quantity: 1
+    });
+    const { app } = testApp([product]);
+    const shopper = request.agent(app);
+    const account = await register(shopper, uniqueEmail('mixed-inventory', trackedEmails));
+    const address = await shopper
+      .post('/api/v1/me/addresses')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', account.csrfToken)
+      .send(addressPayload('Inventory race'));
+    await shopper
+      .post('/api/v1/cart/merge')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', account.csrfToken)
+      .set('Idempotency-Key', cartMergeKey())
+      .send({ items: [{ productId: product.id, quantity: 1 }] });
+
+    const guest = request.agent(app);
+    const guestCsrf = await csrfFor(guest);
+    const guestAccess = await issueGuestAccess(guest, guestCsrf);
+    const [accountResponse, guestResponse] = await Promise.all([
+      shopper
+        .post('/api/v1/orders')
+        .set('Origin', origin)
+        .set('X-CSRF-Token', account.csrfToken)
+        .set('Idempotency-Key', `mixed-auth-${randomUUID()}`)
+        .send({ addressId: address.body.address.id, paymentMethod: 'cod' }),
+      guest
+        .post('/api/v1/guest-orders')
+        .set('Origin', origin)
+        .set('X-CSRF-Token', guestCsrf)
+        .set('Idempotency-Key', guestAccess.idempotencyKey)
+        .set('X-Guest-Order-Token', guestAccess.token)
+        .send(guestOrderPayload(product.id))
+    ]);
+    expect([accountResponse.status, guestResponse.status].sort()).toEqual([201, 409]);
+    if (guestResponse.status === 201) trackedGuestOrderIds.add(guestResponse.body.order.id);
+    expect([accountResponse, guestResponse].find((response) => response.status === 409).body.error.code)
+      .toBe('CART_CHANGED');
+    const [ledgerRows] = await pool.execute(
+      `SELECT i.available_quantity,
+              (SELECT COUNT(*) FROM order_inventory_allocations a
+                WHERE a.product_ref_id = i.product_ref_id) AS allocations
+         FROM catalog_inventory i
+         JOIN catalog_product_refs r ON r.id = i.product_ref_id
+        WHERE r.external_id = ?`,
+      [product.id]
+    );
+    expect(ledgerRows[0]).toMatchObject({ available_quantity: 0, allocations: 1 });
   }, 60_000);
 
   it('accepts only signed fulfillment events and advances tracking transactionally and idempotently', async () => {

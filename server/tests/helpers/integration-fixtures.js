@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 export function uniqueEmail(label, trackedEmails) {
   const email = `am-market-${label}-${randomUUID()}@example.com`.toLowerCase();
@@ -71,10 +71,19 @@ function placeholders(values) {
   return values.map(() => '?').join(', ');
 }
 
-export async function cleanupIntegrationData(database, trackedEmails, trackedProductIds) {
+export async function cleanupIntegrationData(
+  database,
+  trackedEmails,
+  trackedProductIds,
+  trackedGuestOrderIds = new Set(),
+  trackedGuestTokens = new Set()
+) {
   if (!database) return;
   const emails = [...trackedEmails];
   const productIds = [...trackedProductIds];
+  const guestOrderPublicIds = [...trackedGuestOrderIds];
+  const guestAccessDigests = [...trackedGuestTokens]
+    .map((token) => createHash('sha256').update(token).digest());
   const connection = await database.getConnection();
   try {
     await connection.beginTransaction();
@@ -87,6 +96,7 @@ export async function cleanupIntegrationData(database, trackedEmails, trackedPro
       userIds = users.map((row) => row.id);
     }
 
+    let allOrderIds = [];
     if (userIds.length) {
       const userPlaceholders = placeholders(userIds);
       const [orders] = await connection.execute(
@@ -94,6 +104,7 @@ export async function cleanupIntegrationData(database, trackedEmails, trackedPro
         userIds
       );
       const orderIds = orders.map((row) => row.id);
+      allOrderIds = [...orderIds];
 
       await connection.execute(
         `DELETE ri FROM return_items ri
@@ -107,20 +118,50 @@ export async function cleanupIntegrationData(database, trackedEmails, trackedPro
       await connection.execute(`DELETE FROM notifications WHERE user_id IN (${userPlaceholders})`, userIds);
       await connection.execute(`DELETE FROM checkout_idempotency WHERE user_id IN (${userPlaceholders})`, userIds);
 
-      if (orderIds.length) {
-        await connection.execute(
-          `DELETE FROM fulfillment_webhook_events
-            WHERE order_id IN (${placeholders(orderIds)})`,
-          orderIds
-        );
-        await connection.execute(
-          `DELETE FROM outbox_events
-            WHERE aggregate_type = 'order' AND aggregate_id IN (${placeholders(orderIds)})`,
-          orderIds.map(String)
-        );
-      }
+    }
+
+    let guestOrderIds = [];
+    if (guestOrderPublicIds.length) {
+      const [guestOrders] = await connection.execute(
+        `SELECT id FROM orders
+          WHERE user_id IS NULL AND public_id IN (${placeholders(guestOrderPublicIds)})
+          FOR UPDATE`,
+        guestOrderPublicIds
+      );
+      guestOrderIds = guestOrders.map((row) => row.id);
+      allOrderIds.push(...guestOrderIds);
+    }
+
+    if (allOrderIds.length) {
+      await connection.execute(
+        `DELETE FROM fulfillment_webhook_events
+          WHERE order_id IN (${placeholders(allOrderIds)})`,
+        allOrderIds
+      );
+      await connection.execute(
+        `DELETE FROM outbox_events
+          WHERE aggregate_type = 'order' AND aggregate_id IN (${placeholders(allOrderIds)})`,
+        allOrderIds.map(String)
+      );
+    }
+    if (userIds.length) {
+      const userPlaceholders = placeholders(userIds);
       await connection.execute(`DELETE FROM orders WHERE user_id IN (${userPlaceholders})`, userIds);
       await connection.execute(`DELETE FROM users WHERE id IN (${userPlaceholders})`, userIds);
+    }
+    if (guestOrderIds.length) {
+      await connection.execute(
+        `DELETE FROM orders WHERE id IN (${placeholders(guestOrderIds)})`,
+        guestOrderIds
+      );
+    }
+
+    if (guestAccessDigests.length) {
+      await connection.execute(
+        `DELETE FROM guest_checkout_claims
+          WHERE access_digest IN (${placeholders(guestAccessDigests)})`,
+        guestAccessDigests
+      );
     }
 
     if (productIds.length) {

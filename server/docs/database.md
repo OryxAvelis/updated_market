@@ -30,11 +30,11 @@ Applied migrations are immutable. Add a new, monotonically numbered migration fo
 ## Data model
 
 - Identity: `users`, `user_preferences`, `delivery_addresses`, `auth_sessions`, and `password_reset_tokens`.
-- Catalog references: `catalog_product_refs` stores only the latest verified fields needed to relate user records to the external catalog. The external catalog remains authoritative for checkout price and availability.
+- Catalog references: `catalog_product_refs` stores the latest verified fields needed to relate user records to the external catalog. `catalog_inventory` is the serialized application allocation ledger when the upstream publishes a finite quantity; `order_inventory_allocations` records every checkout and its finite or availability-only policy.
 - Shopping: one `cart` and one `wishlist` per user, with composite-key item tables and bounded quantities.
-- Orders: immutable address and product snapshots, exact totals, tracking events, cancellations, checkout idempotency records, returns, and return items.
+- Orders: authenticated or token-owned guest orders, immutable address and product snapshots, exact totals, tracking events, cancellations, checkout idempotency records, returns, and return items.
 - Engagement: reviews and ratings, recently viewed products, normalized search history, notifications, low-stock subscriptions, and expiring recommendation snapshots.
-- Reliability: `outbox_events` records work in the same transaction as the business change so a worker can deliver notifications without losing events.
+- Reliability: `guest_checkout_claims` durably claims server-issued checkout credentials before catalog work, `rate_limit_counters` is the shared production limiter store, and `outbox_events` records work in the same transaction as the business change so a worker can deliver notifications without losing events.
 - Fulfillment: `fulfillment_webhook_events` stores a globally unique signed-event receipt and body digest so order-status webhooks are replay-safe and cannot reuse an event ID with different content.
 
 ## Important invariants
@@ -43,7 +43,10 @@ Applied migrations are immutable. Add a new, monotonically numbered migration fo
 - Raw session, CSRF, and password-reset tokens are never stored; application code persists fixed-length digests.
 - A generated-column unique key permits at most one non-deleted default delivery address per user.
 - A cart quantity and an order-item quantity are between 1 and 99.
-- Checkout idempotency keys are unique per user, and orders also retain their idempotency digest.
+- Every order has exactly one owner type: an authenticated user or a guest bearer-token digest, never both.
+- Authenticated checkout idempotency keys are unique per user. `POST /api/v1/guest-orders/access` issues a 256-bit bearer token and paired idempotency key; their digests are globally unique and the raw values are never stored in MySQL. A claim is acquired before catalog verification, leased to one worker, and completed in the same transaction as its order, so concurrent exact retries recover the committed order rather than producing a contradictory failure.
+- Unused guest checkout credentials expire after `GUEST_CHECKOUT_CREDENTIAL_TTL_MINUTES`. A completed guest order has a separate `GUEST_ORDER_ACCESS_TTL_DAYS` lookup deadline and `guest_access_revoked_at`; expired, revoked, missing, and incorrect tokens all receive the same PII-free `ORDER_NOT_FOUND` response. `DELETE /api/v1/guest-orders/:orderId/access` revokes a valid bearer immediately.
+- Finite catalog stock is reserved through a locked, monotonic `catalog_inventory` decrement shared by guest and authenticated checkout. Each decrement and its `finite` allocation audit row commits with the order, preventing oversell between concurrent AM MARKET checkouts. An upstream product with `stock_quantity = NULL` is explicitly recorded as `availability_only`: checkout remains usable, but an availability flag cannot provide a mathematical oversell guarantee. Increasing finite inventory after a trusted restock requires an explicit reconciliation process; ordinary catalog refreshes may lower but never silently replenish the application ledger.
 - Order totals must equal subtotal plus delivery fee. Order item totals are generated from exact unit price and quantity.
 - An address edit or deletion cannot change a historical order because checkout creates an immutable address snapshot.
 - A user may create at most one review/rating per product.
@@ -51,6 +54,7 @@ Applied migrations are immutable. Add a new, monotonically numbered migration fo
 - Low-stock subscriptions preserve explicit and wishlist-derived intent separately. A direct opt-out overrides automatic wishlist subscription until the customer explicitly subscribes again.
 - Low-stock alerts use a locked transition sequence and the notification dedupe key, so concurrent evaluators cannot create the same transition twice.
 - Low-stock subscriptions can be evaluated only when the upstream catalog supplies a non-negative integer `stock_quantity`. Availability alone cannot prove that inventory is low; unknown stock leaves the last observed state unchanged.
+- Guest checkout issuance, submission, and lookup use separate limits. Production always uses the MySQL `rate_limit_counters` store so limits are shared across Node instances; a store error is propagated (fail closed) instead of bypassing protection. Periodically prune expired counter rows and expired, non-completed checkout claims as routine database maintenance.
 
 See [low-stock.md](./low-stock.md) for the evaluator lifecycle, API, configuration, and catalog limitation.
 

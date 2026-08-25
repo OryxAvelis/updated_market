@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../auth/session.js';
-import { upsertProductRef } from '../catalog/refs.js';
+import { reserveOrderInventory } from '../catalog/inventory.js';
 import { databaseDateToIso, nullableDatabaseDateToIso } from '../db/date.js';
 import { conflict, notFound } from '../http/errors.js';
 import { centsToDecimal, decimalToCents, deliveryFeeCents } from '../money.js';
@@ -288,7 +288,11 @@ export function createOrdersRouter(catalog) {
       quantity: item.quantity,
       product: await catalog.getProduct(item.external_id, { refresh: true })
     })));
-    const unavailable = verified.filter(({ product, quantity }) => !product.is_available || (product.stock_quantity != null && quantity > product.stock_quantity));
+    const unavailable = verified.filter(({ product, quantity }) =>
+      !product.is_available ||
+      (product.stock_quantity != null &&
+        (!Number.isSafeInteger(product.stock_quantity) || quantity > product.stock_quantity))
+    );
     if (unavailable.length) {
       throw conflict('CART_CHANGED', 'Some cart items are unavailable. Review your cart and try again.', {
         productIds: unavailable.map(({ product }) => product.id)
@@ -352,6 +356,7 @@ export function createOrdersRouter(catalog) {
             cart.version, idempotencyDigest, bodyDigest, input.note ?? null]
         );
         const orderId = orderInsert.insertId;
+        const productRefs = await reserveOrderInventory(connection, orderId, verified);
         await connection.execute(
           `INSERT INTO order_addresses
             (order_id, source_address_public_id, recipient_name, phone_e164, email,
@@ -363,13 +368,12 @@ export function createOrdersRouter(catalog) {
         );
         for (let index = 0; index < verified.length; index += 1) {
           const { product, quantity } = verified[index];
-          const productRefId = await upsertProductRef(connection, product);
           await connection.execute(
             `INSERT INTO order_items
               (public_id, order_id, line_no, product_ref_id, external_product_id, product_name,
                product_image_url, unit_price, quantity)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [randomUUID(), orderId, index + 1, productRefId, product.id, product.name,
+            [randomUUID(), orderId, index + 1, productRefs.get(product.id), product.id, product.name,
               product.image_url || null, product.price, quantity]
           );
         }
