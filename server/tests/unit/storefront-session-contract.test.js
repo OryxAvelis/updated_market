@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const coreUrl = new URL('../../../js/core.js', import.meta.url);
 const settingsUrl = new URL('../../../js/settings.js', import.meta.url);
+const settingsMarkupUrl = new URL('../../../settings.html', import.meta.url);
 const productUrl = new URL('../../../js/product.js', import.meta.url);
 
 function storage(seed = {}) {
@@ -582,6 +583,20 @@ describe('storefront session-expiry transition', () => {
     expect(source).toContain("broadcastStoreSessionInvalidated('password-changed'");
     expect(source).toContain("completeClientSignOut('logout')");
     expect(source).toContain("completeClientSignOut('account-closed')");
+  });
+
+  it('autosaves every editable customer preference and reverts failed optimistic changes', async () => {
+    const [source, markup] = await Promise.all([
+      readFile(settingsUrl, 'utf8'),
+      readFile(settingsMarkupUrl, 'utf8')
+    ]);
+    expect(markup).not.toContain('id="savePreferencesBtn"');
+    expect(markup.match(/data-preference-key=/g)).toHaveLength(10);
+    expect(source).toContain('StoreAPI.preferences.update({ [key]: nextValue })');
+    expect(source).toContain('applyPreferenceEffects(optimistic)');
+    expect(source).toContain('applyPreferenceEffects(previous)');
+    expect(source).toContain('if (activeLanguage !== preferences.language) setLang');
+    expect(source).toContain("setPreferenceSaveStatus('settings_preferences_saved_inline', 'saved')");
   });
 
   it('keeps the product wishlist control aligned with restored guest state', async () => {

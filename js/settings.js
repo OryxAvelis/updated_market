@@ -14,6 +14,8 @@
     addressReturnFocus: null,
     actionsRegistered: false,
     loading: false,
+    preferenceSaving: false,
+    preferenceStatusTimer: null,
     authEpoch: 0,
     sections: {
       profile: false,
@@ -142,6 +144,9 @@
     state.authEpoch += 1;
     state.user = null;
     state.preferences = null;
+    state.preferenceSaving = false;
+    if (state.preferenceStatusTimer) clearTimeout(state.preferenceStatusTimer);
+    state.preferenceStatusTimer = null;
     state.addresses = [];
     state.editingAddressId = null;
     state.sections.profile = false;
@@ -260,6 +265,7 @@
     const recovery = byId(sectionRecoveryIds[section]);
     if (recovery) recovery.hidden = !needsRecovery;
     if (section === 'addresses') byId('newAddressBtn').disabled = needsRecovery;
+    if (section === 'preferences') setPreferenceControlsDisabled(needsRecovery);
   }
 
   function fallbackPreferences(preferences = {}) {
@@ -308,6 +314,7 @@
         currentPreferences = { ...state.preferences };
         applyPreferencesToForm();
         applyPreferenceEffects(state.preferences);
+        setPreferenceSaveStatus();
         setSectionRecovery('preferences', false);
       } catch (error) {
         if (!handleUnauthorized(error)) setSectionRecovery('preferences', true);
@@ -345,12 +352,60 @@
   }
 
   function applyPreferenceEffects(preferences) {
+    const activeLanguage = document.documentElement.lang || getLang();
     localStorage.setItem('am_theme', preferences.theme);
     localStorage.setItem('am_pay', preferences.defaultPayment);
+    localStorage.setItem('am_lang', preferences.language);
     document.documentElement.setAttribute('data-theme', preferences.theme);
     document.documentElement.setAttribute('data-bs-theme', preferences.theme);
-    if (getLang() !== preferences.language) setLang(preferences.language, { persist: false });
-    else localStorage.setItem('am_lang', preferences.language);
+    if (activeLanguage !== preferences.language) setLang(preferences.language, { persist: false });
+  }
+
+  function preferenceControls() {
+    return Array.from(document.querySelectorAll('[data-preference-key]'));
+  }
+
+  function setPreferenceControlsDisabled(disabled) {
+    preferenceControls().forEach((control) => {
+      control.disabled = Boolean(disabled);
+      control.closest('.set-opt, .preference-switch-row')?.toggleAttribute('aria-busy', Boolean(disabled));
+    });
+  }
+
+  function setPreferenceSaveStatus(key = 'settings_preferences_auto_save', tone = 'idle') {
+    const statuses = Array.from(document.querySelectorAll('.preference-autosave'));
+    if (!statuses.length) return;
+    if (state.preferenceStatusTimer) {
+      clearTimeout(state.preferenceStatusTimer);
+      state.preferenceStatusTimer = null;
+    }
+    statuses.forEach((status) => {
+      const icon = status.querySelector('i');
+      const message = status.querySelector('span');
+      status.dataset.state = tone;
+      if (message) {
+        message.dataset.i18n = key;
+        message.textContent = t(key);
+      }
+      if (icon) {
+        icon.className = tone === 'saving'
+          ? 'fa-solid fa-spinner fa-spin'
+          : tone === 'saved'
+            ? 'fa-solid fa-circle-check'
+            : tone === 'error'
+              ? 'fa-solid fa-triangle-exclamation'
+              : 'fa-solid fa-cloud-arrow-up';
+      }
+    });
+    if (tone === 'saved') {
+      state.preferenceStatusTimer = setTimeout(() => {
+        setPreferenceSaveStatus();
+      }, 2400);
+    }
+  }
+
+  function preferenceControlValue(control) {
+    return control.type === 'checkbox' ? control.checked : control.value;
   }
 
   function element(tag, className, text) {
@@ -624,31 +679,49 @@
   }
 
   function registerPreferenceAction() {
-    byId('savePreferencesBtn').addEventListener('click', async () => {
-      setError('preferencesError');
-      const input = {
-        language: checkedValue('lang'),
-        theme: checkedValue('theme'),
-        defaultPayment: checkedValue('pay'),
-        orderNotifications: byId('prefOrderNotifications').checked,
-        lowStockNotifications: byId('prefLowStockNotifications').checked,
-        personalizationEnabled: byId('prefPersonalization').checked
-      };
-      await withBusy(byId('savePreferencesBtn'), async () => {
+    preferenceControls().forEach((control) => {
+      control.addEventListener('change', async () => {
+        if (!state.preferences || !state.sections.preferences || state.preferenceSaving) {
+          applyPreferencesToForm();
+          return;
+        }
+        const key = control.dataset.preferenceKey;
+        const nextValue = preferenceControlValue(control);
+        if (state.preferences[key] === nextValue) return;
+        const previous = { ...state.preferences };
+        const optimistic = { ...previous, [key]: nextValue };
+        state.preferenceSaving = true;
+        state.preferences = optimistic;
+        currentPreferences = { ...optimistic };
+        setError('preferencesError');
+        setPreferenceSaveStatus('settings_preferences_saving', 'saving');
+        setPreferenceControlsDisabled(true);
+        applyPreferenceEffects(optimistic);
         try {
-          const payload = await guardedAuth(StoreAPI.preferences.update(input));
-          state.preferences = payload.preferences;
+          const payload = await guardedAuth(StoreAPI.preferences.update({ [key]: nextValue }));
+          if (!payload?.preferences) throw Object.assign(new Error(), { code: 'INVALID_RESPONSE' });
+          state.preferences = fallbackPreferences(payload.preferences);
           currentPreferences = { ...state.preferences };
           applyPreferencesToForm();
           applyPreferenceEffects(state.preferences);
+          setPreferenceSaveStatus('settings_preferences_saved_inline', 'saved');
           toast(t('settings_preferences_saved'));
         } catch (error) {
           if (handleUnauthorized(error)) return;
           console.error(error);
-          setError('preferencesError', apiMessageKey(error, 'settings_preferences_error'));
+          state.preferences = previous;
+          currentPreferences = { ...previous };
           applyPreferencesToForm();
+          applyPreferenceEffects(previous);
+          const messageKey = apiMessageKey(error, 'settings_preferences_error_retry');
+          setPreferenceSaveStatus(messageKey, 'error');
+          setError('preferencesError', messageKey);
+          toast(t(messageKey));
+        } finally {
+          state.preferenceSaving = false;
+          if (state.sections.preferences) setPreferenceControlsDisabled(false);
         }
-      }, 'settings_saving_preferences');
+      });
     });
   }
 
@@ -965,6 +1038,8 @@
       syncCoreAccountState();
       fillProfile();
       applyPreferencesToForm();
+      applyPreferenceEffects(state.preferences);
+      setPreferenceSaveStatus();
       if (addressesLoaded) renderAddresses();
       else byId('addressList').replaceChildren();
       if (!state.actionsRegistered) {

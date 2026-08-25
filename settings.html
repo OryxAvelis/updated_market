@@ -16,7 +16,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="css/common.css?v=20260824-ui-polish" />
-    <link rel="stylesheet" href="css/settings.css?v=20260824-resilience" />
+    <link rel="stylesheet" href="css/settings.css?v=20260825-settings-ux" />
     <link rel="icon" type="image/png" href="img/logo-round.png" />
 </head>
 <body data-page="settings">
@@ -51,9 +51,16 @@
         </div>
 
         <div id="settingsAccount" hidden>
+            <nav class="settings-quick-nav" aria-label="Settings sections" data-i18n-aria="settings_sections">
+                <a href="#profileSection"><i class="fa-regular fa-user" aria-hidden="true"></i><span data-i18n="set_profile">Profile</span></a>
+                <a href="#passwordSection"><i class="fa-solid fa-key" aria-hidden="true"></i><span data-i18n="settings_change_password">Change password</span></a>
+                <a href="#addresses"><i class="fa-solid fa-location-dot" aria-hidden="true"></i><span data-i18n="settings_saved_addresses">Saved addresses</span></a>
+                <a href="#appearanceSection"><i class="fa-solid fa-sliders" aria-hidden="true"></i><span data-i18n="settings_nav_preferences">Preferences</span></a>
+                <a href="#dataSection"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i><span data-i18n="set_data">Your Data</span></a>
+            </nav>
             <div class="row g-3 g-lg-4">
                 <div class="col-lg-7">
-                    <section class="settings-card" aria-labelledby="profileTitle">
+                    <section class="settings-card settings-section-anchor" id="profileSection" aria-labelledby="profileTitle">
                         <div class="card-body">
                             <h2 class="set-section-title" id="profileTitle"><i class="fa-regular fa-user" aria-hidden="true"></i><span data-i18n="set_profile">Profile</span></h2>
                             <div class="alert alert-warning settings-section-recovery" id="profileLoadRecovery" role="status" hidden>
@@ -89,7 +96,7 @@
                         </div>
                     </section>
 
-                    <section class="settings-card" aria-labelledby="passwordTitle">
+                    <section class="settings-card settings-section-anchor" id="passwordSection" aria-labelledby="passwordTitle">
                         <div class="card-body">
                             <h2 class="set-section-title" id="passwordTitle"><i class="fa-solid fa-key" aria-hidden="true"></i><span data-i18n="settings_change_password">Change password</span></h2>
                             <form id="passwordForm" novalidate>
@@ -114,7 +121,7 @@
                         </div>
                     </section>
 
-                    <section class="settings-card" id="addresses" aria-labelledby="addressesTitle">
+                    <section class="settings-card settings-section-anchor" id="addresses" aria-labelledby="addressesTitle">
                         <div class="card-body">
                             <div class="set-title-row">
                                 <h2 class="set-section-title mb-0" id="addressesTitle"><i class="fa-solid fa-location-dot" aria-hidden="true"></i><span data-i18n="settings_saved_addresses">Saved addresses</span></h2>
@@ -186,52 +193,60 @@
                 </div>
 
                 <div class="col-lg-5">
-                    <section class="settings-card" aria-labelledby="appearanceTitle">
+                    <section class="settings-card settings-section-anchor" id="appearanceSection" aria-labelledby="appearanceTitle">
                         <div class="card-body">
                             <h2 class="set-section-title" id="appearanceTitle"><i class="fa-solid fa-palette" aria-hidden="true"></i><span data-i18n="set_appearance">Appearance</span></h2>
-                            <div class="set-options" role="radiogroup" aria-labelledby="appearanceTitle">
-                                <label class="set-opt"><input type="radio" name="theme" value="light" /><span class="pay-icon"><i class="fa-solid fa-sun" aria-hidden="true"></i></span><span class="pay-text"><strong data-i18n="set_light">Light</strong><small data-i18n="set_light_sub">Bright &amp; clean</small></span><span class="pay-check"><i class="fa-solid fa-check" aria-hidden="true"></i></span></label>
-                                <label class="set-opt"><input type="radio" name="theme" value="dark" /><span class="pay-icon"><i class="fa-solid fa-moon" aria-hidden="true"></i></span><span class="pay-text"><strong data-i18n="set_dark">Dark</strong><small data-i18n="set_dark_sub">Easy on the eyes</small></span><span class="pay-check"><i class="fa-solid fa-check" aria-hidden="true"></i></span></label>
+                            <p class="settings-card-copy" id="appearanceHelp" data-i18n="settings_appearance_note">Choose how the store looks and which language it uses. Changes apply immediately and save automatically.</p>
+                            <div class="set-options" role="radiogroup" aria-labelledby="appearanceTitle" aria-describedby="appearanceHelp">
+                                <label class="set-opt"><input type="radio" name="theme" value="light" data-preference-key="theme" /><span class="pay-icon"><i class="fa-solid fa-sun" aria-hidden="true"></i></span><span class="pay-text"><strong data-i18n="set_light">Light</strong><small data-i18n="set_light_sub">Use a bright interface</small></span><span class="pay-check"><i class="fa-solid fa-check" aria-hidden="true"></i></span></label>
+                                <label class="set-opt"><input type="radio" name="theme" value="dark" data-preference-key="theme" /><span class="pay-icon"><i class="fa-solid fa-moon" aria-hidden="true"></i></span><span class="pay-text"><strong data-i18n="set_dark">Dark</strong><small data-i18n="set_dark_sub">Reduce brightness and glare</small></span><span class="pay-check"><i class="fa-solid fa-check" aria-hidden="true"></i></span></label>
                             </div>
                             <hr class="set-divider" />
                             <h2 class="set-section-title" id="languageTitle"><i class="fa-solid fa-globe" aria-hidden="true"></i><span data-i18n="set_language">Language</span></h2>
-                            <div class="set-options" role="radiogroup" aria-labelledby="languageTitle">
-                                <label class="set-opt"><input type="radio" name="lang" value="en" /><span class="pay-icon"><i class="fa-solid fa-language" aria-hidden="true"></i></span><span class="pay-text"><strong>English</strong><small data-i18n="set_lang_en_sub">Switch to English</small></span><span class="pay-check"><i class="fa-solid fa-check" aria-hidden="true"></i></span></label>
-                                <label class="set-opt"><input type="radio" name="lang" value="fr" /><span class="pay-icon"><i class="fa-solid fa-language" aria-hidden="true"></i></span><span class="pay-text"><strong>Français</strong><small data-i18n="set_lang_fr_sub">Passer au français</small></span><span class="pay-check"><i class="fa-solid fa-check" aria-hidden="true"></i></span></label>
+                            <div class="set-options" role="radiogroup" aria-labelledby="languageTitle" aria-describedby="appearanceHelp">
+                                <label class="set-opt"><input type="radio" name="lang" value="en" data-preference-key="language" /><span class="pay-icon"><i class="fa-solid fa-language" aria-hidden="true"></i></span><span class="pay-text"><strong>English</strong><small data-i18n="set_lang_en_sub">Display the store in English</small></span><span class="pay-check"><i class="fa-solid fa-check" aria-hidden="true"></i></span></label>
+                                <label class="set-opt"><input type="radio" name="lang" value="fr" data-preference-key="language" /><span class="pay-icon"><i class="fa-solid fa-language" aria-hidden="true"></i></span><span class="pay-text"><strong>Français</strong><small data-i18n="set_lang_fr_sub">Display the store in French</small></span><span class="pay-check"><i class="fa-solid fa-check" aria-hidden="true"></i></span></label>
                             </div>
+                            <div class="preference-autosave"><i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i><span data-i18n="settings_preferences_auto_save">Changes save automatically</span></div>
                         </div>
                     </section>
 
-                    <section class="settings-card" aria-labelledby="paymentTitle">
+                    <section class="settings-card settings-section-anchor" id="paymentSection" aria-labelledby="paymentTitle">
                         <div class="card-body">
-                            <h2 class="set-section-title" id="paymentTitle"><i class="fa-regular fa-credit-card" aria-hidden="true"></i><span data-i18n="set_payment">Default Payment</span></h2>
-                            <div class="set-options one-col" role="radiogroup" aria-labelledby="paymentTitle">
-                                <label class="set-opt"><input type="radio" name="pay" value="cod" /><span class="pay-icon"><i class="fa-solid fa-money-bill-wave" aria-hidden="true"></i></span><span class="pay-text"><strong data-i18n="cod">Cash on Delivery</strong><small data-i18n="cod_sub">Pay at your door</small></span><span class="pay-check"><i class="fa-solid fa-check" aria-hidden="true"></i></span></label>
-                                <label class="set-opt"><input type="radio" name="pay" value="wafacash" /><span class="pay-icon"><i class="fa-solid fa-building-columns" aria-hidden="true"></i></span><span class="pay-text"><strong>Wafacash</strong><small data-i18n="wafacash_sub">Pay at an agency after confirmation</small></span><span class="pay-check"><i class="fa-solid fa-check" aria-hidden="true"></i></span></label>
-                                <label class="set-opt"><input type="radio" name="pay" value="cashplus" /><span class="pay-icon"><i class="fa-solid fa-store" aria-hidden="true"></i></span><span class="pay-text"><strong>CashPlus</strong><small data-i18n="cashplus_sub">Pay at a partner shop after confirmation</small></span><span class="pay-check"><i class="fa-solid fa-check" aria-hidden="true"></i></span></label>
+                            <h2 class="set-section-title" id="paymentTitle"><i class="fa-regular fa-credit-card" aria-hidden="true"></i><span data-i18n="set_payment">Preferred payment</span></h2>
+                            <p class="settings-card-copy" id="paymentHelp" data-i18n="settings_payment_note">This option is preselected at checkout. You can change it for any order.</p>
+                            <div class="set-options one-col" role="radiogroup" aria-labelledby="paymentTitle" aria-describedby="paymentHelp">
+                                <label class="set-opt"><input type="radio" name="pay" value="cod" data-preference-key="defaultPayment" /><span class="pay-icon"><i class="fa-solid fa-money-bill-wave" aria-hidden="true"></i></span><span class="pay-text"><strong data-i18n="cod">Cash on Delivery</strong><small data-i18n="cod_sub">Pay at your door</small></span><span class="pay-check"><i class="fa-solid fa-check" aria-hidden="true"></i></span></label>
+                                <label class="set-opt"><input type="radio" name="pay" value="wafacash" data-preference-key="defaultPayment" /><span class="pay-icon"><i class="fa-solid fa-building-columns" aria-hidden="true"></i></span><span class="pay-text"><strong>Wafacash</strong><small data-i18n="wafacash_sub">Pay at an agency after confirmation</small></span><span class="pay-check"><i class="fa-solid fa-check" aria-hidden="true"></i></span></label>
+                                <label class="set-opt"><input type="radio" name="pay" value="cashplus" data-preference-key="defaultPayment" /><span class="pay-icon"><i class="fa-solid fa-store" aria-hidden="true"></i></span><span class="pay-text"><strong>CashPlus</strong><small data-i18n="cashplus_sub">Pay at a partner shop after confirmation</small></span><span class="pay-check"><i class="fa-solid fa-check" aria-hidden="true"></i></span></label>
                                 <label class="set-opt"><input type="radio" name="pay" value="card" disabled /><span class="pay-icon"><i class="fa-regular fa-credit-card" aria-hidden="true"></i></span><span class="pay-text"><strong data-i18n="card_label">Credit / Debit Card</strong><small data-i18n="card_sub">Coming soon — card details are not collected</small></span><span class="pay-check"><i class="fa-solid fa-check" aria-hidden="true"></i></span></label>
                             </div>
+                            <div class="preference-autosave"><i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i><span data-i18n="settings_preferences_auto_save">Changes save automatically</span></div>
                         </div>
                     </section>
 
-                    <section class="settings-card" aria-labelledby="notificationsTitle">
+                    <section class="settings-card settings-section-anchor" id="notificationsSection" aria-labelledby="notificationsTitle">
                         <div class="card-body">
                             <h2 class="set-section-title" id="notificationsTitle"><i class="fa-regular fa-bell" aria-hidden="true"></i><span data-i18n="settings_notifications_privacy">Notifications &amp; privacy</span></h2>
+                            <p class="settings-card-copy" id="notificationsHelp" data-i18n="settings_notifications_note">Choose which updates and personalized suggestions you want to receive.</p>
                             <div class="alert alert-warning settings-section-recovery" id="preferencesLoadRecovery" role="status" hidden>
                                 <span data-i18n="settings_load_error">Your settings could not be loaded. Check your connection and try again.</span>
                                 <button class="btn btn-sm btn-outline-danger" id="retryPreferencesBtn" type="button"><i class="fa-solid fa-rotate-right me-1" aria-hidden="true"></i><span data-i18n="retry">Try again</span></button>
                             </div>
                             <div class="preference-switches">
-                                <label class="preference-switch-row" for="prefOrderNotifications"><span><strong data-i18n="settings_order_updates">Order updates</strong><small data-i18n="settings_order_updates_sub">Receive status, cancellation and return updates.</small></span><span class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="prefOrderNotifications" /></span></label>
-                                <label class="preference-switch-row" for="prefLowStockNotifications"><span><strong data-i18n="settings_low_stock_alerts">Low-stock alerts</strong><small data-i18n="settings_low_stock_alerts_sub">Receive alerts for saved products when stock data is available.</small></span><span class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="prefLowStockNotifications" /></span></label>
-                                <label class="preference-switch-row" for="prefPersonalization"><span><strong data-i18n="settings_personalized_recommendations">Personalized recommendations</strong><small data-i18n="settings_personalized_recommendations_sub">Use your recent product activity to tailor suggestions.</small></span><span class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="prefPersonalization" /></span></label>
+                                <label class="preference-switch-row" for="prefOrderNotifications"><span><strong data-i18n="settings_order_updates">Order updates</strong><small data-i18n="settings_order_updates_sub">Receive status, cancellation and return updates.</small></span><span class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="prefOrderNotifications" data-preference-key="orderNotifications" aria-describedby="notificationsHelp" /></span></label>
+                                <label class="preference-switch-row" for="prefLowStockNotifications"><span><strong data-i18n="settings_low_stock_alerts">Low-stock alerts</strong><small data-i18n="settings_low_stock_alerts_sub">Receive alerts for saved products when stock data is available.</small></span><span class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="prefLowStockNotifications" data-preference-key="lowStockNotifications" aria-describedby="notificationsHelp" /></span></label>
+                                <label class="preference-switch-row" for="prefPersonalization"><span><strong data-i18n="settings_personalized_recommendations">Personalized recommendations</strong><small data-i18n="settings_personalized_recommendations_sub">Use your recent product activity to tailor suggestions.</small></span><span class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="prefPersonalization" data-preference-key="personalizationEnabled" aria-describedby="notificationsHelp" /></span></label>
                             </div>
-                            <div class="set-actions"><button class="btn btn-orange" id="savePreferencesBtn" type="button"><i class="fa-solid fa-check me-1" aria-hidden="true"></i><span data-i18n="settings_save_preferences">Save preferences</span></button></div>
+                            <div class="preference-autosave" id="preferencesSaveStatus" role="status" aria-live="polite"><i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i><span data-i18n="settings_preferences_auto_save">Changes save automatically</span></div>
                             <div class="set-form-error" id="preferencesError" role="alert" aria-live="polite"></div>
                         </div>
                     </section>
+                </div>
+            </div>
 
-                    <section class="settings-card" aria-labelledby="dataTitle">
+            <div class="settings-lower-grid">
+                    <section class="settings-card settings-section-anchor" id="dataSection" aria-labelledby="dataTitle">
                         <div class="card-body">
                             <h2 class="set-section-title" id="dataTitle"><i class="fa-solid fa-database" aria-hidden="true"></i><span data-i18n="set_data">Your Data</span></h2>
                             <p class="form-text mt-0" data-i18n="settings_data_controls_note">These controls clear the selected data from your account database. Orders are retained for order history and support.</p>
@@ -246,7 +261,7 @@
                         </div>
                     </section>
 
-                    <section class="settings-card settings-danger-card" aria-labelledby="accountActionsTitle">
+                    <section class="settings-card settings-danger-card settings-section-anchor" id="accountActionsSection" aria-labelledby="accountActionsTitle">
                         <div class="card-body">
                             <h2 class="set-section-title" id="accountActionsTitle"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span data-i18n="settings_account_actions">Account actions</span></h2>
                             <p class="form-text mt-0" data-i18n="settings_account_actions_note">Deactivation blocks future sign-ins. Permanent deletion also anonymizes your personal details and clears active shopping data.</p>
@@ -261,15 +276,14 @@
                             <div class="set-form-error" id="accountError" role="alert" aria-live="assertive"></div>
                         </div>
                     </section>
-                </div>
             </div>
         </div>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-    <script src="js/i18n.js?v=20260824-ui-polish"></script>
+    <script src="js/i18n.js?v=20260825-settings-ux"></script>
   <script src="js/store-api.js?v=20260824-ui-polish"></script>
     <script src="js/core.js?v=20260824-ui-polish"></script>
-    <script src="js/settings.js?v=20260824-resilience"></script>
+    <script src="js/settings.js?v=20260825-settings-ux"></script>
 </body>
 </html>
