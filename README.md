@@ -104,6 +104,14 @@ Set the documented `DB_*`, TLS, `APP_ORIGIN`, and `ALLOWED_ORIGINS` variables fi
 
 Use `server/deploy/Caddyfile.example` as the TLS edge template and follow `server/docs/https.md`. Store all credentials in the host secret manager, run migrations with the migration account, run the app with the least-privilege account, bind Node to loopback behind Caddy, validate certificate renewal, and stage HSTS carefully.
 
+### Free Render and Aiven preview
+
+The repository-level `render.yaml` deploys the existing Node.js storefront as one free Render web service in Frankfurt. Render supplies the public HTTPS origin and port at runtime; the application trusts exactly one Render proxy hop and keeps `Secure`, `HttpOnly` authentication cookies enabled. The free instance can sleep and therefore runs with the in-process low-stock evaluator disabled.
+
+Use an external Aiven for MySQL service and enter its host, port, application password, and TLS hostname only when Render prompts for the `sync: false` variables. Upload Aiven's CA certificate as the Render secret file `aiven-ca.pem`; it is exposed only at `/etc/secrets/aiven-ca.pem` and is never committed. Apply migrations from a trusted local machine with the separate database administrator credentials before the first deployment. Do not give the running Render service the database administrator password.
+
+Render derives `APP_ORIGIN`, `ALLOWED_ORIGINS`, and `PASSWORD_RESET_URL` from its trusted `RENDER_EXTERNAL_URL`. If a custom domain is added later, set those three variables explicitly to the custom HTTPS origin. Render free services block SMTP ports, so password-reset delivery must use a supported HTTPS mail provider before it can send production email.
+
 Database details and invariants are documented in `server/docs/database.md`.
 
 ## External-service boundaries

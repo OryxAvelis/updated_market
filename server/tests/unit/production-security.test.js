@@ -55,6 +55,49 @@ function runModule(source, environment) {
 }
 
 describe('production transport fail-closed configuration', () => {
+  it('uses Render HTTPS, proxy, bind host, and assigned port defaults', () => {
+    const environment = productionEnvironment({
+      RENDER: 'true',
+      RENDER_EXTERNAL_URL: 'https://am-market-example.onrender.com',
+      PORT: '10000'
+    });
+    for (const key of [
+      'APP_ORIGIN',
+      'ALLOWED_ORIGINS',
+      'PASSWORD_RESET_URL',
+      'HOST',
+      'TRUST_PROXY',
+      'TLS_TERMINATED_BY_PROXY',
+      'HTTP_REDIRECT_PORT',
+      'LOW_STOCK_EVALUATOR_ENABLED'
+    ]) delete environment[key];
+
+    const output = runModule(`
+      const { config } = await import('./src/config.js');
+      console.log(JSON.stringify({
+        host: config.host,
+        port: config.httpPort,
+        appOrigin: config.appOrigin,
+        allowedOrigins: [...config.allowedOrigins],
+        trustProxy: config.trustProxy,
+        tlsTerminatedByProxy: config.tlsTerminatedByProxy,
+        resetUrl: config.auth.resetUrl,
+        lowStockEnabled: config.lowStock.enabled
+      }));
+    `, environment);
+
+    expect(JSON.parse(output)).toEqual({
+      host: '0.0.0.0',
+      port: 10000,
+      appOrigin: 'https://am-market-example.onrender.com',
+      allowedOrigins: ['https://am-market-example.onrender.com'],
+      trustProxy: 1,
+      tlsTerminatedByProxy: true,
+      resetUrl: 'https://am-market-example.onrender.com/reset-password.html',
+      lowStockEnabled: false
+    });
+  });
+
   it.each([
     ['unencrypted MySQL', { DB_TLS: 'false' }, 'DB_TLS must remain enabled'],
     ['an insecure allowed origin', { ALLOWED_ORIGINS: 'http://market.example.com' }, 'must use HTTPS'],

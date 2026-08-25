@@ -10,6 +10,13 @@ export const storefrontRoot = path.resolve(serverRoot, '..');
 
 dotenv.config({ path: process.env.ENV_FILE || path.join(serverRoot, '.env'), quiet: true });
 
+const renderOrigin = process.env.RENDER === 'true' && process.env.RENDER_EXTERNAL_URL
+  ? process.env.RENDER_EXTERNAL_URL
+  : undefined;
+const defaultAppOrigin = renderOrigin || 'https://localhost:3443';
+const defaultResetUrl = `${defaultAppOrigin.replace(/\/$/, '')}/reset-password.html`;
+const renderDefaultsEnabled = Boolean(renderOrigin);
+
 const boolValue = z.preprocess((value) => {
   if (typeof value === 'boolean') return value;
   if (typeof value !== 'string') return value;
@@ -30,20 +37,20 @@ const optionalEmail = z.preprocess(
 
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  HOST: z.string().default('127.0.0.1'),
+  HOST: z.string().default(renderDefaultsEnabled ? '0.0.0.0' : '127.0.0.1'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   HTTPS_PORT: z.coerce.number().int().min(1).max(65535).default(3443),
-  APP_ORIGIN: z.string().url().default('https://localhost:3443'),
-  ALLOWED_ORIGINS: z.string().default('https://localhost:3443'),
-  TRUST_PROXY: z.coerce.number().int().min(0).max(5).default(0),
-  TLS_TERMINATED_BY_PROXY: boolValue.default(false),
+  APP_ORIGIN: z.string().url().default(defaultAppOrigin),
+  ALLOWED_ORIGINS: z.string().default(defaultAppOrigin),
+  TRUST_PROXY: z.coerce.number().int().min(0).max(5).default(renderDefaultsEnabled ? 1 : 0),
+  TLS_TERMINATED_BY_PROXY: boolValue.default(renderDefaultsEnabled),
   HSTS_MAX_AGE_SECONDS: z.coerce.number().int().min(0).max(63072000).default(300),
   HSTS_INCLUDE_SUBDOMAINS: boolValue.default(false),
   HSTS_PRELOAD: boolValue.default(false),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   TLS_CERT_PATH: optionalText,
   TLS_KEY_PATH: optionalText,
-  HTTP_REDIRECT_PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+  HTTP_REDIRECT_PORT: z.coerce.number().int().min(1).max(65535).optional(),
 
   DB_HOST: z.string().min(1).default('127.0.0.1'),
   DB_PORT: z.coerce.number().int().min(1).max(65535).default(3306),
@@ -59,7 +66,7 @@ const schema = z.object({
   SESSION_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),
   SESSION_IDLE_HOURS: z.coerce.number().int().min(1).max(720).default(24),
   PASSWORD_RESET_TTL_MINUTES: z.coerce.number().int().min(5).max(120).default(20),
-  PASSWORD_RESET_URL: z.string().url().default('https://localhost:3443/reset-password.html'),
+  PASSWORD_RESET_URL: z.string().url().default(defaultResetUrl),
   LOCAL_DEV_LOGIN: boolValue.default(false),
   LOCAL_DEV_LOGIN_USER_EMAIL: optionalEmail,
 
@@ -73,7 +80,7 @@ const schema = z.object({
   CATALOG_TIMEOUT_MS: z.coerce.number().int().min(500).max(30000).default(8000),
   CATALOG_CACHE_TTL_MS: z.coerce.number().int().min(0).max(3600000).default(60000),
 
-  LOW_STOCK_EVALUATOR_ENABLED: boolValue.default(true),
+  LOW_STOCK_EVALUATOR_ENABLED: boolValue.default(!renderDefaultsEnabled),
   LOW_STOCK_EVALUATOR_INTERVAL_MS: z.coerce.number().int().min(30000).max(86400000).default(300000),
   LOW_STOCK_EVALUATOR_RUN_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(25000),
   LOW_STOCK_EVALUATOR_BATCH_SIZE: z.coerce.number().int().min(1).max(500).default(100),
@@ -198,7 +205,7 @@ export const config = Object.freeze({
   isTest,
   isProduction,
   host: env.HOST,
-  httpPort: env.HTTP_REDIRECT_PORT || env.PORT,
+  httpPort: env.HTTP_REDIRECT_PORT ?? env.PORT,
   httpsPort: env.HTTPS_PORT,
   appOrigin: appUrl.origin,
   allowedOrigins,
