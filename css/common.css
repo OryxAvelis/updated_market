@@ -1182,12 +1182,12 @@ body:has(.search-suggestions:not([hidden])) .back-to-top {
 }
 
 /* ========== SIDE AD SURFACES (large screens only) ========== */
-/* ~130px gutters on left/right for ad space */
+/* ~160px gutters on left/right for ad space */
 @media (min-width: 1400px) {
   .top-header > .container-fluid,
   main.container-fluid {
-    padding-left: 130px !important;
-    padding-right: 130px !important;
+    padding-left: 160px !important;
+    padding-right: 160px !important;
   }
 }
 
