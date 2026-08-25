@@ -2,7 +2,9 @@
 param(
   [Parameter(Mandatory = $true)]
   [ValidateScript({ Test-Path -LiteralPath $_ -PathType Leaf })]
-  [string]$CredentialsPath
+  [string]$CredentialsPath,
+
+  [switch]$EnableLocalDemoLogin
 )
 
 $ErrorActionPreference = 'Stop'
@@ -24,7 +26,8 @@ foreach ($name in $required) {
 $managedEnvironment = @(
   'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD', 'DB_TLS',
   'DB_TLS_CA_PATH', 'DB_TLS_SERVERNAME', 'TLS_CERT_PATH', 'TLS_KEY_PATH',
-  'APP_ORIGIN', 'ALLOWED_ORIGINS'
+  'APP_ORIGIN', 'ALLOWED_ORIGINS', 'NODE_ENV', 'HOST', 'TRUST_PROXY',
+  'TLS_TERMINATED_BY_PROXY', 'LOCAL_DEV_LOGIN', 'LOCAL_DEV_LOGIN_USER_EMAIL'
 )
 $previousEnvironment = @{}
 foreach ($name in $managedEnvironment) {
@@ -43,9 +46,19 @@ $env:TLS_CERT_PATH = Join-Path $serverRoot 'certs\localhost.pem'
 $env:TLS_KEY_PATH = Join-Path $serverRoot 'certs\localhost-key.pem'
 $env:APP_ORIGIN = 'https://localhost:3443'
 $env:ALLOWED_ORIGINS = 'https://localhost:3443'
+$env:NODE_ENV = 'development'
+$env:HOST = '127.0.0.1'
+$env:TRUST_PROXY = '0'
+$env:TLS_TERMINATED_BY_PROXY = 'false'
+$env:LOCAL_DEV_LOGIN = if ($EnableLocalDemoLogin) { 'true' } else { 'false' }
+$env:LOCAL_DEV_LOGIN_USER_EMAIL = if ($EnableLocalDemoLogin) { 'demo@local.am-market.test' } else { '' }
 
 Push-Location $serverRoot
 try {
+  if ($EnableLocalDemoLogin) {
+    & node scripts/provision-local-demo-user.js
+    if ($LASTEXITCODE -ne 0) { throw "Demo account provisioning exited with code $LASTEXITCODE." }
+  }
   & npm start
   if ($LASTEXITCODE -ne 0) { throw "Server exited with code $LASTEXITCODE." }
 } finally {

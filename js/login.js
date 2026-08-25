@@ -39,6 +39,18 @@
       rateLimited: 'Too many attempts. Please wait before trying again.',
       authLockUnavailable: 'This browser cannot safely coordinate account changes across tabs. Update your browser and try again.',
       loginSuccess: 'Signed in securely. Taking you to the store…',
+      demoLoginSuccess: 'Demo account opened. Taking you to the store…',
+      demoNoticeTitle: 'Local demo',
+      demoNotice: 'Any non-empty email and password work in this local demo. No real customer account is authenticated. Do not use real credentials.',
+      demoEmailLabel: 'Demo email (any text)',
+      demoEmailPlaceholder: 'Any non-empty value',
+      demoPasswordLabel: 'Demo password',
+      demoPasswordPlaceholder: 'Any non-empty value',
+      demoSubmit: 'Open demo',
+      demoValueRequired: 'Enter any value.',
+      demoEmailTooLong: 'Use no more than 254 characters.',
+      demoPasswordTooLong: 'Use no more than 128 characters.',
+      demoUnavailable: 'The local demo account is unavailable. Restart the local demo setup and try again.',
       registerSuccess: 'Your account is ready. Taking you to the store…',
       mergeWarning: 'You are signed in. Some guest items could not be synchronized and remain saved in this browser.',
       mergeTitle: 'Keep your shopping together?',
@@ -88,6 +100,18 @@
       rateLimited: 'Trop de tentatives. Patientez avant de réessayer.',
       authLockUnavailable: 'Ce navigateur ne peut pas coordonner les changements de compte entre les onglets en toute sécurité. Mettez-le à jour puis réessayez.',
       loginSuccess: 'Connexion sécurisée réussie. Redirection vers la boutique…',
+      demoLoginSuccess: 'Compte de démonstration ouvert. Redirection vers la boutique…',
+      demoNoticeTitle: 'Démo locale',
+      demoNotice: 'Toute adresse email et tout mot de passe non vides fonctionnent dans cette démo locale. Aucun vrai compte client n’est authentifié. N’utilisez pas de vrais identifiants.',
+      demoEmailLabel: 'Email de démo (tout texte)',
+      demoEmailPlaceholder: 'Toute valeur non vide',
+      demoPasswordLabel: 'Mot de passe de démonstration',
+      demoPasswordPlaceholder: 'Toute valeur non vide',
+      demoSubmit: 'Ouvrir la démo',
+      demoValueRequired: 'Saisissez une valeur.',
+      demoEmailTooLong: 'Utilisez au maximum 254 caractères.',
+      demoPasswordTooLong: 'Utilisez au maximum 128 caractères.',
+      demoUnavailable: 'Le compte de démonstration locale est indisponible. Relancez la configuration de la démo locale puis réessayez.',
       registerSuccess: 'Votre compte est prêt. Redirection vers la boutique…',
       mergeWarning: 'Vous êtes connecté. Certains articles invités n’ont pas pu être synchronisés et restent enregistrés dans ce navigateur.',
       mergeTitle: 'Regrouper vos achats ?',
@@ -127,6 +151,7 @@
   let activeGuestMergeState = null;
   let postAuthContinuation = 'authenticated';
   let activeAuthenticatedUserId = '';
+  let localDemoLoginEnabled = false;
 
   function safeNextPage() {
     const candidate = new URLSearchParams(location.search).get('next') || '';
@@ -166,6 +191,47 @@
     root.querySelectorAll('[data-auth-copy-placeholder]').forEach((element) => {
       element.placeholder = copy(element.dataset.authCopyPlaceholder);
     });
+  }
+
+  function applyLocalDemoPresentation() {
+    if (!localDemoLoginEnabled) return;
+    const notice = $('demoLoginNotice');
+    const form = $('loginForm');
+    const recoveryActions = $('loginRecoveryActions');
+    const signupPrompt = $('loginSignupPrompt');
+    if (notice) {
+      notice.hidden = false;
+      applyLocalCopy(notice);
+    }
+    if (recoveryActions) recoveryActions.hidden = true;
+    if (signupPrompt) signupPrompt.hidden = true;
+    if (!form) return;
+
+    form.setAttribute('aria-describedby', 'demoLoginNotice');
+
+    const email = $('loginEmail');
+    const password = $('loginPass');
+    const emailLabel = $('loginEmailLabel');
+    const passwordLabel = $('loginPasswordLabel');
+    const submitLabel = $('loginSubmitLabel');
+    if (!email || !password) return;
+
+    email.type = 'text';
+    email.autocomplete = 'off';
+    email.removeAttribute('data-i18n-ph');
+    email.placeholder = copy('demoEmailPlaceholder');
+    password.autocomplete = 'off';
+    password.removeAttribute('minlength');
+    password.placeholder = copy('demoPasswordPlaceholder');
+    if (emailLabel) emailLabel.textContent = copy('demoEmailLabel');
+    if (passwordLabel) passwordLabel.textContent = copy('demoPasswordLabel');
+    if (submitLabel && !form.hasAttribute('aria-busy')) submitLabel.textContent = copy('demoSubmit');
+  }
+
+  function applyLocalDemoCapability(session) {
+    if (session?.capabilities?.localDemoLogin !== true) return;
+    localDemoLoginEnabled = true;
+    applyLocalDemoPresentation();
   }
 
   function setBrand(mode) {
@@ -215,7 +281,7 @@
   }
 
   function showMode(mode, backwards = false) {
-    if (authBusy || !['login', 'signup', 'forgot'].includes(mode)) return;
+    if (authBusy || (localDemoLoginEnabled && mode !== 'login') || !['login', 'signup', 'forgot'].includes(mode)) return;
     currentMode = mode;
     hideAlert();
     document.querySelectorAll('[data-auth-panel]').forEach((panel) => {
@@ -283,6 +349,7 @@
       else {
         if (typeof applyI18n === 'function') applyI18n(submit);
         applyLocalCopy(submit);
+        applyLocalDemoPresentation();
       }
     }
   }
@@ -292,6 +359,7 @@
       INVALID_CREDENTIALS: 'invalidCredentials',
       EMAIL_ALREADY_REGISTERED: 'emailExists',
       RATE_LIMITED: 'rateLimited',
+      LOCAL_DEV_LOGIN_UNAVAILABLE: 'demoUnavailable',
       AUTH_LOCK_UNAVAILABLE: 'authLockUnavailable',
       NETWORK_ERROR: 'networkError',
       REQUEST_TIMEOUT: 'networkError'
@@ -739,7 +807,7 @@
     }
   }
 
-  async function completeAuthentication(kind, userId = '') {
+  async function completeAuthentication(kind, userId = '', successKey = '') {
     activeAuthenticatedUserId = String(userId || activeAuthenticatedUserId || '').trim();
     const state = guestShoppingState();
     if (state.hasMergeable || state.hasInvalid) {
@@ -747,7 +815,7 @@
       return 'choice';
     }
     if ($('checkoutAuthContext')) $('checkoutAuthContext').hidden = true;
-    showCopyAlert(kind === 'register' ? 'registerSuccess' : 'loginSuccess', 'success', true);
+    showCopyAlert(successKey || (kind === 'register' ? 'registerSuccess' : 'loginSuccess'), 'success', true);
     globalThis.setTimeout(() => location.replace(safeNextPage()), 900);
     return 'redirect';
   }
@@ -760,18 +828,28 @@
     hideAlert();
     const email = $('loginEmail').value.trim();
     const password = $('loginPass').value;
+    const isDemoLogin = localDemoLoginEnabled;
     let firstInvalid = null;
-    if (!isValidEmail(email)) { setFieldError(fieldMap.email); firstInvalid ||= $('loginEmail'); }
-    if (password.length < 12 || password.length > 128) { setFieldError(fieldMap.password); firstInvalid ||= $('loginPass'); }
+    if (isDemoLogin) {
+      if (!email) { setFieldError(fieldMap.email, 'demoValueRequired'); firstInvalid ||= $('loginEmail'); }
+      else if (email.length > 254) { setFieldError(fieldMap.email, 'demoEmailTooLong'); firstInvalid ||= $('loginEmail'); }
+      if (!password) { setFieldError(fieldMap.password, 'demoValueRequired'); firstInvalid ||= $('loginPass'); }
+      else if (password.length > 128) { setFieldError(fieldMap.password, 'demoPasswordTooLong'); firstInvalid ||= $('loginPass'); }
+    } else {
+      if (!isValidEmail(email)) { setFieldError(fieldMap.email); firstInvalid ||= $('loginEmail'); }
+      if (password.length < 12 || password.length > 128) { setFieldError(fieldMap.password); firstInvalid ||= $('loginPass'); }
+    }
     if (firstInvalid) { firstInvalid.focus(); return; }
 
     setPending(form, true);
     let completed = false;
     try {
       await withAuthSessionLock(async () => {
-        const result = await StoreAPI.auth.login({ email, password });
+        const result = isDemoLogin
+          ? await StoreAPI.auth.demoLogin({ email, password })
+          : await StoreAPI.auth.login({ email, password });
         broadcastAccountChanged(result?.user?.id);
-        await completeAuthentication('login', result?.user?.id);
+        await completeAuthentication('login', result?.user?.id, isDemoLogin ? 'demoLoginSuccess' : '');
       });
       completed = true;
     } catch (error) {
@@ -883,6 +961,7 @@
 
   function syncLocalizedState() {
     applyLocalCopy();
+    applyLocalDemoPresentation();
     setBrand(currentMode);
     applyCheckoutIntent();
     if (activeGuestMergeState && !$('guestMergePanel')?.hidden) renderGuestMergeSummary(activeGuestMergeState);
@@ -941,6 +1020,7 @@
     let redirecting = false;
     withAuthSessionLock(async () => {
       const session = await StoreAPI.bootstrap();
+      applyLocalDemoCapability(session);
       if (session?.authenticated) {
         redirecting = true;
         broadcastAccountChanged(session.user?.id);

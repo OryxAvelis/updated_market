@@ -14,7 +14,7 @@
   <meta name="twitter:card" content="summary" />
   <script src="js/theme-init.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <link rel="stylesheet" href="css/login.css?v=20260825-checkout-ux" />
+  <link rel="stylesheet" href="css/login.css?v=20260825-local-demo" />
   <link rel="icon" type="image/png" href="img/logo-round.png" />
 </head>
 <body data-page="login">
@@ -51,6 +51,14 @@
         </div>
         <div class="auth-alert" id="authAlert" role="alert" aria-live="assertive" tabindex="-1" hidden></div>
 
+        <div class="demo-login-notice" id="demoLoginNotice" role="status" aria-live="polite" hidden>
+          <i class="fa-solid fa-flask" aria-hidden="true"></i>
+          <div class="demo-login-notice__copy">
+            <strong id="demoLoginNoticeTitle" data-auth-copy="demoNoticeTitle">Local demo</strong>
+            <p id="demoLoginNoticeMessage" data-auth-copy="demoNotice">Any non-empty email and password work in this local demo. No real customer account is authenticated. Do not use real credentials.</p>
+          </div>
+        </div>
+
         <section class="guest-merge" id="guestMergePanel" aria-labelledby="guestMergeTitle" aria-describedby="guestMergeSummary guestMergeNote" tabindex="-1" hidden>
           <div class="guest-merge-icon" aria-hidden="true"><i class="fa-solid fa-basket-shopping"></i></div>
           <h2 id="guestMergeTitle" data-auth-copy="mergeTitle">Keep your shopping together?</h2>
@@ -72,29 +80,29 @@
           <form id="loginForm" novalidate>
             <div class="input-group-custom" id="loginEmailWrap">
               <i class="field-icon fa-solid fa-envelope" aria-hidden="true"></i>
-              <label class="visually-hidden" for="loginEmail" data-i18n="email_ph">Email address</label>
+              <label class="visually-hidden" id="loginEmailLabel" for="loginEmail" data-i18n="email_ph">Email address</label>
               <input type="email" id="loginEmail" placeholder="Email address" autocomplete="email" data-i18n-ph="email_ph" required maxlength="254" />
             </div>
             <div class="field-error" id="loginEmailError" role="alert"></div>
 
             <div class="input-group-custom" id="loginPassWrap">
               <i class="field-icon fa-solid fa-lock" aria-hidden="true"></i>
-              <label class="visually-hidden" for="loginPass" data-i18n="password_ph">Password</label>
+              <label class="visually-hidden" id="loginPasswordLabel" for="loginPass" data-i18n="password_ph">Password</label>
               <input type="password" id="loginPass" placeholder="Password" autocomplete="current-password" data-i18n-ph="password_ph" required minlength="12" maxlength="128" />
               <button type="button" class="eye" data-eye="loginPass" title="Show password" aria-label="Show password" aria-controls="loginPass" aria-pressed="false"><i class="fa-solid fa-eye" aria-hidden="true"></i></button>
             </div>
             <div class="field-error" id="loginPassError" role="alert"></div>
 
-            <div class="row-between row-between-end">
+            <div class="row-between row-between-end" id="loginRecoveryActions">
               <button type="button" class="forgot" id="toForgot" data-i18n="forgot">Forgot password?</button>
             </div>
 
             <button class="btn-submit" type="submit" id="loginBtn">
               <i class="auth-spinner fa-solid fa-circle-notch fa-spin" aria-hidden="true" hidden></i>
-              <span data-submit-label data-i18n="sign_in_btn">Sign In</span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+              <span id="loginSubmitLabel" data-submit-label data-i18n="sign_in_btn">Sign In</span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
             </button>
           </form>
-          <p class="switch-line"><span data-i18n="new_to">New to AM Market?</span> <button class="link-btn" id="toSignup" type="button"><span data-i18n="create_account_link">Create an account</span></button></p>
+          <p class="switch-line" id="loginSignupPrompt"><span data-i18n="new_to">New to AM Market?</span> <button class="link-btn" id="toSignup" type="button"><span data-i18n="create_account_link">Create an account</span></button></p>
         </div>
 
         <div class="form-box" id="signupBox" data-auth-panel="signup" hidden>
@@ -153,8 +161,8 @@
     </section>
   </main>
 
-  <script src="js/i18n.js?v=20260825-checkout-ux"></script>
-  <script src="js/store-api.js?v=20260824-ui-polish"></script>
-  <script src="js/login.js?v=20260825-checkout-ux"></script>
+  <script src="js/i18n.js?v=20260825-local-demo"></script>
+  <script src="js/store-api.js?v=20260825-local-demo"></script>
+  <script src="js/login.js?v=20260825-local-demo"></script>
 </body>
 </html>

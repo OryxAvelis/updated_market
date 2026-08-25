@@ -29,7 +29,8 @@ Applied migrations are immutable. Add a new, monotonically numbered migration fo
 
 ## Data model
 
-- Identity: `users`, `user_preferences`, `delivery_addresses`, `auth_sessions`, and `password_reset_tokens`.
+- Identity: `users`, `user_preferences`, `delivery_addresses`, `auth_sessions`, and `password_reset_tokens`. The singleton `local_demo_accounts` registry separates the dedicated local demo identity from regular customers without relying on mutable profile fields.
+- Environment safety: `application_environment` is empty after migrations and can be explicitly attested as local development only by the guarded migration script. Demo provisioning and startup fail closed without that database-level attestation.
 - Catalog references: `catalog_product_refs` stores the latest verified fields needed to relate user records to the external catalog. `catalog_inventory` is the serialized application allocation ledger when the upstream publishes a finite quantity; `order_inventory_allocations` records every checkout and its finite or availability-only policy.
 - Shopping: one `cart` and one `wishlist` per user, with composite-key item tables and bounded quantities.
 - Orders: authenticated or token-owned guest orders, immutable address and product snapshots, exact totals, tracking events, cancellations, checkout idempotency records, returns, and return items.

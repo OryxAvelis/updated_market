@@ -421,6 +421,7 @@
     session: (options) => bootstrap({ ...(options || {}), force: true }),
     register: async (input, options) => rememberAuthenticatedResult(await write('POST', '/auth/register', input, options)),
     login: async (input, options) => rememberAuthenticatedResult(await write('POST', '/auth/login', input, options)),
+    demoLogin: async (input, options) => rememberAuthenticatedResult(await write('POST', '/auth/demo-login', input, options)),
     logout: async (options) => {
       let completed = false;
       try {

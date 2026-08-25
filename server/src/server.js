@@ -1,6 +1,7 @@
 import http from 'node:http';
 import https from 'node:https';
 import { createApp } from './app.js';
+import { assertLocalDevelopmentDatabase } from './auth/local-demo.js';
 import { createCatalogService } from './catalog/service.js';
 import { config } from './config.js';
 import { pool } from './db/pool.js';
@@ -8,6 +9,9 @@ import { createLowStockEvaluator } from './engagement/low-stock.js';
 import { logger } from './logger.js';
 
 if (!pool) throw new Error('The database pool is unavailable.');
+if (config.auth.localDevLoginEnabled) {
+  await assertLocalDevelopmentDatabase(pool, { demoEmail: config.auth.localDevLoginUserEmail });
+}
 const catalog = createCatalogService();
 const app = createApp({ database: pool, catalog });
 const lowStockEvaluator = createLowStockEvaluator({ database: pool, catalog });

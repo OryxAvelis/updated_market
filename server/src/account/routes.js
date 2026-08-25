@@ -1,11 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import { z } from 'zod';
-import { conflict, notFound } from '../http/errors.js';
+import { conflict, forbidden, notFound } from '../http/errors.js';
 import { clearSessionCookie } from '../security/cookies.js';
 import { hashPassword, verifyPassword } from '../security/passwords.js';
 import { displayNameSchema, emailSchema, optionalPhoneSchema, passwordSchema, publicIdSchema, phoneSchema } from '../validation/common.js';
 import { requireAuth } from '../auth/session.js';
+import { isLocalDemoEmail } from '../auth/local-demo.js';
 
 const profileSchema = z.object({
   displayName: displayNameSchema.optional(),
@@ -98,6 +99,12 @@ export function createAccountRouter() {
 
   router.patch('/', async (req, res) => {
     const input = profileSchema.parse(req.body);
+    if (req.auth.accountKind === 'local_demo' && input.email !== undefined) {
+      throw forbidden('DEMO_ACCOUNT_RESTRICTED', 'The local demo account email cannot be changed.');
+    }
+    if (input.email !== undefined && isLocalDemoEmail(input.email)) {
+      throw conflict('EMAIL_RESERVED', 'This email domain is reserved for the local demo account.');
+    }
     const [rows] = await req.app.locals.db.execute(
       'SELECT email, password_hash FROM users WHERE id = ? AND status = \'active\' LIMIT 1',
       [req.auth.userId]
@@ -147,6 +154,9 @@ export function createAccountRouter() {
 
   router.delete('/', async (req, res) => {
     const input = closeAccountSchema.parse(req.body);
+    if (req.auth.accountKind === 'local_demo') {
+      throw forbidden('DEMO_ACCOUNT_RESTRICTED', 'The local demo account cannot be closed or deleted.');
+    }
     const [rows] = await req.app.locals.db.execute(
       'SELECT password_hash FROM users WHERE id = ? AND status = \'active\' LIMIT 1',
       [req.auth.userId]

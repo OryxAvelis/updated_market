@@ -2,11 +2,13 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from '../../src/app.js';
+import { provisionLocalDemoUser } from '../../src/auth/local-demo.js';
 import { config } from '../../src/config.js';
 import { runMigrations } from '../../src/db/migrate.js';
 import { pool } from '../../src/db/pool.js';
 import { createLowStockEvaluator } from '../../src/engagement/low-stock.js';
 import { createFulfillmentSignature } from '../../src/integrations/fulfillment-auth.js';
+import { csrfCookieName } from '../../src/security/cookies.js';
 import {
   cleanupIntegrationData,
   createMockCatalog,
@@ -66,6 +68,13 @@ async function csrfFor(agent) {
     throw new Error('Could not bootstrap the integration-test CSRF token.');
   }
   return response.body.csrfToken;
+}
+
+function responseCookie(response, name) {
+  return (response.headers['set-cookie'] || [])
+    .filter((cookie) => cookie.startsWith(`${name}=`))
+    .at(-1)
+    ?.split(';', 1)[0] || '';
 }
 
 async function issueGuestAccess(agent, csrfToken) {
@@ -156,6 +165,117 @@ databaseDescribe('user API with MySQL', () => {
     } finally {
       await pool?.end();
     }
+  }, 60_000);
+
+  it('keeps arbitrary-credential demo login explicitly capability-gated', async () => {
+    const { app, mailer } = testApp();
+    const shopper = request.agent(app);
+    const initialSession = await shopper.get('/api/v1/auth/session');
+
+    expect(initialSession.status).toBe(200);
+    expect(initialSession.body.capabilities?.localDemoLogin).toBe(config.auth.localDevLoginEnabled);
+    const initialCsrfCookie = responseCookie(initialSession, csrfCookieName);
+    expect(initialCsrfCookie).not.toBe('');
+
+    if (!config.auth.localDevLoginEnabled) {
+      const disabled = await shopper
+        .post('/api/v1/auth/demo-login')
+        .set('Origin', origin)
+        .set('Cookie', initialCsrfCookie)
+        .set('X-CSRF-Token', initialSession.body.csrfToken)
+        .send({ email: 'anything', password: 'anything' });
+      expect(disabled.status).toBe(404);
+      return;
+    }
+
+    trackedEmails.add(config.auth.localDevLoginUserEmail);
+    await provisionLocalDemoUser(pool, config.auth.localDevLoginUserEmail);
+
+    const demoLogin = await shopper
+      .post('/api/v1/auth/demo-login')
+      .set('Origin', origin)
+      .set('Cookie', initialCsrfCookie)
+      .set('X-CSRF-Token', initialSession.body.csrfToken)
+      .send({ email: 'not an email address', password: 'x' });
+    expect(demoLogin.status).toBe(200);
+    expect(demoLogin.body).toMatchObject({
+      localDemo: true,
+      user: {
+        email: config.auth.localDevLoginUserEmail,
+        displayName: 'Local Demo Shopper'
+      }
+    });
+
+    const sessionCookie = responseCookie(demoLogin, config.auth.cookieName);
+    expect(sessionCookie).not.toBe('');
+    const activeSession = await shopper
+      .get('/api/v1/auth/session')
+      .set('Cookie', sessionCookie);
+    expect(activeSession.status).toBe(200);
+    expect(activeSession.body).toMatchObject({
+      authenticated: true,
+      capabilities: { localDemoLogin: true },
+      user: { email: config.auth.localDevLoginUserEmail }
+    });
+    const activeCsrfCookie = responseCookie(activeSession, csrfCookieName);
+    expect(activeCsrfCookie).not.toBe('');
+    const authenticatedCookies = `${sessionCookie}; ${activeCsrfCookie}`;
+    const authenticatedCsrfToken = activeSession.body.csrfToken;
+
+    const protectedEmail = await request(app)
+      .patch('/api/v1/me')
+      .set('Origin', origin)
+      .set('Cookie', authenticatedCookies)
+      .set('X-CSRF-Token', authenticatedCsrfToken)
+      .send({ email: 'renamed@example.test', currentPassword: 'anything' });
+    expect(protectedEmail.status).toBe(403);
+    expect(protectedEmail.body.error.code).toBe('DEMO_ACCOUNT_RESTRICTED');
+
+    const protectedPassword = await request(app)
+      .post('/api/v1/auth/password/change')
+      .set('Origin', origin)
+      .set('Cookie', authenticatedCookies)
+      .set('X-CSRF-Token', authenticatedCsrfToken)
+      .send({ currentPassword: 'anything', newPassword: testPassword });
+    expect(protectedPassword.status).toBe(403);
+    expect(protectedPassword.body.error.code).toBe('DEMO_ACCOUNT_RESTRICTED');
+
+    const protectedClosure = await request(app)
+      .delete('/api/v1/me')
+      .set('Origin', origin)
+      .set('Cookie', authenticatedCookies)
+      .set('X-CSRF-Token', authenticatedCsrfToken)
+      .send({ password: 'anything', action: 'deactivate' });
+    expect(protectedClosure.status).toBe(403);
+    expect(protectedClosure.body.error.code).toBe('DEMO_ACCOUNT_RESTRICTED');
+
+    const resetRequest = await request(app)
+      .post('/api/v1/auth/password-reset/request')
+      .set('Origin', origin)
+      .set('Cookie', authenticatedCookies)
+      .set('X-CSRF-Token', authenticatedCsrfToken)
+      .send({ email: config.auth.localDevLoginUserEmail });
+    expect(resetRequest.status).toBe(202);
+    expect(mailer.deliveries).toHaveLength(0);
+
+    const strictClient = request.agent(app);
+    const strictBootstrap = await strictClient.get('/api/v1/auth/session');
+    const strictCsrfCookie = responseCookie(strictBootstrap, csrfCookieName);
+    const strictLogin = await strictClient
+      .post('/api/v1/auth/login')
+      .set('Origin', origin)
+      .set('Cookie', strictCsrfCookie)
+      .set('X-CSRF-Token', strictBootstrap.body.csrfToken)
+      .send({ email: 'not an email address', password: 'x' });
+    expect(strictLogin.status).toBe(422);
+    const reservedStrictLogin = await strictClient
+      .post('/api/v1/auth/login')
+      .set('Origin', origin)
+      .set('Cookie', strictCsrfCookie)
+      .set('X-CSRF-Token', strictBootstrap.body.csrfToken)
+      .send({ email: config.auth.localDevLoginUserEmail, password: testPassword });
+    expect(reservedStrictLogin.status).toBe(403);
+    expect(reservedStrictLogin.body.error.code).toBe('INVALID_CREDENTIALS');
   }, 60_000);
 
   it('enforces origin and CSRF, rotates real sessions, and makes password resets generic and one-use', async () => {

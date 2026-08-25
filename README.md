@@ -61,6 +61,20 @@ Generate and trust the local HTTPS certificate, apply migrations, and start the 
 
 Open [https://localhost:3443](https://localhost:3443). Requests to `http://localhost:3000` are redirected with HTTP 308. The backend intentionally serves only the allowlisted customer pages and static asset directories.
 
+For a local shared demo account, first attest the exact local database once, then start the server with the explicit demo switch. The confirmation must exactly match `MYSQL_DATABASE`; the command refuses non-loopback MySQL hosts and will not replace an existing staging or production attestation.
+
+```powershell
+& .\server\scripts\run-migrations.ps1 -CredentialsPath 'C:\path\outside\the\repository\mysql-credentials.env' -MarkLocalDevelopmentDatabase -ConfirmedDatabaseName 'am_market'
+```
+
+The login page will clearly show demo mode, and any non-empty values in its two login fields will open the dedicated local demo customer. The server refuses this mode outside loopback-only development or without the database attestation, and the regular `/auth/login` endpoint always keeps real password verification.
+
+```powershell
+& .\server\scripts\run-local.ps1 -CredentialsPath 'C:\path\outside\the\repository\mysql-credentials.env' -EnableLocalDemoLogin
+```
+
+Demo data is shared by one immutably marked local account and persists in the local MySQL database. Provisioning fails instead of taking over an existing customer at the reserved demo address. Do not attest a production/shared database, enable the mode in production, or use it for real customer authentication.
+
 A plain static preview can still browse the public product and category catalog: customer pages try the same-origin `/api/v1/catalog` proxy first, then fall back to the allowlisted read-only `https://api.mmarket.ma/api` catalog when that route is unavailable. Guest order creation, registration, authenticated carts, checkout, orders, reviews, and other database-backed features require the Node application, so use `https://localhost:3443` for full end-to-end development.
 
 ## Password-reset email

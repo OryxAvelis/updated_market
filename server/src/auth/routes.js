@@ -4,7 +4,7 @@ import { rateLimit } from 'express-rate-limit';
 import { z } from 'zod';
 import { config } from '../config.js';
 import { createMailService } from '../email/mailer.js';
-import { conflict, forbidden } from '../http/errors.js';
+import { conflict, forbidden, unavailable } from '../http/errors.js';
 import { logger } from '../logger.js';
 import { clearCsrfCookie, clearSessionCookie } from '../security/cookies.js';
 import { issueCsrfToken, issueSessionCsrfToken } from '../security/csrf.js';
@@ -12,6 +12,7 @@ import { hashPassword, passwordNeedsRehash, verifyPassword } from '../security/p
 import { randomToken, tokenDigest } from '../security/tokens.js';
 import { displayNameSchema, emailSchema, optionalPhoneSchema, passwordSchema } from '../validation/common.js';
 import { createSession, requireAuth, revokeCurrentSession } from './session.js';
+import { isLocalDemoEmail } from './local-demo.js';
 
 const registerSchema = z.object({
   displayName: displayNameSchema,
@@ -22,6 +23,11 @@ const registerSchema = z.object({
 
 const loginSchema = z.object({
   email: emailSchema,
+  password: z.string().min(1).max(128)
+}).strict();
+
+const localDemoLoginSchema = z.object({
+  email: z.string().trim().min(1).max(254),
   password: z.string().min(1).max(128)
 }).strict();
 
@@ -85,14 +91,58 @@ function serializeUser(row) {
 
 async function findUserByEmail(database, email) {
   const [rows] = await database.execute(
-    `SELECT id, public_id, email, email_normalized, display_name, phone_e164,
-            password_hash, status, email_verified_at
-       FROM users
-      WHERE email_normalized = ?
+    `SELECT u.id, u.public_id, u.email, u.email_normalized, u.display_name, u.phone_e164,
+            u.password_hash,
+            CASE WHEN demo.user_id IS NULL THEN 'customer' ELSE 'local_demo' END AS account_kind,
+            u.status, u.email_verified_at
+       FROM users u
+       LEFT JOIN local_demo_accounts demo ON demo.user_id = u.id
+      WHERE u.email_normalized = ?
       LIMIT 1`,
     [email]
   );
   return rows[0] || null;
+}
+
+async function findLocalDemoUser(database, email) {
+  const [rows] = await database.execute(
+    `SELECT u.id, u.public_id, u.email, u.email_normalized, u.display_name, u.phone_e164,
+            u.password_hash, 'local_demo' AS account_kind, u.status, u.email_verified_at
+       FROM users u
+       JOIN local_demo_accounts demo
+         ON demo.user_id = u.id
+        AND demo.singleton_id = 1
+       JOIN application_environment environment
+         ON environment.singleton_id = 1
+        AND environment.environment_kind = 'local_development'
+      WHERE u.email_normalized = ?
+      LIMIT 1`,
+    [email]
+  );
+  return rows[0] || null;
+}
+
+async function replaceUserSession(req, res, user) {
+  await revokeCurrentSession(req, res);
+  return inTransaction(req.app.locals.db, async (connection) => {
+    await connection.execute(
+      `UPDATE auth_sessions
+          SET revoked_at = UTC_TIMESTAMP(3)
+        WHERE user_id = ? AND revoked_at IS NULL
+        ORDER BY created_at DESC
+        LIMIT 100`,
+      [user.id]
+    );
+    return createSession(connection, user.id, res);
+  });
+}
+
+function authenticatedResponse(user, session, extra = {}) {
+  return {
+    user: { ...serializeUser(user) },
+    csrfToken: session.csrfToken,
+    ...extra
+  };
 }
 
 export function createAuthRouter({ mailService = createMailService() } = {}) {
@@ -110,13 +160,20 @@ export function createAuthRouter({ mailService = createMailService() } = {}) {
 
   router.get('/session', async (req, res) => {
     const csrfToken = await issueSessionCsrfToken(req, res);
-    res.set('Cache-Control', 'no-store').json(req.auth
+    const session = req.auth
       ? { authenticated: true, user: req.auth.user, csrfToken }
-      : { authenticated: false, csrfToken });
+      : { authenticated: false, csrfToken };
+    res.set('Cache-Control', 'no-store').json({
+      ...session,
+      capabilities: { localDemoLogin: config.auth.localDevLoginEnabled }
+    });
   });
 
   router.post('/register', authLimiter, async (req, res) => {
     const input = registerSchema.parse(req.body);
+    if (isLocalDemoEmail(input.email)) {
+      throw conflict('EMAIL_RESERVED', 'This email domain is reserved for the local demo account.');
+    }
     const passwordHash = await hashPassword(input.password);
     const userPublicId = randomUUID();
 
@@ -169,35 +226,35 @@ export function createAuthRouter({ mailService = createMailService() } = {}) {
 
   router.post('/login', authLimiter, async (req, res) => {
     const input = loginSchema.parse(req.body);
-    const user = await findUserByEmail(req.app.locals.db, input.email);
-    const valid = await verifyPassword(user?.password_hash, input.password);
-    if (!valid || !user || user.status !== 'active') {
+    const user = isLocalDemoEmail(input.email)
+      ? null
+      : await findUserByEmail(req.app.locals.db, input.email);
+    const passwordUser = user?.account_kind === 'customer' ? user : null;
+    const valid = await verifyPassword(passwordUser?.password_hash, input.password);
+    if (!valid || !passwordUser || passwordUser.status !== 'active') {
       throw forbidden('INVALID_CREDENTIALS', 'The email or password is incorrect.');
     }
 
-    if (await passwordNeedsRehash(user.password_hash)) {
+    if (await passwordNeedsRehash(passwordUser.password_hash)) {
       const upgraded = await hashPassword(input.password);
-      await req.app.locals.db.execute('UPDATE users SET password_hash = ? WHERE id = ?', [upgraded, user.id]);
+      await req.app.locals.db.execute('UPDATE users SET password_hash = ? WHERE id = ?', [upgraded, passwordUser.id]);
     }
 
-    await revokeCurrentSession(req, res);
-    const session = await inTransaction(req.app.locals.db, async (connection) => {
-      await connection.execute(
-        `UPDATE auth_sessions
-            SET revoked_at = UTC_TIMESTAMP(3)
-          WHERE user_id = ? AND revoked_at IS NULL
-          ORDER BY created_at DESC
-          LIMIT 100`,
-        [user.id]
-      );
-      return createSession(connection, user.id, res);
-    });
-
-    res.set('Cache-Control', 'no-store').json({
-      user: { ...serializeUser(user) },
-      csrfToken: session.csrfToken
-    });
+    const session = await replaceUserSession(req, res, passwordUser);
+    res.set('Cache-Control', 'no-store').json(authenticatedResponse(passwordUser, session));
   });
+
+  if (config.auth.localDevLoginEnabled) {
+    router.post('/demo-login', authLimiter, async (req, res) => {
+      localDemoLoginSchema.parse(req.body);
+      const user = await findLocalDemoUser(req.app.locals.db, config.auth.localDevLoginUserEmail);
+      if (!user || user.status !== 'active') {
+        throw unavailable('LOCAL_DEV_LOGIN_UNAVAILABLE', 'The local demo account is unavailable.');
+      }
+      const session = await replaceUserSession(req, res, user);
+      res.set('Cache-Control', 'no-store').json(authenticatedResponse(user, session, { localDemo: true }));
+    });
+  }
 
   router.post('/logout', async (req, res) => {
     await revokeCurrentSession(req, res);
@@ -209,10 +266,12 @@ export function createAuthRouter({ mailService = createMailService() } = {}) {
   router.post('/password-reset/request', resetLimiter, async (req, res) => {
     const startedAt = performance.now();
     const input = resetRequestSchema.parse(req.body);
-    const user = await findUserByEmail(req.app.locals.db, input.email);
+    const user = isLocalDemoEmail(input.email)
+      ? null
+      : await findUserByEmail(req.app.locals.db, input.email);
     const token = randomToken();
     const digest = tokenDigest(token);
-    if (user?.status === 'active') {
+    if (user?.status === 'active' && user.account_kind === 'customer') {
       const tokenPublicId = randomUUID();
       const expiresAt = new Date(Date.now() + config.auth.resetTtlMs);
       await inTransaction(req.app.locals.db, async (connection) => {
@@ -269,10 +328,16 @@ export function createAuthRouter({ mailService = createMailService() } = {}) {
     const newHash = await hashPassword(input.newPassword);
     const changed = await inTransaction(req.app.locals.db, async (connection) => {
       const [rows] = await connection.execute(
-        `SELECT id, user_id
-           FROM password_reset_tokens
-          WHERE token_digest = ? AND used_at IS NULL AND revoked_at IS NULL
-            AND expires_at > UTC_TIMESTAMP(3)
+        `SELECT reset.id, reset.user_id
+           FROM password_reset_tokens reset
+           JOIN users u
+             ON u.id = reset.user_id
+            AND u.status = 'active'
+           LEFT JOIN local_demo_accounts demo ON demo.user_id = u.id
+          WHERE reset.token_digest = ?
+            AND demo.user_id IS NULL
+            AND reset.used_at IS NULL AND reset.revoked_at IS NULL
+            AND reset.expires_at > UTC_TIMESTAMP(3)
           LIMIT 1 FOR UPDATE`,
         [tokenDigest(input.token)]
       );
@@ -310,6 +375,9 @@ export function createAuthRouter({ mailService = createMailService() } = {}) {
 
   router.post('/password/change', requireAuth, async (req, res) => {
     const input = passwordChangeSchema.parse(req.body);
+    if (req.auth.accountKind === 'local_demo') {
+      throw forbidden('DEMO_ACCOUNT_RESTRICTED', 'The local demo account password cannot be changed.');
+    }
     const [rows] = await req.app.locals.db.execute(
       'SELECT password_hash FROM users WHERE id = ? AND status = \'active\' LIMIT 1',
       [req.auth.userId]

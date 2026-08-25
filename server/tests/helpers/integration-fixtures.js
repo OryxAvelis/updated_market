@@ -147,6 +147,7 @@ export async function cleanupIntegrationData(
     if (userIds.length) {
       const userPlaceholders = placeholders(userIds);
       await connection.execute(`DELETE FROM orders WHERE user_id IN (${userPlaceholders})`, userIds);
+      await connection.execute(`DELETE FROM local_demo_accounts WHERE user_id IN (${userPlaceholders})`, userIds);
       await connection.execute(`DELETE FROM users WHERE id IN (${userPlaceholders})`, userIds);
     }
     if (guestOrderIds.length) {

@@ -46,11 +46,15 @@ export async function loadSession(req, res, next) {
       `SELECT s.id AS session_id, s.public_id AS session_public_id, s.user_id,
               s.csrf_digest, s.absolute_expires_at,
               u.public_id AS user_public_id, u.email, u.display_name, u.phone_e164,
+              CASE WHEN demo.user_id IS NULL THEN 'customer' ELSE 'local_demo' END AS account_kind,
               u.status, u.email_verified_at,
+              environment.environment_kind,
               p.language, p.theme, p.default_payment, p.order_notifications,
               p.low_stock_notifications, p.personalization_enabled
          FROM auth_sessions s
          JOIN users u ON u.id = s.user_id
+         LEFT JOIN local_demo_accounts demo ON demo.user_id = u.id
+         LEFT JOIN application_environment environment ON environment.singleton_id = 1
          LEFT JOIN user_preferences p ON p.user_id = u.id
         WHERE s.token_digest = ?
           AND s.revoked_at IS NULL
@@ -68,10 +72,25 @@ export async function loadSession(req, res, next) {
       return next();
     }
 
+    if (row.account_kind === 'local_demo' &&
+        (!config.auth.localDevLoginEnabled || row.environment_kind !== 'local_development')) {
+      await req.app.locals.db.execute(
+        `UPDATE auth_sessions
+            SET revoked_at = COALESCE(revoked_at, UTC_TIMESTAMP(3)),
+                revocation_reason = COALESCE(revocation_reason, ?)
+          WHERE id = ?`,
+        [config.auth.localDevLoginEnabled ? 'demo_database_unattested' : 'demo_disabled', row.session_id]
+      );
+      clearSessionCookie(res);
+      req.auth = null;
+      return next();
+    }
+
     req.auth = {
       sessionId: row.session_id,
       sessionPublicId: row.session_public_id,
       userId: row.user_id,
+      accountKind: row.account_kind,
       csrfDigest: row.csrf_digest,
       user: {
         id: row.user_public_id,

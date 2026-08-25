@@ -114,4 +114,26 @@ describe('StoreAPI cross-tab session identity guard', () => {
       '/api/v1/me/preferences'
     ]);
   });
+
+  it('posts demo credentials to the demo endpoint and remembers its authenticated user', async () => {
+    const responses = [
+      jsonResponse({ authenticated: false, csrfToken: 'csrf-guest' }),
+      jsonResponse({ user: { id: 'demo-user' }, csrfToken: 'csrf-demo', localDemo: true }),
+      jsonResponse({ preferences: { theme: 'dark' } })
+    ];
+    const { api, fetch } = await loadStoreApi(responses);
+    const credentials = { email: 'anything entered', password: 'anything entered' };
+
+    await api.auth.demoLogin(credentials);
+    await api.preferences.update({ theme: 'dark' });
+
+    expect(fetch.mock.calls.map(([url]) => url)).toEqual([
+      '/api/v1/auth/session',
+      '/api/v1/auth/demo-login',
+      '/api/v1/me/preferences'
+    ]);
+    const [, demoOptions] = fetch.mock.calls[1];
+    expect(demoOptions.method).toBe('POST');
+    expect(JSON.parse(demoOptions.body)).toEqual(credentials);
+  });
 });

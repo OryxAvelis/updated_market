@@ -229,6 +229,41 @@ button { font-family: inherit; cursor: pointer; }
 
 .auth-context-link:hover { color: var(--orange); }
 
+.demo-login-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  width: 100%;
+  margin-bottom: 18px;
+  padding: 13px 14px;
+  border: 1px solid #e8c66c;
+  border-radius: 12px;
+  background: #fff9e8;
+  color: #73510a;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.demo-login-notice[hidden] { display: none; }
+
+.demo-login-notice > i {
+  flex: 0 0 auto;
+  margin-top: 3px;
+}
+
+.demo-login-notice__copy { min-width: 0; }
+
+.demo-login-notice__copy strong {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.demo-login-notice__copy p { margin: 0; }
+.demo-login-notice__copy p + p { margin-top: 4px; }
+
 .auth-alert {
   width: 100%;
   margin-bottom: 18px;
@@ -679,6 +714,11 @@ button { font-family: inherit; cursor: pointer; }
   color: #b9d7ff;
 }
 [data-theme="dark"] .auth-context-link { color: #b9d7ff; }
+[data-theme="dark"] .demo-login-notice {
+  border-color: #78612e;
+  background: #302815;
+  color: #f2d78b;
+}
 [data-theme="dark"] .guest-merge-icon {
   background: var(--orange-light);
   color: #bcd7ff;

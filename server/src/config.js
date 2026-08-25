@@ -23,6 +23,11 @@ const optionalText = z.preprocess(
   z.string().min(1).optional()
 );
 
+const optionalEmail = z.preprocess(
+  (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+  z.string().trim().email().max(254).transform((value) => value.toLowerCase()).optional()
+);
+
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   HOST: z.string().default('127.0.0.1'),
@@ -55,6 +60,8 @@ const schema = z.object({
   SESSION_IDLE_HOURS: z.coerce.number().int().min(1).max(720).default(24),
   PASSWORD_RESET_TTL_MINUTES: z.coerce.number().int().min(5).max(120).default(20),
   PASSWORD_RESET_URL: z.string().url().default('https://localhost:3443/reset-password.html'),
+  LOCAL_DEV_LOGIN: boolValue.default(false),
+  LOCAL_DEV_LOGIN_USER_EMAIL: optionalEmail,
 
   GUEST_CHECKOUT_CREDENTIAL_TTL_MINUTES: z.coerce.number().int().min(5).max(120).default(30),
   GUEST_ORDER_ACCESS_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),
@@ -99,6 +106,10 @@ const isProduction = env.NODE_ENV === 'production';
 const secureCookies = appUrl.protocol === 'https:' && !isTest;
 const allowedOrigins = new Set(env.ALLOWED_ORIGINS.split(',').map((item) => new URL(item.trim()).origin));
 
+function isLoopbackHost(value) {
+  return new Set(['127.0.0.1', '::1', '[::1]', 'localhost']).has(String(value || '').trim().toLowerCase());
+}
+
 if (isProduction && appUrl.protocol !== 'https:') {
   throw new Error('APP_ORIGIN must use HTTPS in production.');
 }
@@ -125,6 +136,29 @@ if (env.HSTS_PRELOAD && (!env.HSTS_INCLUDE_SUBDOMAINS || env.HSTS_MAX_AGE_SECOND
 }
 if (env.SESSION_COOKIE_NAME.startsWith('__Host-') && !secureCookies && !isTest) {
   throw new Error('__Host- cookies require an HTTPS APP_ORIGIN.');
+}
+if (env.LOCAL_DEV_LOGIN) {
+  if (env.NODE_ENV !== 'development') {
+    throw new Error('LOCAL_DEV_LOGIN is allowed only when NODE_ENV=development.');
+  }
+  if (!env.LOCAL_DEV_LOGIN_USER_EMAIL) {
+    throw new Error('LOCAL_DEV_LOGIN requires LOCAL_DEV_LOGIN_USER_EMAIL.');
+  }
+  if (!env.LOCAL_DEV_LOGIN_USER_EMAIL.endsWith('@local.am-market.test')) {
+    throw new Error('LOCAL_DEV_LOGIN_USER_EMAIL must use the reserved @local.am-market.test domain.');
+  }
+  if (appUrl.protocol !== 'https:' || [...allowedOrigins].some((origin) => new URL(origin).protocol !== 'https:')) {
+    throw new Error('LOCAL_DEV_LOGIN requires HTTPS application origins.');
+  }
+  if (!isLoopbackHost(env.HOST) || !isLoopbackHost(appUrl.hostname) || !isLoopbackHost(env.DB_HOST)) {
+    throw new Error('LOCAL_DEV_LOGIN requires loopback application and database hosts.');
+  }
+  if ([...allowedOrigins].some((origin) => !isLoopbackHost(new URL(origin).hostname))) {
+    throw new Error('LOCAL_DEV_LOGIN requires every allowed origin to use a loopback host.');
+  }
+  if (env.TRUST_PROXY !== 0 || env.TLS_TERMINATED_BY_PROXY) {
+    throw new Error('LOCAL_DEV_LOGIN cannot run behind a proxy.');
+  }
 }
 
 function resolveOptionalPath(value) {
@@ -197,7 +231,9 @@ export const config = Object.freeze({
     sessionTtlMs: env.SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
     sessionIdleMs: env.SESSION_IDLE_HOURS * 60 * 60 * 1000,
     resetTtlMs: env.PASSWORD_RESET_TTL_MINUTES * 60 * 1000,
-    resetUrl: env.PASSWORD_RESET_URL
+    resetUrl: env.PASSWORD_RESET_URL,
+    localDevLoginEnabled: env.LOCAL_DEV_LOGIN,
+    localDevLoginUserEmail: env.LOCAL_DEV_LOGIN_USER_EMAIL
   },
   guestCheckout: {
     credentialTtlMs: env.GUEST_CHECKOUT_CREDENTIAL_TTL_MINUTES * 60 * 1000,

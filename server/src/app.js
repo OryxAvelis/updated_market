@@ -147,7 +147,7 @@ export function createApp({
       res.setHeader('X-Request-Id', id);
       return id;
     },
-    redact: ['req.headers.cookie', 'req.headers.authorization', 'req.headers.x-csrf-token', 'req.headers.idempotency-key', 'req.headers.x-guest-order-token', 'req.headers.x-am-fulfillment-signature', 'res.headers.set-cookie', 'req.body.password', 'req.body.currentPassword', 'req.body.newPassword', 'req.body.token']
+    redact: ['req.headers.cookie', 'req.headers.authorization', 'req.headers.x-csrf-token', 'req.headers.idempotency-key', 'req.headers.x-guest-order-token', 'req.headers.x-am-fulfillment-signature', 'res.headers.set-cookie', 'req.body.email', 'req.body.password', 'req.body.currentPassword', 'req.body.newPassword', 'req.body.token']
   }));
   app.use(securityHeaders());
   app.use(enforceProxyHttps);
