@@ -12,6 +12,10 @@
 
 const STORE_FRONTEND_CONTEXT = document.body?.dataset.admin !== 'true';
 const API = STORE_FRONTEND_CONTEXT ? '/api/v1/catalog' : 'https://api.mmarket.ma/api';
+const STORE_DOCUMENT_URL = new URL(document.baseURI);
+const STATIC_CATALOG_PREVIEW = STORE_DOCUMENT_URL.protocol === 'file:' ||
+  (['127.0.0.1', 'localhost'].includes(STORE_DOCUMENT_URL.hostname) && STORE_DOCUMENT_URL.port === '8785');
+const SUPPORTED_PAYMENT_METHODS = ['cod', 'wafacash', 'cashplus'];
 
 // Shared Font Awesome icons for category surfaces (sidebar, Home and directory).
 const CAT_ICONS = {
@@ -687,7 +691,7 @@ function fetchWithTimeout(url, ms) {
 }
 
 function directCatalogFallbackUrl(url) {
-  if (!STORE_FRONTEND_CONTEXT || typeof url !== 'string') return null;
+  if (!STORE_FRONTEND_CONTEXT || !STATIC_CATALOG_PREVIEW || typeof url !== 'string') return null;
   const backendPrefix = `${API}/`;
   if (!url.startsWith(backendPrefix)) return null;
   return `${DIRECT_CATALOG_API}/${url.slice(backendPrefix.length)}`;
@@ -892,12 +896,12 @@ function getProfile() {
 }
 
 function getDefaultPay() {
-  if (currentPreferences?.defaultPayment) return currentPreferences.defaultPayment;
+  if (SUPPORTED_PAYMENT_METHODS.includes(currentPreferences?.defaultPayment)) return currentPreferences.defaultPayment;
   const saved = localStorage.getItem('am_pay');
-  return ['cod', 'card', 'wafacash', 'cashplus'].includes(saved) ? saved : 'cod';
+  return SUPPORTED_PAYMENT_METHODS.includes(saved) ? saved : 'cod';
 }
 function setDefaultPay(p) {
-  const payment = ['cod', 'card', 'wafacash', 'cashplus'].includes(p) ? p : 'cod';
+  const payment = SUPPORTED_PAYMENT_METHODS.includes(p) ? p : 'cod';
   localStorage.setItem('am_pay', payment);
   if (currentUser) {
     currentPreferences = { ...(currentPreferences || {}), defaultPayment: payment };
@@ -1686,12 +1690,24 @@ function initHeaderSearch() {
     if (!handleStoreUnauthorized(error)) console.error('Search history update failed', error);
   });
 
+  const resultCountFor = query => {
+    const normalized = query.toLowerCase();
+    const cachedCount = cache.get(normalized)?.resultCount;
+    if (Number.isSafeInteger(cachedCount)) return cachedCount;
+    const recentCount = authenticatedSearches.find(item => item.query.toLowerCase() === normalized)?.resultsCount;
+    return Number.isSafeInteger(recentCount) ? recentCount : undefined;
+  };
+
+  const recordKnownSearch = query => {
+    const resultsCount = resultCountFor(query);
+    recordSearch({ query, ...(resultsCount === undefined ? {} : { resultsCount }) });
+    return resultsCount;
+  };
+
   const go = (value = input.value) => {
     const q = value.trim();
     if (q && currentUser) {
-      const known = cache.get(q.toLowerCase());
-      const resultsCount = Array.isArray(known) ? known.length : undefined;
-      recordSearch({ query: q, ...(resultsCount === undefined ? {} : { resultsCount }) });
+      const resultsCount = recordKnownSearch(q);
       authenticatedSearches = [
         { query: q, resultsCount, lastSearchedAt: new Date().toISOString() },
         ...authenticatedSearches.filter(item => item.query.toLowerCase() !== q.toLowerCase())
@@ -1780,14 +1796,17 @@ function initHeaderSearch() {
     const seq = ++requestSeq;
     open(`<div class="search-suggestion-status" role="presentation"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>${t('loading')}</div>`, t('loading'));
     try {
-      let list = cache.get(q.toLowerCase());
-      if (!list) {
+      let cached = cache.get(q.toLowerCase());
+      if (!cached) {
         const data = await StoreAPI.search.suggestions(q);
-        list = data.products || [];
-        cache.set(q.toLowerCase(), list);
+        cached = {
+          products: data.products || [],
+          resultCount: Number.isSafeInteger(data.resultCount) ? data.resultCount : undefined
+        };
+        cache.set(q.toLowerCase(), cached);
       }
       if (seq !== requestSeq || input.value.trim() !== q) return;
-      renderProducts(list, q);
+      renderProducts(cached.products, q);
     } catch {
       if (seq === requestSeq) open(`<div class="search-suggestion-status" role="presentation">${t('search_unavailable')}</div>`, t('search_unavailable'));
     }
@@ -1825,7 +1844,7 @@ function initHeaderSearch() {
         if (selectedQuery) go(selectedQuery);
         else if (options[activeIndex].matches('button')) options[activeIndex].click();
         else {
-          if (input.value.trim() && currentUser) recordSearch({ query: input.value.trim() });
+          if (input.value.trim() && currentUser) recordKnownSearch(input.value.trim());
           location.href = options[activeIndex].href;
         }
       }
@@ -1836,7 +1855,7 @@ function initHeaderSearch() {
     const link = event.target.closest('.search-suggestion, .search-suggestion-all');
     if (!link || !currentUser) return;
     const query = link.dataset.searchQuery || input.value.trim();
-    if (query) recordSearch({ query });
+    if (query) recordKnownSearch(query);
   });
   document.addEventListener('click', e => {
     if (!e.target.closest('.search-box')) close();

@@ -62,7 +62,7 @@ const guestCheckoutSchema = z.object({
     });
   }),
   delivery: deliverySchema,
-  paymentMethod: z.enum(['cod', 'card', 'wafacash', 'cashplus']).default('cod'),
+  paymentMethod: z.enum(['cod', 'wafacash', 'cashplus']).default('cod'),
   note: nullableShortText(500)
 }).strict();
 

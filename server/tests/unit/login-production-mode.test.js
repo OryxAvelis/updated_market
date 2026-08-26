@@ -15,6 +15,8 @@ describe('customer login production experience', () => {
     expect(html).toContain('id="toForgot"');
     expect(html).toContain('autocomplete="current-password"');
     expect(html).toContain('autocomplete="new-password"');
+    expect(html).toMatch(/id="loginPass"[^>]*required maxlength="128"/);
+    expect(html).not.toMatch(/id="loginPass"[^>]*minlength="12"/);
     expect(html.match(/v=20260825-real-accounts/g)).toHaveLength(4);
 
     expect(html).not.toContain('demoLoginNotice');
@@ -27,6 +29,8 @@ describe('customer login production experience', () => {
     expect(source).toContain('StoreAPI.auth.login({ email, password })');
     expect(source).toContain('StoreAPI.auth.register({ displayName, email, password, language: getLang() })');
     expect(source).toContain('StoreAPI.auth.requestPasswordReset({ email })');
+    expect(source).toContain("if (!password.length || password.length > 128)");
+    expect(source).toContain('if (password.length < 12 || password.length > 128)');
     expect(source).not.toContain('StoreAPI.auth.demoLogin');
     expect(source).not.toContain('localDemoLoginEnabled');
     expect(source).not.toContain('applyLocalDemoCapability');

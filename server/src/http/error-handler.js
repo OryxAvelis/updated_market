@@ -8,6 +8,24 @@ export function notFoundHandler(req, res) {
 export function errorHandler(error, req, res, _next) {
   if (res.headersSent) return;
 
+  if (error?.type === 'entity.parse.failed') {
+    return res.status(400).json({
+      error: {
+        code: 'INVALID_JSON',
+        message: 'The request body must contain valid JSON.'
+      }
+    });
+  }
+
+  if (error?.type === 'entity.too.large') {
+    return res.status(413).json({
+      error: {
+        code: 'PAYLOAD_TOO_LARGE',
+        message: 'The request body is too large.'
+      }
+    });
+  }
+
   if (error instanceof ZodError) {
     return res.status(422).json({
       error: {

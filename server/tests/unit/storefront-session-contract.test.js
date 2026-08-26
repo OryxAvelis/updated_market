@@ -48,6 +48,7 @@ function broadcastHub({ constructFails = false, postFails = false } = {}) {
 async function loadCoreSessionHarness({
   storageRemovalFails = false,
   frontend = false,
+  baseUrl = 'https://localhost:3443/',
   authBroadcast = null,
   locks = null,
   bootstrap = null,
@@ -71,7 +72,7 @@ async function loadCoreSessionHarness({
   }
   const document = {
     activeElement: null,
-    baseURI: 'https://localhost:3443/',
+    baseURI: baseUrl,
     body: {
       dataset: frontend ? { page: 'test' } : { admin: 'true', page: 'test' },
       insertAdjacentHTML() {},
@@ -281,7 +282,11 @@ describe('storefront session-expiry transition', () => {
         headers: { 'content-type': 'application/json' }
       });
     };
-    const { hooks } = await loadCoreSessionHarness({ frontend: true, fetchImpl });
+    const { hooks } = await loadCoreSessionHarness({
+      frontend: true,
+      baseUrl: 'http://127.0.0.1:8785/',
+      fetchImpl
+    });
 
     await expect(hooks.fetchCategories()).resolves.toEqual([
       { id: 1, name: 'Beverages', parent_id: null },
@@ -338,6 +343,26 @@ describe('storefront session-expiry transition', () => {
     expect(requested).toEqual(['/api/v1/catalog/categories/']);
   });
 
+  it('does not bypass an unavailable backend outside explicit static-preview mode', async () => {
+    const requested = [];
+    const fetchImpl = async url => {
+      requested.push(String(url));
+      return new Response(JSON.stringify({
+        error: { code: 'CATALOG_UNAVAILABLE', message: 'Unavailable' }
+      }), {
+        status: 503,
+        headers: { 'content-type': 'application/json' }
+      });
+    };
+    const { hooks } = await loadCoreSessionHarness({ frontend: true, fetchImpl });
+
+    await expect(hooks.fetchCategories()).rejects.toMatchObject({
+      status: 503,
+      code: 'CATALOG_UNAVAILABLE'
+    });
+    expect(requested).toEqual(['/api/v1/catalog/categories/']);
+  });
+
   it('does not bypass malformed JSON from the same-origin backend', async () => {
     const requested = [];
     const fetchImpl = async url => {
@@ -356,7 +381,7 @@ describe('storefront session-expiry transition', () => {
     expect(requested).toEqual(['/api/v1/catalog/categories/']);
   });
 
-  it('preserves product query parameters when the backend is unavailable', async () => {
+  it('preserves product query parameters in the explicit static-preview fallback', async () => {
     const requested = [];
     const fetchImpl = async url => {
       requested.push(String(url));
@@ -373,7 +398,11 @@ describe('storefront session-expiry transition', () => {
         headers: { 'content-type': 'application/json' }
       });
     };
-    const { hooks } = await loadCoreSessionHarness({ frontend: true, fetchImpl });
+    const { hooks } = await loadCoreSessionHarness({
+      frontend: true,
+      baseUrl: 'http://127.0.0.1:8785/',
+      fetchImpl
+    });
 
     await expect(hooks.fetchProducts(3, 7, 'green tea', '-price', 24, {
       brand: 11,

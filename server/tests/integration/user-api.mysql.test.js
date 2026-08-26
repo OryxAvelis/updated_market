@@ -22,6 +22,7 @@ const databaseDescribe = integrationEnabled ? describe.sequential : describe.ski
 const origin = config.appOrigin;
 const testPassword = 'AM-test-password-2026';
 const changedPassword = 'AM-changed-password-2026';
+const rotatedPassword = 'AM-rotated-password-2026';
 const fulfillmentSecret = 'integration-fulfillment-secret-that-is-longer-than-32-bytes';
 const trackedEmails = new Set();
 const trackedProductIds = new Set();
@@ -408,6 +409,139 @@ databaseDescribe('user API with MySQL', () => {
       .set('X-CSRF-Token', freshCsrf)
       .send({ email, password: changedPassword });
     expect(newPasswordLogin.status).toBe(200);
+
+    const resetBeforePasswordChange = await resetClient
+      .post('/api/v1/auth/password-reset/request')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', confirmation.body.csrfToken)
+      .send({ email });
+    expect(resetBeforePasswordChange.status).toBe(202);
+    const tokenBeforePasswordChange = mailer.deliveries.at(-1)?.token;
+    expect(tokenBeforePasswordChange).toEqual(expect.any(String));
+
+    const explicitPasswordChange = await fresh
+      .post('/api/v1/auth/password/change')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', newPasswordLogin.body.csrfToken)
+      .send({ currentPassword: changedPassword, newPassword: rotatedPassword });
+    expect(explicitPasswordChange.status).toBe(200);
+    const stalePasswordReset = await resetClient
+      .post('/api/v1/auth/password-reset/confirm')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', confirmation.body.csrfToken)
+      .send({ token: tokenBeforePasswordChange, newPassword: changedPassword });
+    expect(stalePasswordReset.status).toBe(403);
+    expect(stalePasswordReset.body.error.code).toBe('RESET_TOKEN_INVALID');
+  }, 60_000);
+
+  it('invalidates reset links sent to an old address when the customer changes email', async () => {
+    const originalEmail = uniqueEmail('email-change', trackedEmails);
+    const renamedEmail = uniqueEmail('email-renamed', trackedEmails);
+    const { app, mailer } = testApp();
+    const customer = request.agent(app);
+    const account = await register(customer, originalEmail, 'Email Change Customer');
+    const resetClient = request.agent(app);
+    const resetCsrf = await csrfFor(resetClient);
+
+    const resetRequest = await resetClient
+      .post('/api/v1/auth/password-reset/request')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', resetCsrf)
+      .send({ email: originalEmail });
+    expect(resetRequest.status).toBe(202);
+    const oldAddressToken = mailer.deliveries.at(-1)?.token;
+    expect(oldAddressToken).toEqual(expect.any(String));
+
+    const emailChange = await customer
+      .patch('/api/v1/me')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', account.csrfToken)
+      .send({ email: renamedEmail, currentPassword: testPassword });
+    expect(emailChange.status).toBe(200);
+    expect(emailChange.body.user.email).toBe(renamedEmail);
+
+    const staleConfirmation = await resetClient
+      .post('/api/v1/auth/password-reset/confirm')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', resetCsrf)
+      .send({ token: oldAddressToken, newPassword: changedPassword });
+    expect(staleConfirmation.status).toBe(403);
+    expect(staleConfirmation.body.error.code).toBe('RESET_TOKEN_INVALID');
+
+    const newDevice = request.agent(app);
+    const newDeviceCsrf = await csrfFor(newDevice);
+    const renamedLogin = await newDevice
+      .post('/api/v1/auth/login')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', newDeviceCsrf)
+      .send({ email: renamedEmail, password: testPassword });
+    expect(renamedLogin.status).toBe(200);
+  }, 60_000);
+
+  it('does not issue a reset token when an email change wins the concurrent row lock', async () => {
+    const originalEmail = uniqueEmail('reset-race', trackedEmails);
+    const renamedEmail = uniqueEmail('reset-race-renamed', trackedEmails);
+    const { app } = testApp();
+    const customer = request.agent(app);
+    await register(customer, originalEmail, 'Reset Race Customer');
+    const [[user]] = await pool.execute(
+      'SELECT id FROM users WHERE email_normalized = ? LIMIT 1',
+      [originalEmail]
+    );
+
+    let signalLookup;
+    const lookupCompleted = new Promise((resolve) => { signalLookup = resolve; });
+    const instrumentedDatabase = {
+      getConnection: (...args) => pool.getConnection(...args),
+      async execute(sql, parameters) {
+        const result = await pool.execute(sql, parameters);
+        if (/FROM users u[\s\S]+WHERE u\.email_normalized = \?/i.test(String(sql))) signalLookup();
+        return result;
+      }
+    };
+    const mailer = createMockMailer();
+    const resetApp = createApp({ database: instrumentedDatabase, catalog: createMockCatalog(), mailService: mailer });
+    const resetClient = request.agent(resetApp);
+    const resetCsrf = await csrfFor(resetClient);
+    const blocker = await pool.getConnection();
+    let resetRequest;
+    try {
+      await blocker.beginTransaction();
+      await blocker.execute('SELECT id FROM users WHERE id = ? FOR UPDATE', [user.id]);
+      resetRequest = resetClient
+        .post('/api/v1/auth/password-reset/request')
+        .set('Origin', origin)
+        .set('X-CSRF-Token', resetCsrf)
+        .send({ email: originalEmail });
+      const resetResponsePromise = resetRequest.then((response) => response);
+      await lookupCompleted;
+      await blocker.execute(
+        `UPDATE users
+            SET email = ?, email_normalized = ?, email_verified_at = NULL
+          WHERE id = ?`,
+        [renamedEmail, renamedEmail, user.id]
+      );
+      await blocker.execute(
+        `UPDATE password_reset_tokens
+            SET revoked_at = COALESCE(revoked_at, UTC_TIMESTAMP(3))
+          WHERE user_id = ? AND used_at IS NULL`,
+        [user.id]
+      );
+      await blocker.commit();
+      const response = await resetResponsePromise;
+      expect(response.status).toBe(202);
+    } catch (error) {
+      await blocker.rollback();
+      throw error;
+    } finally {
+      blocker.release();
+    }
+    expect(mailer.deliveries).toHaveLength(0);
+    const [[tokens]] = await pool.execute(
+      'SELECT COUNT(*) AS total FROM password_reset_tokens WHERE user_id = ?',
+      [user.id]
+    );
+    expect(Number(tokens.total)).toBe(0);
   }, 60_000);
 
   it('persists normalized Gmail accounts and restores account data across concurrent devices', async () => {
@@ -535,6 +669,7 @@ databaseDescribe('user API with MySQL', () => {
       secondDevice.get('/api/v1/wishlist')
     ]);
     expect(restoredPreferences.status).toBe(200);
+    expect(restoredPreferences.headers['cache-control']).toBe('private, no-store');
     expect(restoredPreferences.body.preferences).toMatchObject({
       language: 'fr',
       theme: 'dark',
@@ -639,6 +774,65 @@ databaseDescribe('user API with MySQL', () => {
     expect(persisted.body.preferences).toMatchObject({
       language: 'fr', theme: 'dark', defaultPayment: 'cashplus', personalizationEnabled: false
     });
+
+    const disabledCardPreference = await owner
+      .patch('/api/v1/me/preferences')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', ownerAccount.csrfToken)
+      .send({ defaultPayment: 'card' });
+    expect(disabledCardPreference.status).toBe(422);
+    expect(disabledCardPreference.body.error.code).toBe('VALIDATION_FAILED');
+  }, 60_000);
+
+  it('persists authoritative search history, recent views, and personalized recommendations', async () => {
+    const products = Array.from({ length: 10 }, (_, index) => uniqueProduct(
+      `engagement-${index + 1}`,
+      trackedProductIds,
+      { name: `Search Tea ${index + 1}`, category: 'search-tea' }
+    ));
+    const { app } = testApp(products);
+    const shopper = request.agent(app);
+    const account = await register(shopper, uniqueEmail('engagement', trackedEmails), 'Engagement Customer');
+
+    const suggestions = await shopper.get('/api/v1/catalog/search/suggestions?q=Search%20Tea');
+    expect(suggestions.status).toBe(200);
+    expect(suggestions.headers['cache-control']).toBe('private, no-store');
+    expect(suggestions.body.products).toHaveLength(8);
+    expect(suggestions.body.resultCount).toBe(10);
+    const anonymousSuggestions = await request(app).get('/api/v1/catalog/search/suggestions?q=Search%20Tea');
+    expect(anonymousSuggestions.headers['cache-control']).toBe('private, no-store');
+
+    const recordedSearch = await shopper
+      .post('/api/v1/me/search-history')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', account.csrfToken)
+      .send({ query: 'Search Tea', resultsCount: 1 });
+    expect(recordedSearch.status).toBe(204);
+    const searchHistory = await shopper.get('/api/v1/me/search-history');
+    expect(searchHistory.status).toBe(200);
+    expect(searchHistory.body.searches[0]).toMatchObject({
+      query: 'Search Tea',
+      resultsCount: 10,
+      count: 1
+    });
+
+    for (let view = 0; view < 2; view += 1) {
+      const recordedView = await shopper
+        .post('/api/v1/me/recently-viewed')
+        .set('Origin', origin)
+        .set('X-CSRF-Token', account.csrfToken)
+        .send({ productId: products[0].id });
+      expect(recordedView.status).toBe(204);
+    }
+    const recent = await shopper.get('/api/v1/me/recently-viewed');
+    expect(recent.status).toBe(200);
+    expect(recent.body.products[0]).toMatchObject({ id: products[0].id, viewCount: 2 });
+
+    const recommendations = await shopper.get('/api/v1/me/recommendations?limit=4');
+    expect(recommendations.status).toBe(200);
+    expect(recommendations.body.personalized).toBe(true);
+    expect(recommendations.body.products).toHaveLength(4);
+    expect(recommendations.body.products.every((product) => product.id !== products[0].id)).toBe(true);
   }, 60_000);
 
   it('merges a guest cart using catalog-authoritative availability and pricing', async () => {
@@ -696,6 +890,14 @@ databaseDescribe('user API with MySQL', () => {
       .set('X-CSRF-Token', account.csrfToken)
       .send({ quantity: 95 });
     expect(nearLimit.status).toBe(200);
+    const excessiveAdd = await shopper
+      .post('/api/v1/cart/items')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', account.csrfToken)
+      .send({ productId: product.id, quantity: 10 });
+    expect(excessiveAdd.status).toBe(409);
+    expect(excessiveAdd.body.error.code).toBe('QUANTITY_LIMIT_EXCEEDED');
+    expect((await shopper.get('/api/v1/cart')).body.cart.items[0].quantity).toBe(95);
     const excessiveMerge = await shopper
       .post('/api/v1/cart/merge')
       .set('Origin', origin)
@@ -767,6 +969,15 @@ databaseDescribe('user API with MySQL', () => {
     expect(tampered.status).toBe(422);
     expect(tampered.body.error.code).toBe('VALIDATION_FAILED');
 
+    const unavailableCardPayment = await shopper
+      .post('/api/v1/orders')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', account.csrfToken)
+      .set('Idempotency-Key', `card-${randomUUID()}`)
+      .send({ ...checkoutBody, paymentMethod: 'card' });
+    expect(unavailableCardPayment.status).toBe(422);
+    expect(unavailableCardPayment.body.error.code).toBe('VALIDATION_FAILED');
+
     const idempotencyKey = `checkout-${randomUUID()}`;
     const submitCheckout = () => shopper
       .post('/api/v1/orders')
@@ -795,6 +1006,15 @@ databaseDescribe('user API with MySQL', () => {
     const orderId = placed.body.order.id;
     expect(concurrentReplay.body).toMatchObject({ replayed: true, order: { id: orderId } });
 
+    const [reservedInventory] = await pool.execute(
+      `SELECT inventory.available_quantity, inventory.source_quantity
+         FROM catalog_inventory inventory
+         JOIN catalog_product_refs product ON product.id = inventory.product_ref_id
+        WHERE product.external_id = ?`,
+      [product.id]
+    );
+    expect(reservedInventory[0]).toMatchObject({ available_quantity: 8, source_quantity: 10 });
+
     const replay = await shopper
       .post('/api/v1/orders')
       .set('Origin', origin)
@@ -822,6 +1042,51 @@ databaseDescribe('user API with MySQL', () => {
     expect(cancelled.status).toBe(200);
     expect(cancelled.body.order.status).toBe('cancelled');
     expect(cancelled.body.order.tracking.at(-1)).toMatchObject({ status: 'cancelled', code: 'order_cancelled' });
+
+    const [releasedInventory] = await pool.execute(
+      `SELECT inventory.available_quantity, inventory.source_quantity
+         FROM catalog_inventory inventory
+         JOIN catalog_product_refs product ON product.id = inventory.product_ref_id
+        WHERE product.external_id = ?`,
+      [product.id]
+    );
+    expect(releasedInventory[0]).toMatchObject({ available_quantity: 10, source_quantity: 10 });
+    const [cancellationRows] = await pool.execute(
+      `SELECT cancellation.status, cancellation.processed_at
+         FROM order_cancellations cancellation
+         JOIN orders customer_order ON customer_order.id = cancellation.order_id
+        WHERE customer_order.public_id = ?`,
+      [orderId]
+    );
+    expect(cancellationRows).toHaveLength(1);
+    expect(cancellationRows[0].status).toBe('accepted');
+    expect(cancellationRows[0].processed_at).not.toBeNull();
+    const [cancellationEvents] = await pool.execute(
+      `SELECT event_type FROM outbox_events
+        WHERE aggregate_type = 'order'
+          AND aggregate_id = (SELECT CAST(id AS CHAR) FROM orders WHERE public_id = ? LIMIT 1)
+        ORDER BY id`,
+      [orderId]
+    );
+    expect(cancellationEvents.map((row) => row.event_type)).toEqual([
+      'order.confirmed', 'order.cancelled'
+    ]);
+
+    const repeatedCancellation = await shopper
+      .post(`/api/v1/orders/${orderId}/cancel`)
+      .set('Origin', origin)
+      .set('X-CSRF-Token', account.csrfToken)
+      .send({ reason: 'changed_mind' });
+    expect(repeatedCancellation.status).toBe(409);
+    expect(repeatedCancellation.body.error.code).toBe('ORDER_CANNOT_BE_CANCELLED');
+    const [inventoryAfterRetry] = await pool.execute(
+      `SELECT inventory.available_quantity
+         FROM catalog_inventory inventory
+         JOIN catalog_product_refs product ON product.id = inventory.product_ref_id
+        WHERE product.external_id = ?`,
+      [product.id]
+    );
+    expect(inventoryAfterRetry[0].available_quantity).toBe(10);
 
     const tracking = await shopper.get(`/api/v1/orders/${orderId}/tracking`);
     expect(tracking.status).toBe(200);
@@ -909,6 +1174,16 @@ databaseDescribe('user API with MySQL', () => {
       .send({ ...body, total: '0.01' });
     expect(tampered.status).toBe(422);
     expect(tampered.body.error.code).toBe('VALIDATION_FAILED');
+
+    const unavailableCardPayment = await guest
+      .post('/api/v1/guest-orders')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', csrfToken)
+      .set('Idempotency-Key', `guest-card-${randomUUID()}`)
+      .set('X-Guest-Order-Token', guestToken)
+      .send({ ...body, paymentMethod: 'card' });
+    expect(unavailableCardPayment.status).toBe(422);
+    expect(unavailableCardPayment.body.error.code).toBe('VALIDATION_FAILED');
 
     const submit = () => guest
       .post('/api/v1/guest-orders')
@@ -1440,6 +1715,62 @@ databaseDescribe('user API with MySQL', () => {
     expect(outboxRows.map((row) => row.event_type)).toEqual([
       'order.confirmed', 'order.preparing', 'order.shipping', 'order.delivered'
     ]);
+
+    const orderItemId = orderDetail.body.order.items[0].id;
+    const returnKey = `return-${randomUUID()}`;
+    const requestedReturn = await shopper
+      .post(`/api/v1/orders/${orderId}/returns`)
+      .set('Origin', origin)
+      .set('X-CSRF-Token', account.csrfToken)
+      .set('Idempotency-Key', returnKey)
+      .send({
+        reason: 'not_as_described',
+        details: 'Integration return request',
+        items: [{ orderItemId, quantity: 1 }]
+      });
+    expect(requestedReturn.status).toBe(201);
+    expect(requestedReturn.body).toMatchObject({
+      replayed: false,
+      return: { status: 'requested', reason: 'not_as_described' }
+    });
+    const returnId = requestedReturn.body.return.id;
+
+    const replayedReturn = await shopper
+      .post(`/api/v1/orders/${orderId}/returns`)
+      .set('Origin', origin)
+      .set('X-CSRF-Token', account.csrfToken)
+      .set('Idempotency-Key', returnKey)
+      .send({
+        reason: 'not_as_described',
+        details: 'Integration return request',
+        items: [{ orderItemId, quantity: 1 }]
+      });
+    expect(replayedReturn.status).toBe(200);
+    expect(replayedReturn.body).toMatchObject({ replayed: true, return: { id: returnId } });
+
+    const returnDetail = await shopper.get(`/api/v1/returns/${returnId}`);
+    expect(returnDetail.status).toBe(200);
+    expect(returnDetail.body.return).toMatchObject({
+      id: returnId,
+      orderId,
+      status: 'requested',
+      items: [{ orderItemId, productId: product.id, quantity: 1 }]
+    });
+
+    const stranger = request.agent(app);
+    await register(stranger, uniqueEmail('return-stranger', trackedEmails), 'Return Stranger');
+    const concealedReturn = await stranger.get(`/api/v1/returns/${returnId}`);
+    expect(concealedReturn.status).toBe(404);
+    expect(concealedReturn.body.error.code).toBe('RETURN_NOT_FOUND');
+
+    const excessiveReturn = await shopper
+      .post(`/api/v1/orders/${orderId}/returns`)
+      .set('Origin', origin)
+      .set('X-CSRF-Token', account.csrfToken)
+      .set('Idempotency-Key', `return-overflow-${randomUUID()}`)
+      .send({ reason: 'quality', items: [{ orderItemId, quantity: 1 }] });
+    expect(excessiveReturn.status).toBe(409);
+    expect(excessiveReturn.body.error.code).toBe('RETURN_QUANTITY_INVALID');
   }, 60_000);
 
   it('enforces review ownership while exposing the published rating summary', async () => {
@@ -1547,6 +1878,13 @@ databaseDescribe('user API with MySQL', () => {
     expect(notifications.body.notifications.filter((item) => item.productId === product.id))
       .toHaveLength(1);
     expect(notifications.body.notifications[0]).toMatchObject({ type: 'low_stock', productId: product.id });
+    expect(notifications.body.unreadCount).toBe(1);
+    const markedRead = await shopper
+      .patch(`/api/v1/notifications/${notifications.body.notifications[0].id}/read`)
+      .set('Origin', origin)
+      .set('X-CSRF-Token', account.csrfToken);
+    expect(markedRead.status).toBe(204);
+    expect((await shopper.get('/api/v1/notifications?unread=true')).body.unreadCount).toBe(0);
 
     catalog.records.get(product.id).stock_quantity = 20;
     expect((await evaluator.runNow()).notifications).toBe(1);

@@ -251,13 +251,15 @@ export function createHistoryRouter(catalog) {
   router.post('/search-history', async (req, res) => {
     const input = searchSchema.parse(req.body);
     const normalized = input.query.toLocaleLowerCase('en').replace(/\s+/g, ' ');
+    const catalogResult = await catalog.listProducts({ page: 1, pageSize: 1, search: input.query });
+    const authoritativeResultCount = Number(catalogResult.count) || 0;
     await req.app.locals.db.execute(
       `INSERT INTO search_history
         (user_id, query, query_normalized, results_count, search_count, last_searched_at)
        VALUES (?, ?, ?, ?, 1, UTC_TIMESTAMP(3))
        ON DUPLICATE KEY UPDATE query = VALUES(query), results_count = VALUES(results_count),
          search_count = search_count + 1, last_searched_at = UTC_TIMESTAMP(3)`,
-      [req.auth.userId, input.query, normalized, input.resultsCount ?? null]
+      [req.auth.userId, input.query, normalized, authoritativeResultCount]
     );
     res.status(204).end();
   });
@@ -272,6 +274,7 @@ export function createHistoryRouter(catalog) {
 export function createSearchSuggestionsRouter(catalog) {
   const router = Router();
   router.get('/', async (req, res) => {
+    res.set('Cache-Control', 'private, no-store');
     const q = z.string().trim().min(2).max(100).parse(req.query.q);
     const payload = await catalog.listProducts({ page: 1, pageSize: 8, search: q });
     let recentSearches = [];
@@ -283,7 +286,11 @@ export function createSearchSuggestionsRouter(catalog) {
       );
       recentSearches = rows.map((row) => row.query);
     }
-    res.json({ products: payload.results.slice(0, 8), recentSearches });
+    res.json({
+      products: payload.results.slice(0, 8),
+      resultCount: Number(payload.count) || 0,
+      recentSearches
+    });
   });
   return router;
 }

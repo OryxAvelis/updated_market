@@ -29,6 +29,7 @@
       forgotBrandTitle: 'Account recovery',
       forgotBrandText: 'We use a short-lived, one-time link so your password stays private.',
       sendReset: 'Send reset link',
+      passwordRequired: 'Enter your password.',
       passwordTooShort: 'Use at least 12 characters.',
       emailInvalid: 'Enter a valid email address.',
       nameInvalid: 'Enter at least 2 characters.',
@@ -78,6 +79,7 @@
       forgotBrandTitle: 'Récupération du compte',
       forgotBrandText: 'Nous utilisons un lien temporaire à usage unique afin de protéger votre mot de passe.',
       sendReset: 'Envoyer le lien',
+      passwordRequired: 'Saisissez votre mot de passe.',
       passwordTooShort: 'Utilisez au moins 12 caractères.',
       emailInvalid: 'Saisissez une adresse email valide.',
       nameInvalid: 'Saisissez au moins 2 caractères.',
@@ -115,7 +117,7 @@
 
   const fieldMap = {
     email: { input: 'loginEmail', wrap: 'loginEmailWrap', error: 'loginEmailError', key: 'emailInvalid' },
-    password: { input: 'loginPass', wrap: 'loginPassWrap', error: 'loginPassError', key: 'passwordTooShort' },
+    password: { input: 'loginPass', wrap: 'loginPassWrap', error: 'loginPassError', key: 'passwordRequired' },
     displayName: { input: 'suName', wrap: 'suNameWrap', error: 'suNameError', key: 'nameInvalid' },
     signupEmail: { input: 'suEmail', wrap: 'suEmailWrap', error: 'suEmailError', key: 'emailInvalid' },
     signupPassword: { input: 'suPass', wrap: 'suPassWrap', error: 'suPassError', key: 'passwordTooShort' },
@@ -757,7 +759,7 @@
     const password = $('loginPass').value;
     let firstInvalid = null;
     if (!isValidEmail(email)) { setFieldError(fieldMap.email); firstInvalid ||= $('loginEmail'); }
-    if (password.length < 12 || password.length > 128) { setFieldError(fieldMap.password); firstInvalid ||= $('loginPass'); }
+    if (!password.length || password.length > 128) { setFieldError(fieldMap.password); firstInvalid ||= $('loginPass'); }
     if (firstInvalid) { firstInvalid.focus(); return; }
 
     setPending(form, true);

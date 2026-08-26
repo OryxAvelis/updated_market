@@ -104,6 +104,11 @@ function requireJsonForBody(req, _res, next) {
   return next();
 }
 
+function preventPrivateResponseCaching(req, res, next) {
+  if (req.auth?.userId) res.set('Cache-Control', 'private, no-store');
+  return next();
+}
+
 function enforceProxyHttps(req, res, next) {
   if (!config.isProduction || !config.tlsTerminatedByProxy || req.secure) return next();
   // Keep the configured origin authoritative. Passing a scheme-relative
@@ -198,7 +203,7 @@ export function createApp({
   app.use(express.json({ limit: '32kb', strict: true }));
   app.use(requireJsonForBody);
   app.use('/api/v1/admin', requireTrustedOrigin, loadAdminSession, requireAdminCsrf, createAdminAuthRouter());
-  app.use('/api/v1', requireTrustedOrigin, loadSession, requireCsrf);
+  app.use('/api/v1', requireTrustedOrigin, loadSession, preventPrivateResponseCaching, requireCsrf);
 
   app.use('/api/v1/health', createHealthRouter());
   app.use('/api/v1/auth', createAuthRouter({ mailService }));

@@ -31,7 +31,7 @@ services:
       - key: DB_TLS_SERVERNAME
         sync: false
       - key: LOW_STOCK_EVALUATOR_ENABLED
-        value: "false"
+        value: "true"
       - key: LOCAL_DEV_LOGIN
         value: "false"
       - key: HSTS_MAX_AGE_SECONDS

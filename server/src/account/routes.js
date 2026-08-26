@@ -20,11 +20,15 @@ const profileSchema = z.object({
 const preferencesSchema = z.object({
   language: z.enum(['en', 'fr']).optional(),
   theme: z.enum(['light', 'dark']).optional(),
-  defaultPayment: z.enum(['cod', 'card', 'wafacash', 'cashplus']).optional(),
+  defaultPayment: z.enum(['cod', 'wafacash', 'cashplus']).optional(),
   orderNotifications: z.boolean().optional(),
   lowStockNotifications: z.boolean().optional(),
   personalizationEnabled: z.boolean().optional()
 }).strict().refine((value) => Object.keys(value).length > 0, { message: 'Provide at least one preference.' });
+
+function supportedPaymentPreference(value) {
+  return ['cod', 'wafacash', 'cashplus'].includes(value) ? value : 'cod';
+}
 
 const addressSchema = z.object({
   label: z.string().trim().min(1).max(50),
@@ -126,10 +130,20 @@ export function createAccountRouter() {
     }
     if (fields.length) {
       try {
-        await req.app.locals.db.execute(
-          `UPDATE users SET ${fields.join(', ')} WHERE id = ?`,
-          [...values, req.auth.userId]
-        );
+        await inTransaction(req.app.locals.db, async (connection) => {
+          await connection.execute(
+            `UPDATE users SET ${fields.join(', ')} WHERE id = ?`,
+            [...values, req.auth.userId]
+          );
+          if (changingEmail) {
+            await connection.execute(
+              `UPDATE password_reset_tokens
+                  SET revoked_at = COALESCE(revoked_at, UTC_TIMESTAMP(3))
+                WHERE user_id = ? AND used_at IS NULL`,
+              [req.auth.userId]
+            );
+          }
+        });
       } catch (error) {
         if (error?.code === 'ER_DUP_ENTRY') throw conflict('EMAIL_ALREADY_REGISTERED', 'That email address is already in use.');
         throw error;
@@ -210,7 +224,7 @@ export function createAccountRouter() {
       preferences: {
         language: row.language,
         theme: row.theme,
-        defaultPayment: row.default_payment,
+        defaultPayment: supportedPaymentPreference(row.default_payment),
         orderNotifications: Boolean(row.order_notifications),
         lowStockNotifications: Boolean(row.low_stock_notifications),
         personalizationEnabled: Boolean(row.personalization_enabled),
@@ -244,7 +258,7 @@ export function createAccountRouter() {
     res.json({ preferences: {
       language: row.language,
       theme: row.theme,
-      defaultPayment: row.default_payment,
+      defaultPayment: supportedPaymentPreference(row.default_payment),
       orderNotifications: Boolean(row.order_notifications),
       lowStockNotifications: Boolean(row.low_stock_notifications),
       personalizationEnabled: Boolean(row.personalization_enabled),

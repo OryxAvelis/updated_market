@@ -72,3 +72,23 @@ export async function reserveOrderInventory(connection, orderId, verifiedItems) 
   }
   return productRefs;
 }
+
+// Cancellation owns the order row lock and permits exactly one transition to
+// `cancelled`, so this release runs at most once for an order. Keep the
+// allocation rows as the historical checkout audit and restore only inventory
+// that received the finite-stock guarantee.
+export async function releaseOrderInventory(connection, orderId) {
+  const [result] = await connection.execute(
+    `UPDATE catalog_inventory inventory
+       JOIN order_inventory_allocations allocation
+         ON allocation.product_ref_id = inventory.product_ref_id
+        AND allocation.order_id = ?
+        AND allocation.inventory_policy = 'finite'
+        SET inventory.available_quantity = LEAST(
+          inventory.source_quantity,
+          inventory.available_quantity + allocation.quantity
+        )`,
+    [orderId]
+  );
+  return result.affectedRows;
+}

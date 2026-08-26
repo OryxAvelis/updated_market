@@ -264,7 +264,21 @@ export function createAuthRouter({ mailService = createMailService() } = {}) {
     if (user?.status === 'active' && user.account_kind === 'customer') {
       const tokenPublicId = randomUUID();
       const expiresAt = new Date(Date.now() + config.auth.resetTtlMs);
-      await inTransaction(req.app.locals.db, async (connection) => {
+      const resetRecipient = await inTransaction(req.app.locals.db, async (connection) => {
+        const [currentRows] = await connection.execute(
+          `SELECT u.id, u.email, u.display_name
+             FROM users u
+            WHERE u.id = ?
+              AND u.email_normalized = ?
+              AND u.status = 'active'
+              AND NOT EXISTS (
+                SELECT 1 FROM local_demo_accounts demo WHERE demo.user_id = u.id
+              )
+            LIMIT 1 FOR UPDATE`,
+          [user.id, input.email]
+        );
+        const currentUser = currentRows[0];
+        if (!currentUser) return null;
         await connection.execute(
           `UPDATE password_reset_tokens
               SET revoked_at = COALESCE(revoked_at, UTC_TIMESTAMP(3))
@@ -276,31 +290,36 @@ export function createAuthRouter({ mailService = createMailService() } = {}) {
            VALUES (?, ?, ?, ?)`,
           [tokenPublicId, user.id, digest, expiresAt]
         );
+        return currentUser;
       });
-      void (async () => {
-        try {
-          const delivered = await mailService.sendPasswordReset({
-            to: user.email,
-            displayName: user.display_name,
-            token
-          });
-          if (delivered) return;
-          await req.app.locals.db.execute(
-            'UPDATE password_reset_tokens SET revoked_at = UTC_TIMESTAMP(3) WHERE public_id = ?',
-            [tokenPublicId]
-          );
-        } catch (error) {
-          logger.error({ err: error, resetId: tokenPublicId }, 'Password-reset email delivery failed');
+      if (resetRecipient) {
+        void (async () => {
           try {
+            const delivered = await mailService.sendPasswordReset({
+              to: resetRecipient.email,
+              displayName: resetRecipient.display_name,
+              token
+            });
+            if (delivered) return;
             await req.app.locals.db.execute(
               'UPDATE password_reset_tokens SET revoked_at = UTC_TIMESTAMP(3) WHERE public_id = ?',
               [tokenPublicId]
             );
-          } catch (revokeError) {
-            logger.error({ err: revokeError, resetId: tokenPublicId }, 'Could not revoke an undelivered password-reset token');
+          } catch (error) {
+            logger.error({ err: error, resetId: tokenPublicId }, 'Password-reset email delivery failed');
+            try {
+              await req.app.locals.db.execute(
+                'UPDATE password_reset_tokens SET revoked_at = UTC_TIMESTAMP(3) WHERE public_id = ?',
+                [tokenPublicId]
+              );
+            } catch (revokeError) {
+              logger.error({ err: revokeError, resetId: tokenPublicId }, 'Could not revoke an undelivered password-reset token');
+            }
           }
-        }
-      })();
+        })();
+      } else {
+        await req.app.locals.db.execute('SELECT SHA2(?, 256) AS digest', [digest.toString('hex')]);
+      }
     } else {
       // Keep the unknown-account path close to the same database/crypto shape.
       // The fixed response floor below hides normal variance without delaying
@@ -380,6 +399,12 @@ export function createAuthRouter({ mailService = createMailService() } = {}) {
       await connection.execute(
         'UPDATE users SET password_hash = ?, password_changed_at = UTC_TIMESTAMP(3) WHERE id = ?',
         [newHash, req.auth.userId]
+      );
+      await connection.execute(
+        `UPDATE password_reset_tokens
+            SET revoked_at = COALESCE(revoked_at, UTC_TIMESTAMP(3))
+          WHERE user_id = ? AND used_at IS NULL`,
+        [req.auth.userId]
       );
       await connection.execute(
         'UPDATE auth_sessions SET revoked_at = COALESCE(revoked_at, UTC_TIMESTAMP(3)) WHERE user_id = ?',

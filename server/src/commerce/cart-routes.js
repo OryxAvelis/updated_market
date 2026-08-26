@@ -169,11 +169,18 @@ export function createCartRouter(catalog) {
         'SELECT quantity FROM cart_items WHERE cart_id = ? AND product_ref_id = ? LIMIT 1 FOR UPDATE',
         [cart.id, productRefId]
       );
-      const quantity = Math.min(99, Number(existingRows[0]?.quantity || 0) + input.quantity);
+      const inCart = Number(existingRows[0]?.quantity || 0);
+      const quantity = inCart + input.quantity;
+      if (quantity > 99) {
+        throw conflict('QUANTITY_LIMIT_EXCEEDED', 'A cart item cannot exceed 99 units.', {
+          maximum: 99,
+          inCart
+        });
+      }
       if (product.stock_quantity != null && quantity > product.stock_quantity) {
         throw conflict('QUANTITY_UNAVAILABLE', 'The requested quantity is unavailable.', {
           available: product.stock_quantity,
-          inCart: Number(existingRows[0]?.quantity || 0)
+          inCart
         });
       }
       await connection.execute(

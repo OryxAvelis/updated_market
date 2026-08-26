@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../auth/session.js';
-import { reserveOrderInventory } from '../catalog/inventory.js';
+import { releaseOrderInventory, reserveOrderInventory } from '../catalog/inventory.js';
 import { databaseDateToIso, nullableDatabaseDateToIso } from '../db/date.js';
 import { conflict, notFound } from '../http/errors.js';
 import { centsToDecimal, decimalToCents, deliveryFeeCents } from '../money.js';
@@ -10,7 +10,7 @@ import { publicIdSchema } from '../validation/common.js';
 
 const checkoutSchema = z.object({
   addressId: publicIdSchema,
-  paymentMethod: z.enum(['cod', 'card', 'wafacash', 'cashplus']).default('cod'),
+  paymentMethod: z.enum(['cod', 'wafacash', 'cashplus']).default('cod'),
   note: z.union([z.string().trim().max(500), z.literal(''), z.null()]).transform((value) => value || null).optional()
 }).strict();
 
@@ -505,9 +505,11 @@ export function createOrdersRouter(catalog) {
         `UPDATE orders SET status = 'cancelled', cancelled_at = UTC_TIMESTAMP(3), version = version + 1 WHERE id = ?`,
         [order.id]
       );
+      await releaseOrderInventory(connection, order.id);
       await connection.execute(
-        `INSERT INTO order_cancellations (order_id, user_id, reason_code, details)
-         VALUES (?, ?, ?, ?)`,
+        `INSERT INTO order_cancellations
+          (order_id, user_id, status, reason_code, details, processed_at)
+         VALUES (?, ?, 'accepted', ?, ?, UTC_TIMESTAMP(3))`,
         [order.id, req.auth.userId, input.reason, input.details ?? null]
       );
       await connection.execute(
@@ -521,6 +523,14 @@ export function createOrdersRouter(catalog) {
          SELECT ?, ?, 'order_cancelled', ?, ?, JSON_OBJECT('orderId', ?, 'status', 'cancelled')
            FROM user_preferences WHERE user_id = ? AND order_notifications = 1`,
         [randomUUID(), req.auth.userId, order.id, `order:${orderPublicId}:cancelled`, orderPublicId, req.auth.userId]
+      );
+      await connection.execute(
+        `INSERT INTO outbox_events (aggregate_type, aggregate_id, event_type, payload)
+         VALUES ('order', ?, 'order.cancelled', JSON_OBJECT(
+           'orderId', ?, 'userId', ?, 'previousStatus', ?,
+           'status', 'cancelled', 'reason', ?
+         ))`,
+        [String(order.id), orderPublicId, req.auth.userId, order.status, input.reason]
       );
     });
     res.json({ order: await getOrder(req.app.locals.db, req.auth.userId, orderPublicId) });

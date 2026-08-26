@@ -4,6 +4,10 @@ import { unauthorized } from '../http/errors.js';
 import { clearSessionCookie, setCsrfCookie, setSessionCookie } from '../security/cookies.js';
 import { randomToken, tokenDigest } from '../security/tokens.js';
 
+function supportedPaymentPreference(value) {
+  return ['cod', 'wafacash', 'cashplus'].includes(value) ? value : 'cod';
+}
+
 export async function createSession(connection, userId, res) {
   const token = randomToken();
   const csrfToken = randomToken();
@@ -101,7 +105,7 @@ export async function loadSession(req, res, next) {
         preferences: {
           language: row.language || 'en',
           theme: row.theme || 'light',
-          defaultPayment: row.default_payment || 'cod',
+          defaultPayment: supportedPaymentPreference(row.default_payment),
           orderNotifications: Boolean(row.order_notifications ?? true),
           lowStockNotifications: Boolean(row.low_stock_notifications ?? true),
           personalizationEnabled: Boolean(row.personalization_enabled ?? true)
