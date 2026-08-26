@@ -16,6 +16,15 @@ export function centsToDecimal(cents) {
   return `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, '0')}`;
 }
 
-export function deliveryFeeCents(subtotalCents) {
-  return subtotalCents >= 20000 ? 0 : 2000;
+export function deliveryFeeCents(subtotalCents, settings = {}) {
+  if (!Number.isSafeInteger(subtotalCents) || subtotalCents < 0) {
+    throw new TypeError('subtotalCents must be a non-negative safe integer');
+  }
+  const defaultFeeCents = settings.defaultFeeCents ?? 2000;
+  const freeDeliveryThresholdCents = settings.freeDeliveryThresholdCents ?? 20000;
+  if (!Number.isSafeInteger(defaultFeeCents) || defaultFeeCents < 0 ||
+      !Number.isSafeInteger(freeDeliveryThresholdCents) || freeDeliveryThresholdCents < 0) {
+    throw new TypeError('delivery settings must contain non-negative safe integer cents');
+  }
+  return subtotalCents >= freeDeliveryThresholdCents ? 0 : defaultFeeCents;
 }

@@ -17,18 +17,18 @@
 <body class="admin-app admin-shell-pending" data-admin="true" data-page="admin-settings" data-admin-page="settings">
   <main class="admin-main" id="adminMain" tabindex="-1">
     <section class="admin-page admin-settings-page" aria-labelledby="settingsPageTitle">
-    <header class="admin-page-header"><div><p class="admin-page-eyebrow" data-i18n="admin_configuration">Configuration</p><h1 class="admin-page-title" id="settingsPageTitle" data-i18n="admin_settings_title">Settings</h1><p class="admin-page-intro" data-i18n="admin_settings_intro">Manage store information saved on this device and choose interface preferences.</p></div></header>
-    <aside class="admin-inline-notice admin-settings-notice" role="note"><i class="fa-solid fa-laptop" aria-hidden="true"></i><div><p data-i18n="admin_settings_local_note">Store details below are saved on this device and are not published.</p></div></aside>
+    <header class="admin-page-header"><div><p class="admin-page-eyebrow" data-i18n="admin_configuration">Configuration</p><h1 class="admin-page-title" id="settingsPageTitle" data-i18n="admin_settings_title">Settings</h1><p class="admin-page-intro" data-i18n="admin_settings_intro">Manage shared store-information drafts and choose browser interface preferences.</p></div></header>
+    <aside class="admin-inline-notice admin-settings-notice" role="note"><i class="fa-solid fa-database" aria-hidden="true"></i><div><p data-i18n="admin_settings_local_note">Store details below are saved as a shared database-backed draft and are not published to the storefront.</p></div></aside>
 
     <div class="admin-settings-grid">
       <section class="admin-card admin-settings-card" aria-labelledby="storeInfoTitle">
-        <header class="admin-card-header"><div><h2 class="admin-card-title" id="storeInfoTitle" data-i18n="admin_store_information">Store information</h2><p class="admin-card-subtitle" data-i18n="admin_store_information_sub">Contact and identity fields saved on this device.</p></div></header>
+        <header class="admin-card-header"><div><h2 class="admin-card-title" id="storeInfoTitle" data-i18n="admin_store_information">Store information</h2><p class="admin-card-subtitle" data-i18n="admin_store_information_sub">Contact and identity fields shared with authorized administrators.</p></div></header>
         <form id="storeSettingsForm" class="admin-card-body admin-settings-form" novalidate>
           <div><label class="form-label admin-form-label" for="storeName"><span data-i18n="admin_store_name">Store name</span> <span class="admin-required" aria-hidden="true">*</span></label><input class="form-control admin-input" id="storeName" required maxlength="80"><div class="invalid-feedback" data-i18n="admin_name_required">Enter a name.</div></div>
           <div><label class="form-label admin-form-label" for="storeEmail" data-i18n="admin_contact_email">Contact email</label><input class="form-control admin-input" id="storeEmail" type="email" autocomplete="email"><div class="invalid-feedback" data-i18n="admin_valid_email">Enter a valid email address.</div></div>
           <div><label class="form-label admin-form-label" for="storePhone" data-i18n="admin_contact_phone">Contact phone</label><input class="form-control admin-input" id="storePhone" type="tel" autocomplete="tel"></div>
           <div><label class="form-label admin-form-label" for="storeAddress" data-i18n="admin_store_address">Store address</label><textarea class="form-control admin-textarea" id="storeAddress" rows="3" maxlength="240"></textarea></div>
-          <div class="admin-form-actions"><button class="admin-button admin-button--secondary" id="storeSettingsCancel" type="button" data-i18n="admin_cancel">Cancel</button><button class="admin-button admin-button--primary" id="storeSettingsSubmit" type="submit"><span data-i18n="admin_save_local">Save on this device</span></button></div>
+          <div class="admin-form-actions"><button class="admin-button admin-button--secondary" id="storeSettingsCancel" type="button" data-i18n="admin_cancel">Cancel</button><button class="admin-button admin-button--primary" id="storeSettingsSubmit" type="submit"><span data-i18n="admin_save_local">Save shared draft</span></button></div>
         </form>
       </section>
 

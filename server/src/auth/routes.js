@@ -94,7 +94,9 @@ async function findUserByEmail(database, email) {
     `SELECT u.id, u.public_id, u.email, u.email_normalized, u.display_name, u.phone_e164,
             u.password_hash,
             CASE WHEN demo.user_id IS NULL THEN 'customer' ELSE 'local_demo' END AS account_kind,
-            u.status, u.email_verified_at
+            u.status, u.failed_login_count, u.locked_until,
+            (u.locked_until IS NULL OR u.locked_until <= UTC_TIMESTAMP(3)) AS login_allowed,
+            u.email_verified_at
        FROM users u
        LEFT JOIN local_demo_accounts demo ON demo.user_id = u.id
       WHERE u.email_normalized = ?
@@ -125,6 +127,49 @@ async function findLocalDemoUser(database, email) {
 async function replaceCurrentSession(req, res, user) {
   await revokeCurrentSession(req, res);
   return inTransaction(req.app.locals.db, (connection) => createSession(connection, user.id, res));
+}
+
+function isCustomerLoginAllowed(user) {
+  if (!user || user.status !== 'active') return false;
+  return Boolean(user.login_allowed);
+}
+
+async function recordFailedCustomerLogin(database, user) {
+  if (!user) return;
+  await database.execute(
+    `UPDATE users
+        SET failed_login_count = CASE
+              WHEN locked_until IS NOT NULL AND locked_until <= UTC_TIMESTAMP(3) THEN 1
+              ELSE LEAST(failed_login_count + 1, 1000)
+            END,
+            locked_until = CASE
+              WHEN locked_until IS NOT NULL AND locked_until <= UTC_TIMESTAMP(3) THEN NULL
+              WHEN failed_login_count >= 5 THEN TIMESTAMPADD(MINUTE, 15, UTC_TIMESTAMP(3))
+              ELSE locked_until
+            END
+      WHERE id = ?`,
+    [user.id]
+  );
+}
+
+async function replaceCustomerSession(req, res, user, upgradedHash) {
+  await revokeCurrentSession(req, res);
+  return inTransaction(req.app.locals.db, async (connection) => {
+    const [updated] = await connection.execute(
+      `UPDATE users
+          SET failed_login_count = 0,
+              locked_until = NULL,
+              password_hash = COALESCE(?, password_hash)
+        WHERE id = ?
+          AND status = 'active'
+          AND (locked_until IS NULL OR locked_until <= UTC_TIMESTAMP(3))`,
+      [upgradedHash, user.id]
+    );
+    if (updated.affectedRows !== 1) {
+      throw forbidden('INVALID_CREDENTIALS', 'The email or password is incorrect.');
+    }
+    return createSession(connection, user.id, res);
+  });
 }
 
 function authenticatedResponse(user, session, extra = {}) {
@@ -221,16 +266,20 @@ export function createAuthRouter({ mailService = createMailService() } = {}) {
       : await findUserByEmail(req.app.locals.db, input.email);
     const passwordUser = user?.account_kind === 'customer' ? user : null;
     const valid = await verifyPassword(passwordUser?.password_hash, input.password);
-    if (!valid || !passwordUser || passwordUser.status !== 'active') {
+    const loginAllowed = isCustomerLoginAllowed(passwordUser);
+    if (!valid || !loginAllowed) {
+      // Once locked, do not let repeated attempts extend the lock window. That
+      // would let a third party keep a known account unavailable indefinitely.
+      if (!valid && passwordUser?.status === 'active' && passwordUser.login_allowed) {
+        await recordFailedCustomerLogin(req.app.locals.db, passwordUser);
+      }
       throw forbidden('INVALID_CREDENTIALS', 'The email or password is incorrect.');
     }
 
-    if (await passwordNeedsRehash(passwordUser.password_hash)) {
-      const upgraded = await hashPassword(input.password);
-      await req.app.locals.db.execute('UPDATE users SET password_hash = ? WHERE id = ?', [upgraded, passwordUser.id]);
-    }
-
-    const session = await replaceCurrentSession(req, res, passwordUser);
+    const upgradedHash = await passwordNeedsRehash(passwordUser.password_hash)
+      ? await hashPassword(input.password)
+      : null;
+    const session = await replaceCustomerSession(req, res, passwordUser, upgradedHash);
     res.set('Cache-Control', 'no-store').json(authenticatedResponse(passwordUser, session));
   });
 
@@ -354,7 +403,8 @@ export function createAuthRouter({ mailService = createMailService() } = {}) {
       if (!reset) return false;
       await connection.execute(
         `UPDATE users
-            SET password_hash = ?, password_changed_at = UTC_TIMESTAMP(3)
+            SET password_hash = ?, password_changed_at = UTC_TIMESTAMP(3),
+                failed_login_count = 0, locked_until = NULL
           WHERE id = ? AND status = 'active'`,
         [newHash, reset.user_id]
       );
@@ -397,7 +447,10 @@ export function createAuthRouter({ mailService = createMailService() } = {}) {
     const newHash = await hashPassword(input.newPassword);
     const session = await inTransaction(req.app.locals.db, async (connection) => {
       await connection.execute(
-        'UPDATE users SET password_hash = ?, password_changed_at = UTC_TIMESTAMP(3) WHERE id = ?',
+        `UPDATE users
+            SET password_hash = ?, password_changed_at = UTC_TIMESTAMP(3),
+                failed_login_count = 0, locked_until = NULL
+          WHERE id = ?`,
         [newHash, req.auth.userId]
       );
       await connection.execute(

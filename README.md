@@ -102,15 +102,32 @@ npm run test:integration
 
 Set the documented `DB_*`, TLS, `APP_ORIGIN`, and `ALLOWED_ORIGINS` variables first. The suite applies migrations and removes only its randomized test fixtures; never point it at production or a shared database.
 
+The separate migration regression creates and drops its own randomized database, so it needs an explicitly enabled disposable MySQL administrator connection:
+
+```powershell
+$env:TEST_USE_DISPOSABLE_MIGRATION_DATABASE = 'true'
+$env:TEST_MYSQL_ADMIN_HOST = '127.0.0.1'
+$env:TEST_MYSQL_ADMIN_PORT = '3306'
+$env:TEST_MYSQL_ADMIN_USER = 'disposable_test_admin'
+$env:TEST_MYSQL_ADMIN_PASSWORD = 'read-from-an-external-secret'
+$env:TEST_MYSQL_ADMIN_TLS_CA_PATH = 'C:\path\outside\the\repository\mysql-ca.pem'
+$env:TEST_MYSQL_ADMIN_TLS_SERVERNAME = 'localhost' # optional; defaults to localhost
+npm run test:integration -- payment-preference-migration.mysql.test.js
+```
+
+Use only a disposable server/account with `CREATE DATABASE` and `DROP DATABASE`; do not use production or a shared database. See `server/docs/database.md` for the runner's guarded database naming and crash-recovery behavior.
+
 ## Production deployment
 
 Use `server/deploy/Caddyfile.example` as the TLS edge template and follow `server/docs/https.md`. Store all credentials in the host secret manager, run migrations with the migration account, run the app with the least-privilege account, bind Node to loopback behind Caddy, validate certificate renewal, and stage HSTS carefully.
+
+`/api/v1/health/ready` fails closed unless MySQL is TLS-encrypted and every migration shipped with the deployed build is an exact checksum-matching prefix of `schema_migrations`. Valid trailing migrations from a newer build are accepted for rolling-deploy and rollback compatibility; each migration must remain backward compatible until older instances drain. Apply migrations before shifting traffic, and do not grant DDL privileges to the runtime application account.
 
 ### Free Render and Aiven preview
 
 The repository-level `render.yaml` deploys the existing Node.js storefront as one free Render web service in Frankfurt. Render supplies the public HTTPS origin and port at runtime; the application trusts exactly one Render proxy hop and keeps `Secure`, `HttpOnly` authentication cookies enabled. The in-process low-stock evaluator is enabled while the free instance is awake; evaluation pauses whenever Render sleeps the service and resumes after it wakes.
 
-Use an external Aiven for MySQL service and enter its host, port, application password, and TLS hostname only when Render prompts for the `sync: false` variables. Upload Aiven's CA certificate as the Render secret file `aiven-ca.pem`; it is exposed only at `/etc/secrets/aiven-ca.pem` and is never committed. Apply migrations from a trusted local machine with the separate database administrator credentials before the first deployment. Do not give the running Render service the database administrator password.
+Use an external Aiven for MySQL service and enter its host, port, application password, migration username/password, and TLS hostname only when Render prompts for the `sync: false` variables. Upload Aiven's CA certificate as the Render secret file `aiven-ca.pem`; it is exposed only at `/etc/secrets/aiven-ca.pem` and is never committed. The free-service start wrapper applies migrations under the database advisory lock with the separate migration account, removes those higher-privilege variables from the long-running Node process, and then starts the application with the restricted `DB_USER`. Grant the migration account only the privileges listed in `server/docs/database.md`, including `TRIGGER`; keep that trigger-definer account present with the DML privileges its triggers use, and never use the database root account.
 
 Render derives `APP_ORIGIN`, `ALLOWED_ORIGINS`, and `PASSWORD_RESET_URL` from its trusted `RENDER_EXTERNAL_URL`. If a custom domain is added later, set those three variables explicitly to the custom HTTPS origin. The blueprint uses the built-in Resend HTTPS adapter because Render free services block SMTP ports. When Render prompts, provide a sending-only `RESEND_API_KEY` and a `RESEND_FROM` sender on a verified domain; both values remain outside Git.
 

@@ -8,7 +8,10 @@ import { runMigrations } from '../../src/db/migrate.js';
 import { pool } from '../../src/db/pool.js';
 import { createLowStockEvaluator } from '../../src/engagement/low-stock.js';
 import { createFulfillmentSignature } from '../../src/integrations/fulfillment-auth.js';
+import { decimalToCents } from '../../src/money.js';
 import { csrfCookieName } from '../../src/security/cookies.js';
+import { loadStoreDeliverySettings } from '../../src/storefront/config.js';
+import { createPricingQuote } from '../../src/storefront/pricing.js';
 import {
   cleanupIntegrationData,
   createMockCatalog,
@@ -29,6 +32,7 @@ const trackedProductIds = new Set();
 const trackedGuestOrderIds = new Set();
 const trackedGuestTokens = new Set();
 let databaseReady = false;
+let integrationDeliverySettings;
 
 function testApp(products = []) {
   const mailer = createMockMailer();
@@ -120,8 +124,13 @@ function addressPayload(label = 'Home') {
 }
 
 function guestOrderPayload(productId, overrides = {}) {
+  const quantity = overrides.quantity ?? 1;
+  if (overrides.unitPrice === undefined) {
+    throw new Error('guestOrderPayload requires the catalog unitPrice used by the server.');
+  }
   return {
-    items: [{ productId, quantity: overrides.quantity ?? 1 }],
+    items: [{ productId, quantity }],
+    pricing: pricingFor(overrides.unitPrice, quantity),
     delivery: {
       recipientName: overrides.recipientName || 'Guest Integration Customer',
       phone: '+212612345678',
@@ -137,6 +146,13 @@ function guestOrderPayload(productId, overrides = {}) {
     paymentMethod: 'cod',
     note: null
   };
+}
+
+function pricingFor(unitPrice, quantity = 1) {
+  if (!integrationDeliverySettings) {
+    throw new Error('Integration delivery settings were not loaded.');
+  }
+  return createPricingQuote(integrationDeliverySettings, decimalToCents(unitPrice) * quantity);
 }
 
 function cartMergeKey() {
@@ -156,6 +172,7 @@ databaseDescribe('user API with MySQL', () => {
     if (process.env.TEST_SKIP_MIGRATIONS !== 'true') {
       await runMigrations({ database: pool, log: { info() {}, error() {} } });
     }
+    integrationDeliverySettings = await loadStoreDeliverySettings(pool);
     databaseReady = true;
   }, 60_000);
 
@@ -835,6 +852,212 @@ databaseDescribe('user API with MySQL', () => {
     expect(recommendations.body.products.every((product) => product.id !== products[0].id)).toBe(true);
   }, 60_000);
 
+  it('deletes recommendation snapshots immediately only for an explicit personalization opt-out', async () => {
+    const products = Array.from({ length: 4 }, (_, index) => uniqueProduct(
+      `preference-snapshot-${index + 1}`,
+      trackedProductIds,
+      { name: `Preference Snapshot Tea ${index + 1}`, category: 'preference-snapshot-tea' }
+    ));
+    const { app } = testApp(products);
+    const shopper = request.agent(app);
+    const email = uniqueEmail('preference-snapshot', trackedEmails);
+    const account = await register(shopper, email, 'Preference Snapshot Customer');
+
+    const recordedView = await shopper
+      .post('/api/v1/me/recently-viewed')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', account.csrfToken)
+      .send({ productId: products[0].id });
+    expect(recordedView.status).toBe(204);
+    const recommendations = await shopper.get('/api/v1/me/recommendations?limit=3');
+    expect(recommendations.status).toBe(200);
+    expect(recommendations.body.products).toHaveLength(3);
+
+    async function snapshotCount() {
+      const [rows] = await pool.execute(
+        `SELECT COUNT(*) AS total
+           FROM recommendation_snapshots snapshot
+           JOIN users user_account ON user_account.id = snapshot.user_id
+          WHERE user_account.email_normalized = ?`,
+        [email]
+      );
+      return Number(rows[0].total);
+    }
+
+    const initialSnapshotCount = await snapshotCount();
+    expect(initialSnapshotCount).toBe(3);
+
+    const unrelatedUpdate = await shopper
+      .patch('/api/v1/me/preferences')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', account.csrfToken)
+      .send({ theme: 'dark' });
+    expect(unrelatedUpdate.status).toBe(200);
+    expect(await snapshotCount()).toBe(initialSnapshotCount);
+
+    const enabled = await shopper
+      .patch('/api/v1/me/preferences')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', account.csrfToken)
+      .send({ personalizationEnabled: true });
+    expect(enabled.status).toBe(200);
+    expect(enabled.body.preferences.personalizationEnabled).toBe(true);
+    expect(await snapshotCount()).toBe(initialSnapshotCount);
+
+    const disabled = await shopper
+      .patch('/api/v1/me/preferences')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', account.csrfToken)
+      .send({ personalizationEnabled: false });
+    expect(disabled.status).toBe(200);
+    expect(disabled.body.preferences.personalizationEnabled).toBe(false);
+    expect(await snapshotCount()).toBe(0);
+  }, 60_000);
+
+  it('serializes opt-out against in-flight recommendation and recent-view catalog work', async () => {
+    const products = Array.from({ length: 4 }, (_, index) => uniqueProduct(
+      `personalization-race-${index + 1}`,
+      trackedProductIds,
+      { name: `Personalization Race Tea ${index + 1}`, category: 'personalization-race-tea' }
+    ));
+    const { app, catalog } = testApp(products);
+    const shopper = request.agent(app);
+    const email = uniqueEmail('personalization-race', trackedEmails);
+    const account = await register(shopper, email, 'Personalization Race Customer');
+
+    const seedView = await shopper
+      .post('/api/v1/me/recently-viewed')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', account.csrfToken)
+      .send({ productId: products[0].id });
+    expect(seedView.status).toBe(204);
+    expect((await shopper.get('/api/v1/me/recommendations?limit=3')).body.products).toHaveLength(3);
+
+    const originalGetProduct = catalog.getProduct.bind(catalog);
+    let signalRecommendationCatalog;
+    let resumeRecommendationCatalog;
+    const recommendationCatalogStarted = new Promise((resolve) => { signalRecommendationCatalog = resolve; });
+    const recommendationCatalogResume = new Promise((resolve) => { resumeRecommendationCatalog = resolve; });
+    catalog.getProduct = async (productId) => {
+      signalRecommendationCatalog();
+      await recommendationCatalogResume;
+      return originalGetProduct(productId);
+    };
+
+    const pendingRecommendations = shopper
+      .get('/api/v1/me/recommendations?limit=3')
+      .then((response) => response);
+    await recommendationCatalogStarted;
+    const disabledDuringRecommendations = await shopper
+      .patch('/api/v1/me/preferences')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', account.csrfToken)
+      .send({ personalizationEnabled: false });
+    expect(disabledDuringRecommendations.status).toBe(200);
+    resumeRecommendationCatalog();
+    const racedRecommendations = await pendingRecommendations;
+    expect(racedRecommendations.status).toBe(200);
+    expect(racedRecommendations.body).toEqual({ products: [], personalized: false });
+
+    const [snapshotRows] = await pool.execute(
+      `SELECT COUNT(*) AS total
+         FROM recommendation_snapshots snapshot
+         JOIN users user_account ON user_account.id = snapshot.user_id
+        WHERE user_account.email_normalized = ?`,
+      [email]
+    );
+    expect(Number(snapshotRows[0].total)).toBe(0);
+
+    const enabled = await shopper
+      .patch('/api/v1/me/preferences')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', account.csrfToken)
+      .send({ personalizationEnabled: true });
+    expect(enabled.status).toBe(200);
+
+    let signalRecentCatalog;
+    let resumeRecentCatalog;
+    const recentCatalogStarted = new Promise((resolve) => { signalRecentCatalog = resolve; });
+    const recentCatalogResume = new Promise((resolve) => { resumeRecentCatalog = resolve; });
+    catalog.getProduct = async (productId) => {
+      signalRecentCatalog();
+      await recentCatalogResume;
+      return originalGetProduct(productId);
+    };
+
+    const pendingRecentView = shopper
+      .post('/api/v1/me/recently-viewed')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', account.csrfToken)
+      .send({ productId: products[1].id })
+      .then((response) => response);
+    await recentCatalogStarted;
+    const disabledDuringRecentView = await shopper
+      .patch('/api/v1/me/preferences')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', account.csrfToken)
+      .send({ personalizationEnabled: false });
+    expect(disabledDuringRecentView.status).toBe(200);
+    resumeRecentCatalog();
+    expect((await pendingRecentView).status).toBe(204);
+
+    const [recentRows] = await pool.execute(
+      `SELECT COUNT(*) AS total
+         FROM recently_viewed_products recent
+         JOIN users user_account ON user_account.id = recent.user_id
+         JOIN catalog_product_refs product_ref ON product_ref.id = recent.product_ref_id
+        WHERE user_account.email_normalized = ? AND product_ref.external_id = ?`,
+      [email, products[1].id]
+    );
+    expect(Number(recentRows[0].total)).toBe(0);
+
+    const reenabledBeforeDelete = await shopper
+      .patch('/api/v1/me/preferences')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', account.csrfToken)
+      .send({ personalizationEnabled: true });
+    expect(reenabledBeforeDelete.status).toBe(200);
+    let signalDeleteRaceCatalog;
+    let resumeDeleteRaceCatalog;
+    const deleteRaceCatalogStarted = new Promise((resolve) => { signalDeleteRaceCatalog = resolve; });
+    const deleteRaceCatalogResume = new Promise((resolve) => { resumeDeleteRaceCatalog = resolve; });
+    catalog.getProduct = async (productId) => {
+      signalDeleteRaceCatalog();
+      await deleteRaceCatalogResume;
+      return originalGetProduct(productId);
+    };
+
+    const pendingAfterDelete = shopper
+      .get('/api/v1/me/recommendations?limit=3')
+      .then((response) => response);
+    await deleteRaceCatalogStarted;
+    const deletedAccount = await shopper
+      .delete('/api/v1/me')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', account.csrfToken)
+      .send({ password: testPassword, action: 'delete' });
+    expect(deletedAccount.status).toBe(204);
+    resumeDeleteRaceCatalog();
+    const recommendationAfterDelete = await pendingAfterDelete;
+    expect(recommendationAfterDelete.status).toBe(200);
+    expect(recommendationAfterDelete.body).toEqual({ products: [], personalized: false });
+
+    const deletedUserId = account.response.body.user.id;
+    const [deletedUserRows] = await pool.execute(
+      'SELECT email_normalized FROM users WHERE public_id = ? LIMIT 1',
+      [deletedUserId]
+    );
+    trackedEmails.add(deletedUserRows[0].email_normalized);
+    const [postDeleteSnapshotRows] = await pool.execute(
+      `SELECT COUNT(*) AS total
+         FROM recommendation_snapshots snapshot
+         JOIN users user_account ON user_account.id = snapshot.user_id
+        WHERE user_account.public_id = ?`,
+      [deletedUserId]
+    );
+    expect(Number(postDeleteSnapshotRows[0].total)).toBe(0);
+  }, 60_000);
+
   it('serializes concurrent same-product cart additions across authenticated sessions', async () => {
     const product = uniqueProduct('cart-concurrent-add', trackedProductIds, {
       price: '9.50',
@@ -1027,7 +1250,12 @@ databaseDescribe('user API with MySQL', () => {
       .send({ items: [{ productId: product.id, quantity: 2 }] });
     expect(merged.status).toBe(200);
 
-    const checkoutBody = { addressId: address.body.address.id, paymentMethod: 'cod', note: null };
+    const checkoutBody = {
+      addressId: address.body.address.id,
+      paymentMethod: 'cod',
+      note: null,
+      pricing: merged.body.cart.pricing
+    };
     const tampered = await shopper
       .post('/api/v1/orders')
       .set('Origin', origin)
@@ -1045,6 +1273,27 @@ databaseDescribe('user API with MySQL', () => {
       .send({ ...checkoutBody, paymentMethod: 'card' });
     expect(unavailableCardPayment.status).toBe(422);
     expect(unavailableCardPayment.body.error.code).toBe('VALIDATION_FAILED');
+
+    const stalePricing = {
+      ...checkoutBody.pricing,
+      deliveryRevision: String(BigInt(checkoutBody.pricing.deliveryRevision) + 1n)
+    };
+    const staleCheckout = await shopper
+      .post('/api/v1/orders')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', account.csrfToken)
+      .set('Idempotency-Key', `stale-pricing-${randomUUID()}`)
+      .send({ ...checkoutBody, pricing: stalePricing });
+    expect(staleCheckout.status).toBe(409);
+    expect(staleCheckout.body.error.code).toBe('PRICING_CHANGED');
+    const [ordersAfterStaleQuote] = await pool.execute(
+      `SELECT COUNT(*) AS total
+         FROM orders customer_order
+         JOIN users customer ON customer.id = customer_order.user_id
+        WHERE customer.email_normalized = ?`,
+      [account.response.body.user.email.toLowerCase()]
+    );
+    expect(Number(ordersAfterStaleQuote[0].total)).toBe(0);
 
     const idempotencyKey = `checkout-${randomUUID()}`;
     const submitCheckout = () => shopper
@@ -1190,6 +1439,7 @@ databaseDescribe('user API with MySQL', () => {
     const idempotencyKey = access.idempotencyKey;
     const body = {
       items: [{ productId: product.id, quantity: 2 }],
+      pricing: pricingFor(product.price, 2),
       delivery: {
         recipientName: 'Guest Customer',
         phone: '+212612345678',
@@ -1453,6 +1703,55 @@ databaseDescribe('user API with MySQL', () => {
     expect(unavailableRetry.body.error.code).toBe('CART_CHANGED');
   }, 60_000);
 
+  it('rejects a stale guest quote before inserting an order and allows fresh credentials to retry', async () => {
+    const product = uniqueProduct('guest-pricing-refresh', trackedProductIds, {
+      price: '0.00',
+      stock_quantity: null
+    });
+    const { app } = testApp([product]);
+    const guest = request.agent(app);
+    const csrfToken = await csrfFor(guest);
+    const correctBody = guestOrderPayload(product.id, { unitPrice: product.price });
+    const staleAccess = await issueGuestAccess(guest, csrfToken);
+    const staleBody = {
+      ...correctBody,
+      pricing: {
+        ...correctBody.pricing,
+        subtotalCents: correctBody.pricing.subtotalCents + 1,
+        totalCents: correctBody.pricing.totalCents + 1
+      }
+    };
+    const stale = await guest
+      .post('/api/v1/guest-orders')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', csrfToken)
+      .set('Idempotency-Key', staleAccess.idempotencyKey)
+      .set('X-Guest-Order-Token', staleAccess.token)
+      .send(staleBody);
+    expect(stale.status).toBe(409);
+    expect(stale.body.error.code).toBe('PRICING_CHANGED');
+    const [ordersAfterStaleQuote] = await pool.execute(
+      'SELECT COUNT(*) AS total FROM order_items WHERE external_product_id = ?',
+      [product.id]
+    );
+    expect(Number(ordersAfterStaleQuote[0].total)).toBe(0);
+
+    const freshAccess = await issueGuestAccess(guest, csrfToken);
+    const placed = await guest
+      .post('/api/v1/guest-orders')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', csrfToken)
+      .set('Idempotency-Key', freshAccess.idempotencyKey)
+      .set('X-Guest-Order-Token', freshAccess.token)
+      .send(correctBody);
+    expect(placed.status).toBe(201);
+    trackedGuestOrderIds.add(placed.body.order.id);
+    expect(placed.body.order).toMatchObject({
+      subtotal: '0.00',
+      deliveryFee: `${Math.floor(integrationDeliverySettings.defaultFeeCents / 100)}.${String(integrationDeliverySettings.defaultFeeCents % 100).padStart(2, '0')}`
+    });
+  }, 60_000);
+
   it('expires and revokes guest bearer access without disclosing order PII', async () => {
     const product = uniqueProduct('guest-access-lifecycle', trackedProductIds, {
       price: '18.00',
@@ -1461,7 +1760,7 @@ databaseDescribe('user API with MySQL', () => {
     const { app } = testApp([product]);
     const guest = request.agent(app);
     const csrfToken = await csrfFor(guest);
-    const body = guestOrderPayload(product.id);
+    const body = guestOrderPayload(product.id, { unitPrice: product.price });
 
     const availabilityAccess = await issueGuestAccess(guest, csrfToken);
     const placed = await guest
@@ -1582,6 +1881,7 @@ databaseDescribe('user API with MySQL', () => {
       .set('X-Guest-Order-Token', access.token)
       .send(guestOrderPayload(product.id, {
         quantity: 2,
+        unitPrice: product.price,
         email: `inventory-${suffix}@example.test`,
         recipientName: `Inventory Guest ${suffix}`
       }));
@@ -1619,7 +1919,7 @@ databaseDescribe('user API with MySQL', () => {
       .set('Origin', origin)
       .set('X-CSRF-Token', account.csrfToken)
       .send(addressPayload('Inventory race'));
-    await shopper
+    const merged = await shopper
       .post('/api/v1/cart/merge')
       .set('Origin', origin)
       .set('X-CSRF-Token', account.csrfToken)
@@ -1635,14 +1935,18 @@ databaseDescribe('user API with MySQL', () => {
         .set('Origin', origin)
         .set('X-CSRF-Token', account.csrfToken)
         .set('Idempotency-Key', `mixed-auth-${randomUUID()}`)
-        .send({ addressId: address.body.address.id, paymentMethod: 'cod' }),
+        .send({
+          addressId: address.body.address.id,
+          paymentMethod: 'cod',
+          pricing: merged.body.cart.pricing
+        }),
       guest
         .post('/api/v1/guest-orders')
         .set('Origin', origin)
         .set('X-CSRF-Token', guestCsrf)
         .set('Idempotency-Key', guestAccess.idempotencyKey)
         .set('X-Guest-Order-Token', guestAccess.token)
-        .send(guestOrderPayload(product.id))
+        .send(guestOrderPayload(product.id, { unitPrice: product.price }))
     ]);
     expect([accountResponse.status, guestResponse.status].sort()).toEqual([201, 409]);
     if (guestResponse.status === 201) trackedGuestOrderIds.add(guestResponse.body.order.id);
@@ -1670,7 +1974,7 @@ databaseDescribe('user API with MySQL', () => {
       .set('Origin', origin)
       .set('X-CSRF-Token', account.csrfToken)
       .send(addressPayload('Fulfillment'));
-    await shopper
+    const merged = await shopper
       .post('/api/v1/cart/merge')
       .set('Origin', origin)
       .set('X-CSRF-Token', account.csrfToken)
@@ -1681,7 +1985,11 @@ databaseDescribe('user API with MySQL', () => {
       .set('Origin', origin)
       .set('X-CSRF-Token', account.csrfToken)
       .set('Idempotency-Key', `fulfillment-${randomUUID()}`)
-      .send({ addressId: address.body.address.id, paymentMethod: 'cod' });
+      .send({
+        addressId: address.body.address.id,
+        paymentMethod: 'cod',
+        pricing: merged.body.cart.pricing
+      });
     expect(placed.status).toBe(201);
     const orderId = placed.body.order.id;
 

@@ -1,6 +1,6 @@
 /**
  * AM MARKET admin promotions.
- * Promotion rules are saved on this device; no storefront pricing API exists.
+ * Promotion rules are shared admin drafts; no storefront pricing API exists.
  */
 Object.assign(I18N.en, {
   title_admin_promotions: 'Promotions — AM MARKET Admin',
@@ -9,7 +9,7 @@ Object.assign(I18N.en, {
   admin_promotions_intro: 'Create and manage promotion rules for this workspace.',
   admin_add_promotion: 'Add promotion',
   admin_edit_promotion: 'Edit promotion',
-  admin_promotions_local_note: 'Promotion changes are saved on this device and do not change storefront pricing.',
+  admin_promotions_local_note: 'Promotion changes are saved as shared admin drafts and do not change storefront pricing.',
   admin_promotion_list: 'Promotion list',
   admin_search_promotions: 'Search promotions',
   admin_filter_status: 'Filter by status',
@@ -17,7 +17,7 @@ Object.assign(I18N.en, {
   admin_active: 'Active',
   admin_scheduled: 'Scheduled',
   admin_inactive: 'Inactive',
-  admin_saved_on_device: 'Saved on this device',
+  admin_saved_on_device: 'Shared workspace draft',
   admin_promotion_name: 'Promotion name',
   admin_promotion_code: 'Code',
   admin_discount_type: 'Discount type',
@@ -30,7 +30,7 @@ Object.assign(I18N.en, {
   admin_start_required: 'Choose a start date.',
   admin_end_required: 'Choose an end date after the start date.',
   admin_enable_promotion: 'Enable this promotion',
-  admin_promotions_form_note: 'This rule is saved on this device. Storefront pricing is unchanged.',
+  admin_promotions_form_note: 'This rule is saved to the shared admin workspace. Storefront pricing is unchanged.',
   admin_cancel: 'Cancel',
   admin_save_promotion: 'Save promotion',
   admin_saving: 'Saving…',
@@ -50,12 +50,12 @@ Object.assign(I18N.en, {
   admin_no_promotions_body: 'Create your first promotion rule.',
   admin_no_promotions_filtered_body: 'Adjust the search or status filter to see more promotions.',
   admin_clear_filters: 'Clear filters',
-  admin_promotion_created: '{name} was created locally.',
-  admin_promotion_updated: '{name} was updated locally.',
-  admin_promotion_deleted: '{name} was deleted locally.',
-  admin_promotion_status_changed: '{name} status was updated locally.',
+  admin_promotion_created: '{name} was saved to the shared workspace.',
+  admin_promotion_updated: '{name} was updated in the shared workspace.',
+  admin_promotion_deleted: '{name} was deleted from the shared workspace.',
+  admin_promotion_status_changed: '{name} status was updated in the shared workspace.',
   admin_delete_promotion_title: 'Delete promotion?',
-  admin_delete_promotion_body: 'Delete “{name}” from this browser? This cannot affect storefront pricing.',
+  admin_delete_promotion_body: 'Delete “{name}” from the shared workspace? This cannot affect storefront pricing.',
   admin_delete_promotion: 'Delete promotion',
   admin_edit_named: 'Edit {name}',
   admin_delete_named: 'Delete {name}',
@@ -66,10 +66,10 @@ Object.assign(I18N.fr, {
   title_admin_promotions: 'Promotions — Administration AM MARKET',
   admin_marketing: 'Marketing',
   admin_promotions_title: 'Promotions',
-  admin_promotions_intro: 'Créez et gérez des règles de remise enregistrées uniquement dans ce navigateur.',
+  admin_promotions_intro: 'Créez et gérez des brouillons partagés de règles de remise.',
   admin_add_promotion: 'Ajouter une promotion',
   admin_edit_promotion: 'Modifier la promotion',
-  admin_promotions_local_note: 'Les changements restent dans ce navigateur et ne modifient pas les prix de la boutique.',
+  admin_promotions_local_note: 'Les changements sont enregistrés comme brouillons partagés et ne modifient pas les prix de la boutique.',
   admin_promotion_list: 'Liste des promotions',
   admin_search_promotions: 'Rechercher des promotions',
   admin_filter_status: 'Filtrer par statut',
@@ -77,7 +77,7 @@ Object.assign(I18N.fr, {
   admin_active: 'Active',
   admin_scheduled: 'Planifiée',
   admin_inactive: 'Inactive',
-  admin_saved_on_device: 'Enregistré sur cet appareil',
+  admin_saved_on_device: 'Brouillon partagé',
   admin_promotion_name: 'Nom de la promotion',
   admin_promotion_code: 'Code',
   admin_discount_type: 'Type de remise',
@@ -90,7 +90,7 @@ Object.assign(I18N.fr, {
   admin_start_required: 'Choisissez une date de début.',
   admin_end_required: 'Choisissez une date de fin postérieure au début.',
   admin_enable_promotion: 'Activer cette promotion',
-  admin_promotions_form_note: 'Cette règle est enregistrée sur cet appareil. Les prix de la boutique restent inchangés.',
+  admin_promotions_form_note: 'Cette règle est enregistrée dans l’espace administrateur partagé. Les prix de la boutique restent inchangés.',
   admin_cancel: 'Annuler',
   admin_save_promotion: 'Enregistrer la promotion',
   admin_saving: 'Enregistrement…',
@@ -110,12 +110,12 @@ Object.assign(I18N.fr, {
   admin_no_promotions_body: 'Créez votre première règle de promotion.',
   admin_no_promotions_filtered_body: 'Ajustez la recherche ou le filtre de statut pour afficher plus de promotions.',
   admin_clear_filters: 'Effacer les filtres',
-  admin_promotion_created: '{name} a été créée localement.',
-  admin_promotion_updated: '{name} a été modifiée localement.',
-  admin_promotion_deleted: '{name} a été supprimée localement.',
-  admin_promotion_status_changed: 'Le statut de {name} a été modifié localement.',
+  admin_promotion_created: '{name} a été enregistrée dans l’espace partagé.',
+  admin_promotion_updated: '{name} a été modifiée dans l’espace partagé.',
+  admin_promotion_deleted: '{name} a été supprimée de l’espace partagé.',
+  admin_promotion_status_changed: 'Le statut de {name} a été modifié dans l’espace partagé.',
   admin_delete_promotion_title: 'Supprimer la promotion ?',
-  admin_delete_promotion_body: 'Supprimer « {name} » de ce navigateur ? Cela ne peut pas affecter les prix de la boutique.',
+  admin_delete_promotion_body: 'Supprimer « {name} » de l’espace partagé ? Cela ne peut pas affecter les prix de la boutique.',
   admin_delete_promotion: 'Supprimer la promotion',
   admin_edit_named: 'Modifier {name}',
   admin_delete_named: 'Supprimer {name}',
@@ -124,29 +124,37 @@ Object.assign(I18N.fr, {
 
 let promotionState;
 let promotionModal;
+let canEditWorkspace = false;
 
 function promotionStorageKey() {
   return AdminCore.storageKeys?.promotions || AdminCore.keys?.promotions || 'am_admin_promotions_v1';
 }
 
-function loadPromotions() {
+function normalizePromotions(value) {
   const initialState = { version: 1, items: [] };
-  const value = AdminCore.read(promotionStorageKey(), initialState);
-  const items = value && Array.isArray(value.items) ? value.items : [];
+  const source = value && typeof value === 'object' ? value : initialState;
+  const items = Array.isArray(source.items) ? source.items : [];
   const legacySampleIds = ['de' + 'mo-weekly', 'de' + 'mo-welcome'];
-  promotionState = {
+  return {
     version: 1,
     items: items.filter(item => item && !legacySampleIds.includes(String(item.id)))
   };
 }
 
-function savePromotions() {
-  promotionState.version = 1;
-  return AdminCore.write(promotionStorageKey(), promotionState) !== undefined;
+function loadPromotions() {
+  promotionState = normalizePromotions(AdminCore.read(promotionStorageKey(), { version: 1, items: [] }));
 }
 
-function showPromotionStorageError() {
-  loadPromotions();
+async function savePromotions() {
+  promotionState = normalizePromotions(await AdminCore.saveWorkspace('promotions', promotionState));
+}
+
+async function showPromotionStorageError() {
+  try {
+    promotionState = normalizePromotions(await AdminCore.loadWorkspace('promotions'));
+  } catch {
+    loadPromotions();
+  }
   AdminCore.state(document.getElementById('promotionsList'), {
     type: 'error',
     title: t('admin_error'),
@@ -201,14 +209,14 @@ function renderPromotions() {
       type: 'empty',
       title: t('admin_no_promotions'),
       body: t(filtersActive ? 'admin_no_promotions_filtered_body' : 'admin_no_promotions_body'),
-      actionLabel: t(filtersActive ? 'admin_clear_filters' : 'admin_add_promotion'),
+        actionLabel: t(filtersActive ? 'admin_clear_filters' : (canEditWorkspace ? 'admin_add_promotion' : '')),
       onAction: () => {
         if (filtersActive) {
           document.getElementById('promotionSearch').value = '';
           document.getElementById('promotionStatusFilter').value = 'all';
           renderPromotions();
         } else {
-          openPromotionModal();
+          if (canEditWorkspace) openPromotionModal();
         }
       }
     });
@@ -239,9 +247,9 @@ function renderPromotions() {
               <td data-label="${AdminCore.escape(t('admin_status'))}">${promotionStatusBadge(item)}</td>
               <td data-label="${AdminCore.escape(t('admin_actions'))}">
                 <div class="admin-row-actions justify-content-end">
-                  <button class="admin-icon-button" type="button" data-promotion-toggle="${AdminCore.escape(item.id)}" aria-label="${AdminCore.escape(t('admin_toggle_named', { name: localizedName }))}" title="${t(item.enabled ? 'admin_disable' : 'admin_enable')}"><i class="fa-solid fa-${item.enabled ? 'pause' : 'play'}" aria-hidden="true"></i></button>
-                  <button class="admin-icon-button" type="button" data-promotion-edit="${AdminCore.escape(item.id)}" aria-label="${AdminCore.escape(t('admin_edit_named', { name: localizedName }))}" title="${t('admin_edit')}"><i class="fa-regular fa-pen-to-square" aria-hidden="true"></i></button>
-                  <button class="admin-icon-button is-danger" type="button" data-promotion-delete="${AdminCore.escape(item.id)}" aria-label="${AdminCore.escape(t('admin_delete_named', { name: localizedName }))}" title="${t('admin_delete')}"><i class="fa-regular fa-trash-can" aria-hidden="true"></i></button>
+                  <button class="admin-icon-button" type="button" data-promotion-toggle="${AdminCore.escape(item.id)}"${canEditWorkspace ? '' : ' disabled'} aria-label="${AdminCore.escape(t('admin_toggle_named', { name: localizedName }))}" title="${t(item.enabled ? 'admin_disable' : 'admin_enable')}"><i class="fa-solid fa-${item.enabled ? 'pause' : 'play'}" aria-hidden="true"></i></button>
+                  <button class="admin-icon-button" type="button" data-promotion-edit="${AdminCore.escape(item.id)}"${canEditWorkspace ? '' : ' disabled'} aria-label="${AdminCore.escape(t('admin_edit_named', { name: localizedName }))}" title="${t('admin_edit')}"><i class="fa-regular fa-pen-to-square" aria-hidden="true"></i></button>
+                  <button class="admin-icon-button is-danger" type="button" data-promotion-delete="${AdminCore.escape(item.id)}"${canEditWorkspace ? '' : ' disabled'} aria-label="${AdminCore.escape(t('admin_delete_named', { name: localizedName }))}" title="${t('admin_delete')}"><i class="fa-regular fa-trash-can" aria-hidden="true"></i></button>
                 </div>
               </td>
             </tr>`;
@@ -331,9 +339,11 @@ async function submitPromotion(event) {
   };
   if (existing) Object.assign(existing, record);
   else promotionState.items.unshift(record);
-  if (!savePromotions()) {
+  try {
+    await savePromotions();
+  } catch (error) {
     AdminCore.setBusy(button, false);
-    showPromotionStorageError();
+    await showPromotionStorageError();
     return;
   }
   AdminCore.setBusy(button, false);
@@ -342,13 +352,15 @@ async function submitPromotion(event) {
   AdminCore.toast(t(existing ? 'admin_promotion_updated' : 'admin_promotion_created', { name: promotionName(record) }), 'success');
 }
 
-function togglePromotion(id) {
+async function togglePromotion(id) {
   const item = promotionState.items.find(record => String(record.id) === String(id));
   if (!item) return;
   item.enabled = !item.enabled;
   item.updatedAt = new Date().toISOString();
-  if (!savePromotions()) {
-    showPromotionStorageError();
+  try {
+    await savePromotions();
+  } catch {
+    await showPromotionStorageError();
     return;
   }
   renderPromotions();
@@ -365,8 +377,10 @@ async function deletePromotion(id) {
   });
   if (!accepted) return;
   promotionState.items = promotionState.items.filter(record => String(record.id) !== String(id));
-  if (!savePromotions()) {
-    showPromotionStorageError();
+  try {
+    await savePromotions();
+  } catch {
+    await showPromotionStorageError();
     return;
   }
   renderPromotions();
@@ -374,8 +388,11 @@ async function deletePromotion(id) {
 }
 
 window.addEventListener('admin:ready', () => {
+  canEditWorkspace = AdminCore.canEditWorkspace();
   promotionModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('promotionModal'));
   loadPromotions();
+  document.getElementById('addPromotionButton').disabled = !canEditWorkspace;
+  document.getElementById('promotionSubmit').disabled = !canEditWorkspace;
   document.getElementById('addPromotionButton').addEventListener('click', () => openPromotionModal());
   document.getElementById('promotionForm').addEventListener('submit', submitPromotion);
   document.getElementById('promotionType').addEventListener('change', updatePromotionSuffix);

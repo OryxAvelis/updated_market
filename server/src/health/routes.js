@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { assertCurrentSchema } from '../db/schema-health.js';
 
 export function createHealthRouter() {
   const router = Router();
@@ -13,7 +14,14 @@ export function createHealthRouter() {
         const [rows] = await connection.query("SHOW SESSION STATUS LIKE 'Ssl_cipher'");
         const cipher = rows[0]?.Value || rows[0]?.value || '';
         if (!cipher) throw new Error('The MySQL connection is not encrypted.');
-        res.set('Cache-Control', 'no-store').json({ status: 'ok', database: 'ready', databaseTls: true });
+        const schema = await assertCurrentSchema(connection);
+        res.set('Cache-Control', 'no-store').json({
+          status: 'ok',
+          database: 'ready',
+          databaseTls: true,
+          schema: 'current',
+          latestMigration: schema.latestMigration
+        });
       } finally {
         connection.release();
       }

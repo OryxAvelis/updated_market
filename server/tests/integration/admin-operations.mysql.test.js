@@ -19,6 +19,7 @@ const databaseDescribe = integrationEnabled ? describe.sequential : describe.ski
 const trackedEmails = new Set();
 const trackedProductIds = new Set();
 const trackedReturnIds = new Set();
+const trackedGuestOrderIds = new Set();
 const ownerEmail = uniqueEmail('admin-operations-owner', trackedEmails);
 const supportEmail = uniqueEmail('admin-operations-support', trackedEmails);
 const customerEmail = uniqueEmail('admin-operations-customer', trackedEmails);
@@ -30,32 +31,48 @@ const product = uniqueProduct('admin-operations', trackedProductIds, {
 });
 
 let customerId;
+let customerPublicId;
 let productRefId;
 let primaryOrder;
 let cancellableOrder;
 let primaryOrderItem;
 let returnRequest;
+let guestOrder;
 
-async function insertOrder(connection, { quantity, suffix, allocateInventory = true }) {
+async function insertOrder(connection, {
+  quantity,
+  suffix,
+  allocateInventory = true,
+  userId = customerId,
+  recipientName = 'Admin Operations Customer',
+  buyerEmail = customerEmail
+}) {
   const publicId = randomUUID();
   const orderNumber = `AM-ADMIN-${suffix}-${randomUUID().replaceAll('-', '').slice(0, 8).toUpperCase()}`;
   const subtotal = Number(product.price) * quantity;
+  const idempotencyDigest = randomBytes(32);
+  const guestAccessDigest = userId === null ? randomBytes(32) : null;
+  const guestAccessExpiresAt = userId === null ? new Date(Date.now() + 24 * 60 * 60 * 1000) : null;
+  const guestIdempotencyDigest = userId === null ? idempotencyDigest : null;
+  const cartVersion = userId === null ? null : 1;
   const [result] = await connection.execute(
     `INSERT INTO orders
-      (public_id, order_number, user_id, status, payment_method, payment_status,
+      (public_id, order_number, user_id, guest_access_digest, guest_access_expires_at,
+       status, payment_method, payment_status,
        currency, subtotal, delivery_fee, total, cart_version,
-       idempotency_digest, request_digest, placed_at)
-     VALUES (?, ?, ?, 'confirmed', 'wafacash', 'pending', 'MAD', ?, 0, ?, 1, ?, ?, UTC_TIMESTAMP(3))`,
-    [publicId, orderNumber, customerId, subtotal.toFixed(2), subtotal.toFixed(2),
-      randomBytes(32), randomBytes(32)]
+       idempotency_digest, guest_idempotency_digest, request_digest, placed_at)
+     VALUES (?, ?, ?, ?, ?, 'confirmed', 'wafacash', 'pending', 'MAD', ?, 0, ?, ?, ?, ?, ?, UTC_TIMESTAMP(3))`,
+    [publicId, orderNumber, userId, guestAccessDigest, guestAccessExpiresAt,
+      subtotal.toFixed(2), subtotal.toFixed(2),
+      cartVersion, idempotencyDigest, guestIdempotencyDigest, randomBytes(32)]
   );
   await connection.execute(
     `INSERT INTO order_addresses
       (order_id, recipient_name, phone_e164, email, address_line1,
        district, city, country_code)
-     VALUES (?, 'Admin Operations Customer', '+212600000001', ?,
+     VALUES (?, ?, '+212600000001', ?,
              '1 Integration Street', 'Centre', 'Casablanca', 'MA')`,
-    [result.insertId, customerEmail]
+    [result.insertId, recipientName, buyerEmail]
   );
   const itemPublicId = randomUUID();
   const [itemResult] = await connection.execute(
@@ -159,12 +176,13 @@ databaseDescribe('administrator MySQL order operations', () => {
         [randomUUID(), ownerEmail, ownerEmail, passwordHash,
           randomUUID(), supportEmail, supportEmail, passwordHash]
       );
+      customerPublicId = randomUUID();
       const [userResult] = await connection.execute(
         `INSERT INTO users
           (public_id, email, email_normalized, display_name, phone_e164,
            password_hash, status, email_verified_at)
          VALUES (?, ?, ?, 'Admin Operations Customer', '+212600000001', ?, 'active', UTC_TIMESTAMP(3))`,
-        [randomUUID(), customerEmail, customerEmail, await hashPassword(customerPassword)]
+        [customerPublicId, customerEmail, customerEmail, await hashPassword(customerPassword)]
       );
       customerId = userResult.insertId;
       await connection.execute(
@@ -191,6 +209,17 @@ databaseDescribe('administrator MySQL order operations', () => {
 
       primaryOrder = await insertOrder(connection, { quantity: 2, suffix: 'PRIMARY' });
       cancellableOrder = await insertOrder(connection, { quantity: 1, suffix: 'CANCEL' });
+      guestOrder = await insertOrder(connection, {
+        quantity: 1,
+        suffix: 'GUEST',
+        allocateInventory: false,
+        userId: null,
+        recipientName: 'Separate Guest Contact',
+        // Deliberately share the registered account email. Stable ownership,
+        // not mutable contact data, must keep these records separate.
+        buyerEmail: customerEmail
+      });
+      trackedGuestOrderIds.add(guestOrder.publicId);
       primaryOrderItem = { id: primaryOrder.itemId, publicId: primaryOrder.itemPublicId };
       const returnPublicId = randomUUID();
       const [returnResult] = await connection.execute(
@@ -224,7 +253,12 @@ databaseDescribe('administrator MySQL order operations', () => {
           [String(returnId)]
         );
       }
-      await cleanupIntegrationData(pool, new Set([customerEmail]), trackedProductIds);
+      await cleanupIntegrationData(
+        pool,
+        new Set([customerEmail]),
+        trackedProductIds,
+        trackedGuestOrderIds
+      );
       await pool?.execute(
         'DELETE FROM admin_identities WHERE email_normalized IN (?, ?)',
         [ownerEmail, supportEmail]
@@ -276,19 +310,93 @@ databaseDescribe('administrator MySQL order operations', () => {
       paymentMethod: 'wafacash',
       paymentStatus: 'pending',
       paymentReference: primaryOrder.orderNumber,
+      customerId: customerPublicId,
+      customerType: 'registered',
       buyer: expect.objectContaining({ email: customerEmail, city: 'Casablanca' }),
       items: [expect.objectContaining({ id: primaryOrderItem.publicId, quantity: 2 })],
       returns: [expect.objectContaining({ id: returnRequest.publicId, status: 'requested' })]
     }));
+    expect(typeof orders.body.hasMore).toBe('boolean');
+    expect(orders.body.total).toBeGreaterThanOrEqual(3);
+
+    const firstOrderPage = await owner.get('/api/v1/admin/orders?limit=1&status=confirmed');
+    expect(firstOrderPage.status).toBe(200);
+    expect(firstOrderPage.body).toMatchObject({ hasMore: true });
+    expect(firstOrderPage.body.nextCursor).toEqual(expect.any(String));
+    const secondOrderPage = await owner.get(
+      `/api/v1/admin/orders?limit=1&status=confirmed&cursor=${encodeURIComponent(firstOrderPage.body.nextCursor)}`
+    );
+    expect(secondOrderPage.status).toBe(200);
+    expect(secondOrderPage.body.total).toBe(firstOrderPage.body.total);
+    expect(secondOrderPage.body.orders[0].publicId).not.toBe(firstOrderPage.body.orders[0].publicId);
+
+    const searchedOrders = await owner.get(
+      `/api/v1/admin/orders?search=${encodeURIComponent(primaryOrder.orderNumber)}`
+    );
+    expect(searchedOrders.status).toBe(200);
+    expect(searchedOrders.body.total).toBe(1);
+    expect(searchedOrders.body.orders[0].publicId).toBe(primaryOrder.publicId);
 
     const customers = await owner.get('/api/v1/admin/customers?limit=50');
     expect(customers.status).toBe(200);
-    const customer = customers.body.customers.find((entry) => entry.email === customerEmail);
+    const customer = customers.body.customers.find((entry) => entry.id === customerPublicId);
     expect(customer).toMatchObject({
       displayName: 'Admin Operations Customer',
       phone: '+212600000001',
       status: 'active',
       orderCount: 2
+    });
+    expect(customer).toMatchObject({ id: customerPublicId, customerType: 'registered' });
+    const guest = customers.body.customers.find((entry) => entry.id === guestOrder.publicId);
+    expect(guest).toMatchObject({
+      customerType: 'guest',
+      displayName: 'Separate Guest Contact',
+      email: customerEmail,
+      orderCount: 1
+    });
+    expect(guest.id).not.toBe(customer.id);
+
+    const firstCustomerPage = await owner.get('/api/v1/admin/customers?limit=1');
+    expect(firstCustomerPage.status).toBe(200);
+    expect(firstCustomerPage.body).toMatchObject({ hasMore: true });
+    expect(firstCustomerPage.body.nextCursor).toEqual(expect.any(String));
+    const secondCustomerPage = await owner.get(
+      `/api/v1/admin/customers?limit=1&cursor=${encodeURIComponent(firstCustomerPage.body.nextCursor)}`
+    );
+    expect(secondCustomerPage.status).toBe(200);
+    expect(secondCustomerPage.body.total).toBe(firstCustomerPage.body.total);
+    expect(secondCustomerPage.body.customers[0].id).not.toBe(firstCustomerPage.body.customers[0].id);
+
+    const searchedCustomers = await owner.get('/api/v1/admin/customers?search=Separate%20Guest%20Contact');
+    expect(searchedCustomers.status).toBe(200);
+    expect(searchedCustomers.body.total).toBe(1);
+    expect(searchedCustomers.body.customers[0]).toMatchObject({
+      id: guestOrder.publicId,
+      customerType: 'guest'
+    });
+
+    const registeredHistory = await owner.get(`/api/v1/admin/customers/${customer.id}/orders?limit=50`);
+    expect(registeredHistory.status).toBe(200);
+    expect(registeredHistory.body).toMatchObject({
+      customerId: customerPublicId,
+      customerType: 'registered',
+      hasMore: false
+    });
+    expect(registeredHistory.body.orders).toHaveLength(2);
+    expect(registeredHistory.body.orders.every((entry) => entry.customerId === customerPublicId)).toBe(true);
+
+    const guestHistory = await owner.get(`/api/v1/admin/customers/${guest.id}/orders?limit=50`);
+    expect(guestHistory.status).toBe(200);
+    expect(guestHistory.body).toMatchObject({
+      customerId: guestOrder.publicId,
+      customerType: 'guest',
+      hasMore: false
+    });
+    expect(guestHistory.body.orders).toHaveLength(1);
+    expect(guestHistory.body.orders[0]).toMatchObject({
+      publicId: guestOrder.publicId,
+      customerId: null,
+      customerType: 'guest'
     });
     expect(JSON.stringify(customer)).not.toContain('password');
     const [demoRows] = await pool.execute(

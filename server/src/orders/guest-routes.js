@@ -6,7 +6,9 @@ import { reserveOrderInventory } from '../catalog/inventory.js';
 import { config } from '../config.js';
 import { databaseDateToIso, nullableDatabaseDateToIso } from '../db/date.js';
 import { ApiError, badRequest, conflict, notFound } from '../http/errors.js';
-import { centsToDecimal, deliveryFeeCents } from '../money.js';
+import { centsToDecimal } from '../money.js';
+import { loadStoreDeliverySettings } from '../storefront/config.js';
+import { createPricingQuote, pricingQuoteSchema, pricingQuotesEqual } from '../storefront/pricing.js';
 import { MySqlRateLimitStore } from '../security/mysql-rate-limit-store.js';
 import { tokenDigest } from '../security/tokens.js';
 import {
@@ -61,6 +63,7 @@ const guestCheckoutSchema = z.object({
       seen.add(item.productId);
     });
   }),
+  pricing: pricingQuoteSchema,
   delivery: deliverySchema,
   paymentMethod: z.enum(['cod', 'wafacash', 'cashplus']).default('cod'),
   note: nullableShortText(500)
@@ -91,6 +94,7 @@ export function guestCheckoutRequestDigest(input) {
   };
   return createHash('sha256').update(JSON.stringify({
     items,
+    pricing: input.pricing,
     delivery,
     paymentMethod: input.paymentMethod,
     note: input.note ?? null
@@ -433,7 +437,6 @@ async function createGuestOrder(database, claim, accessDigest, idempotencyDigest
     (sum, item) => sum + item.product.priceCents * item.quantity,
     0
   );
-  const deliveryCents = deliveryFeeCents(subtotalCents);
   const orderPublicId = randomUUID();
   const accessExpiresAt = new Date(Date.now() + config.guestCheckout.orderAccessTtlMs);
   await inTransaction(database, async (connection) => {
@@ -451,6 +454,12 @@ async function createGuestOrder(database, claim, accessDigest, idempotencyDigest
         'This checkout is already being processed. Retry with the same credentials.'
       );
     }
+    const deliverySettings = await loadStoreDeliverySettings(connection, { forUpdate: true });
+    const pricing = createPricingQuote(deliverySettings, subtotalCents);
+    if (!pricingQuotesEqual(input.pricing, pricing)) {
+      throw conflict('PRICING_CHANGED', 'Pricing changed during checkout. Review the new total and try again.');
+    }
+    const deliveryCents = pricing.deliveryFeeCents;
     const [orderInsert] = await connection.execute(
       `INSERT INTO orders
         (public_id, order_number, user_id, guest_access_digest,
@@ -484,10 +493,13 @@ async function createGuestOrder(database, claim, accessDigest, idempotencyDigest
       await connection.execute(
         `INSERT INTO order_items
           (public_id, order_id, line_no, product_ref_id, external_product_id,
-           product_name, product_image_url, unit_price, quantity)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           product_name, product_brand, product_sku, product_image_url, unit_price, quantity)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [randomUUID(), orderId, index + 1, productRefs.get(product.id), product.id,
-          product.name, product.image_url || null, product.price, quantity]
+          product.name,
+          product.brand_name ? String(product.brand_name).slice(0, 160) : null,
+          product.sku ? String(product.sku).slice(0, 120) : null,
+          product.image_url || null, product.price, quantity]
       );
     }
     await connection.execute(

@@ -23,7 +23,7 @@
       <div>
         <p class="admin-categories-eyebrow mb-1" data-i18n="admin_categories_catalog_label">Catalog workspace</p>
         <h1 class="admin-categories-title" data-i18n="admin_categories_title">Categories</h1>
-        <p class="admin-categories-subtitle mb-0" data-i18n="admin_categories_subtitle">Explore the live hierarchy and manage category changes saved on this device.</p>
+        <p class="admin-categories-subtitle mb-0" data-i18n="admin_categories_subtitle">Explore the live hierarchy and manage shared category drafts.</p>
       </div>
       <button class="btn btn-primary admin-categories-add" id="addCategoryButton" type="button">
         <i class="fa-solid fa-plus" aria-hidden="true"></i>
@@ -34,8 +34,8 @@
     <aside class="admin-categories-local-note" role="note" aria-labelledby="categoriesLocalNoteTitle">
       <i class="fa-solid fa-laptop-file" aria-hidden="true"></i>
       <div>
-        <strong id="categoriesLocalNoteTitle" data-i18n="admin_categories_local_note_title">Changes saved on this device</strong>
-        <span data-i18n="admin_categories_local_note">Category changes are saved for this admin workspace on this device and do not update the catalog API or storefront.</span>
+        <strong id="categoriesLocalNoteTitle" data-i18n="admin_categories_local_note_title">Shared workspace drafts</strong>
+        <span data-i18n="admin_categories_local_note">Category changes are saved in the database-backed admin workspace and do not update the catalog API or storefront.</span>
       </div>
     </aside>
 
@@ -83,7 +83,7 @@
 
       <div id="categoryTableWrap" class="admin-categories-table-wrap" hidden>
         <table class="admin-categories-table">
-          <caption class="visually-hidden" data-i18n="admin_categories_table_caption">Categories from the live catalog with changes saved on this device applied</caption>
+          <caption class="visually-hidden" data-i18n="admin_categories_table_caption">Categories from the live catalog with shared workspace drafts applied</caption>
           <thead>
             <tr>
               <th scope="col" data-i18n="admin_categories_col_category">Category</th>
@@ -106,7 +106,7 @@
         <form id="categoryEditorForm" novalidate>
           <div class="modal-header">
             <div>
-              <p class="admin-categories-modal-eyebrow mb-1" data-i18n="admin_categories_local_edit">Device-saved change</p>
+              <p class="admin-categories-modal-eyebrow mb-1" data-i18n="admin_categories_local_edit">Shared draft change</p>
               <h2 class="modal-title fs-5" id="categoryEditorTitle">Add category</h2>
             </div>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" data-i18n-aria="admin_categories_close"></button>
@@ -136,7 +136,7 @@
               <div class="col-12">
                 <label class="form-label" for="categoryIcon" data-i18n="admin_categories_field_icon">Icon or emoji (optional)</label>
                 <input class="form-control" id="categoryIcon" name="icon" type="text" maxlength="12" aria-describedby="categoryIconHelp categoryIconError" />
-                <div class="form-text" id="categoryIconHelp" data-i18n="admin_categories_icon_help">Used in the admin view on this device.</div>
+                <div class="form-text" id="categoryIconHelp" data-i18n="admin_categories_icon_help">Used in the shared admin draft.</div>
                 <div class="invalid-feedback" id="categoryIconError"></div>
               </div>
 
@@ -150,7 +150,7 @@
 
             <p class="admin-categories-form-note mb-0">
               <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
-              <span data-i18n="admin_categories_form_note">Submitting saves this change to the admin workspace on this device.</span>
+              <span data-i18n="admin_categories_form_note">Submitting saves this change to the shared admin workspace.</span>
             </p>
           </div>
 
@@ -158,7 +158,7 @@
             <button type="button" class="btn btn-outline-secondary" id="cancelCategoryEdit" data-bs-dismiss="modal" data-i18n="admin_categories_cancel">Cancel</button>
             <button type="submit" class="btn btn-primary" id="saveCategoryButton">
               <i class="fa-solid fa-check" aria-hidden="true"></i>
-              <span data-i18n="admin_categories_apply_local">Save on this device</span>
+              <span data-i18n="admin_categories_apply_local">Save shared draft</span>
             </button>
           </div>
         </form>

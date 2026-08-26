@@ -73,9 +73,18 @@ async function renderCart(focusTarget = null) {
   const unavailableItems = items.filter(({ product, qty }) => !cartProductAvailable(product, qty));
   const unverifiedItems = unavailableItems.filter(({ product }) => product.load_failed === true);
   const availableItems = items.filter(({ product, qty }) => cartProductAvailable(product, qty));
-  const sub = itemsSubtotal(availableItems);
-  const fee = deliveryFee(sub);
+  const subCents = itemsSubtotalCents(availableItems);
+  const sub = subCents / 100;
   const signedIn = Boolean(getUser());
+  const authenticatedPricing = signedIn ? getAuthenticatedCartPricing() : null;
+  const signedQuoteReady = Boolean(authenticatedPricing?.checkoutReady &&
+    authenticatedPricing.subtotalCents === subCents && unavailableItems.length === 0);
+  const configPricingReady = isStoreDeliveryConfigReady();
+  const pricingReady = signedQuoteReady || configPricingReady;
+  const feeCents = signedQuoteReady
+    ? authenticatedPricing.deliveryFeeCents
+    : configPricingReady ? deliveryFeeCents(subCents) : null;
+  const fee = feeCents == null ? null : feeCents / 100;
 
   box.innerHTML = items.map(({ id, qty, product: p }) => {
     const line = (parseFloat(p.price) || 0) * qty;
@@ -115,14 +124,16 @@ async function renderCart(focusTarget = null) {
   }).join('');
 
   // Summary
-  const remaining = Math.max(0, 200 - sub);
-  const freeBar = availableItems.length === 0
+  const deliverySettings = getStoreDeliverySettings();
+  const freeThresholdCents = deliverySettings.freeThresholdCents;
+  const remaining = Math.max(0, freeThresholdCents - subCents) / 100;
+  const freeBar = !configPricingReady || availableItems.length === 0
     ? ''
     : fee === 0
       ? `<div class="free-deliv-bar unlocked"><i class="fa-solid fa-check me-2"></i>${t('free_delivery_unlocked')}</div>`
       : `<div class="free-deliv-bar">
          <div class="free-deliv-text">${t('free_delivery_progress', { amount: formatPrice(remaining) })}</div>
-         <div class="free-deliv-track"><div class="free-deliv-fill" style="width:${Math.min(100, (sub / 200) * 100)}%"></div></div>
+         <div class="free-deliv-track"><div class="free-deliv-fill" style="width:${freeThresholdCents > 0 ? Math.min(100, (subCents / freeThresholdCents) * 100) : 100}%"></div></div>
        </div>`;
 
   summaryCol.style.display = '';
@@ -130,12 +141,13 @@ async function renderCart(focusTarget = null) {
     <div class="cart-summary">
       <h2 class="h6">${t('order_summary')}</h2>
       ${unavailableItems.length ? `<div class="cart-availability-note" role="status">${t(unverifiedItems.length ? 'cart_items_need_review' : 'unavailable_cart_notice', { n: unavailableItems.length })}<span class="d-flex flex-wrap gap-2">${unverifiedItems.length ? `<button type="button" id="retryCartItems">${t('retry_cart_items')}</button>` : ''}<button type="button" id="removeUnavailable">${t('remove_unavailable')}</button></span></div>` : ''}
+      ${!pricingReady ? `<div class="cart-availability-note" role="alert"><span>${t('delivery_pricing_unavailable')}</span><button type="button" id="retryDeliveryPricing">${t('retry')}</button></div>` : ''}
       ${freeBar}
       <div class="sum-row"><span>${t('subtotal')}</span><span>${formatPrice(sub)}</span></div>
-      <div class="sum-row"><span>${t('delivery')}</span><span>${fee === 0 ? t('free') : formatPrice(fee)}</span></div>
-      <div class="sum-total"><span>${t('total')}</span><span class="text-orange">${formatPrice(sub + fee)}</span></div>
+      <div class="sum-row"><span>${t('delivery')}</span><span>${pricingReady ? (fee === 0 ? t('free') : formatPrice(fee)) : '—'}</span></div>
+      <div class="sum-total"><span>${t('total')}</span><span class="text-orange">${pricingReady ? formatPrice((subCents + feeCents) / 100) : '—'}</span></div>
       ${!unavailableItems.length && !signedIn ? `<div class="cart-checkout-note" id="cartCheckoutNote"><i class="fa-solid fa-user-check" aria-hidden="true"></i><span>${t('guest_checkout_note')} <a href="login.html?next=checkout.html">${t('sign_in_for_order_history')}</a></span></div>` : ''}
-      ${unavailableItems.length
+      ${unavailableItems.length || !pricingReady
         ? `<button type="button" class="btn-checkout" disabled>${t('resolve_before_checkout')}</button>`
         : `<a href="checkout.html" class="btn-checkout"${signedIn ? '' : ' aria-describedby="cartCheckoutNote"'}>${t('proceed')} <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>`}
       <a href="categories.html" class="cart-continue-link"><i class="fa-solid fa-arrow-left"></i> ${t('continue_shopping')}</a>
@@ -181,8 +193,22 @@ async function renderCart(focusTarget = null) {
     unverifiedItems.forEach(item => { delete productCache[item.id]; });
     renderCart();
   });
+  $('retryDeliveryPricing')?.addEventListener('click', async event => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    try {
+      await refreshStorefrontConfig();
+      await renderCart('retryDeliveryPricing');
+    } catch (error) {
+      console.error('Storefront delivery configuration retry failed', error);
+      button.disabled = false;
+      toast(t('delivery_pricing_unavailable'));
+    }
+  });
   const live = $('cartLive');
-  if (live) live.textContent = t('cart_summary_live', { n: totalQty, total: formatPrice(sub + fee) });
+  if (live) live.textContent = pricingReady
+    ? t('cart_summary_live', { n: totalQty, total: formatPrice((subCents + feeCents) / 100) })
+    : t('delivery_pricing_unavailable');
   if (focusTarget) {
     requestAnimationFrame(() => {
       const target = [...document.querySelectorAll(`.${focusTarget.action}[data-id]`)]

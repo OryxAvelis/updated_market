@@ -5,7 +5,7 @@ services:
     plan: free
     region: frankfurt
     buildCommand: npm ci --prefix server && npm run check --prefix server
-    startCommand: npm start --prefix server
+    startCommand: npm run start:with-migrations --prefix server
     healthCheckPath: /api/v1/health/ready
     autoDeployTrigger: commit
     maxShutdownDelaySeconds: 30
@@ -21,6 +21,10 @@ services:
       - key: DB_USER
         value: am_market_app
       - key: DB_PASSWORD
+        sync: false
+      - key: DB_MIGRATION_USER
+        sync: false
+      - key: DB_MIGRATION_PASSWORD
         sync: false
       - key: DB_CONNECTION_LIMIT
         value: "5"

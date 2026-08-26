@@ -1,6 +1,6 @@
 /**
  * AM MARKET admin delivery configuration.
- * Rules and zones are saved on this device. Storefront delivery logic is untouched.
+ * Rules and zones use the shared admin workspace. Fee and threshold publish to checkout.
  */
 Object.assign(I18N.en, {
   title_admin_delivery: 'Delivery — AM MARKET Admin',
@@ -9,9 +9,9 @@ Object.assign(I18N.en, {
   admin_delivery_intro: 'Configure delivery rules and service zones.',
   admin_add_zone: 'Add zone',
   admin_edit_zone: 'Edit zone',
-  admin_delivery_local_note: 'These settings are saved on this device. Storefront checkout remains at 20 DH and free over 200 DH.',
+  admin_delivery_local_note: 'Rules and zones are shared database-backed settings. The default fee and free-delivery threshold are published to checkout; zones remain planning drafts.',
   admin_delivery_rules: 'Delivery rules',
-  admin_delivery_rules_sub: 'Current defaults match the storefront.',
+  admin_delivery_rules_sub: 'Saving publishes these defaults to storefront checkout.',
   admin_default_fee: 'Default delivery fee',
   admin_free_threshold: 'Free-delivery threshold',
   admin_nonnegative_required: 'Enter zero or a positive amount.',
@@ -22,9 +22,9 @@ Object.assign(I18N.en, {
   admin_coverage_required: 'Describe the service area.',
   admin_zone_fee: 'Zone fee',
   admin_enable_zone: 'Enable this zone',
-  admin_local_only: 'Saved on this device',
+  admin_local_only: 'Shared admin workspace',
   admin_cancel: 'Cancel',
-  admin_save_local: 'Save on this device',
+  admin_save_local: 'Save shared settings',
   admin_saving: 'Saving…',
   admin_loading: 'Loading…',
   admin_name_required: 'Enter a name.',
@@ -40,14 +40,14 @@ Object.assign(I18N.en, {
   admin_no_zones: 'No delivery zones',
   admin_no_zones_body: 'Add a delivery zone to configure a service area.',
   admin_create_zone: 'Create zone',
-  admin_delivery_rules_saved: 'Delivery rules were saved on this device.',
-  admin_zone_created: '{name} was saved on this device.',
-  admin_zone_updated: '{name} was updated on this device.',
-  admin_zone_deleted: '{name} was deleted from this device.',
-  admin_zone_status_changed: '{name} status was updated on this device.',
+  admin_delivery_rules_saved: 'Delivery rules were saved and checkout defaults were published.',
+  admin_zone_created: '{name} was saved to the shared workspace.',
+  admin_zone_updated: '{name} was updated in the shared workspace.',
+  admin_zone_deleted: '{name} was deleted from the shared workspace.',
+  admin_zone_status_changed: '{name} status was updated in the shared workspace.',
   admin_delete_zone_title: 'Delete delivery zone?',
-  admin_delete_zone_body: 'Delete “{name}” from this device?',
-  admin_delete_local: 'Delete from this device',
+  admin_delete_zone_body: 'Delete “{name}” from the shared workspace?',
+  admin_delete_local: 'Delete shared draft',
   admin_edit_named: 'Edit {name}',
   admin_delete_named: 'Delete {name}',
   admin_toggle_named: 'Change status for {name}',
@@ -61,9 +61,9 @@ Object.assign(I18N.fr, {
   admin_delivery_intro: 'Configurez les règles de livraison et les zones desservies.',
   admin_add_zone: 'Ajouter une zone',
   admin_edit_zone: 'Modifier la zone',
-  admin_delivery_local_note: 'Ces paramètres sont enregistrés sur cet appareil. La boutique conserve 20 DH et la gratuité dès 200 DH.',
+  admin_delivery_local_note: 'Les règles et zones sont partagées et enregistrées en base. Les frais par défaut et le seuil de gratuité sont publiés dans le paiement ; les zones restent des brouillons.',
   admin_delivery_rules: 'Règles de livraison',
-  admin_delivery_rules_sub: 'Les valeurs actuelles correspondent à celles de la boutique.',
+  admin_delivery_rules_sub: 'L’enregistrement publie ces valeurs dans le paiement de la boutique.',
   admin_default_fee: 'Frais de livraison par défaut',
   admin_free_threshold: 'Seuil de livraison gratuite',
   admin_nonnegative_required: 'Saisissez zéro ou un montant positif.',
@@ -74,9 +74,9 @@ Object.assign(I18N.fr, {
   admin_coverage_required: 'Décrivez la zone desservie.',
   admin_zone_fee: 'Frais de la zone',
   admin_enable_zone: 'Activer cette zone',
-  admin_local_only: 'Enregistré sur cet appareil',
+  admin_local_only: 'Espace administrateur partagé',
   admin_cancel: 'Annuler',
-  admin_save_local: 'Enregistrer sur cet appareil',
+  admin_save_local: 'Enregistrer les paramètres partagés',
   admin_saving: 'Enregistrement…',
   admin_loading: 'Chargement…',
   admin_name_required: 'Saisissez un nom.',
@@ -92,14 +92,14 @@ Object.assign(I18N.fr, {
   admin_no_zones: 'Aucune zone de livraison',
   admin_no_zones_body: 'Ajoutez une zone de livraison pour configurer une zone desservie.',
   admin_create_zone: 'Créer une zone',
-  admin_delivery_rules_saved: 'Les règles de livraison ont été enregistrées sur cet appareil.',
-  admin_zone_created: '{name} a été enregistrée sur cet appareil.',
-  admin_zone_updated: '{name} a été modifiée sur cet appareil.',
-  admin_zone_deleted: '{name} a été supprimée de cet appareil.',
-  admin_zone_status_changed: 'Le statut de {name} a été modifié sur cet appareil.',
+  admin_delivery_rules_saved: 'Les règles ont été enregistrées et les valeurs du paiement publiées.',
+  admin_zone_created: '{name} a été enregistrée dans l’espace partagé.',
+  admin_zone_updated: '{name} a été modifiée dans l’espace partagé.',
+  admin_zone_deleted: '{name} a été supprimée de l’espace partagé.',
+  admin_zone_status_changed: 'Le statut de {name} a été modifié dans l’espace partagé.',
   admin_delete_zone_title: 'Supprimer la zone de livraison ?',
-  admin_delete_zone_body: 'Supprimer « {name} » de cet appareil ?',
-  admin_delete_local: 'Supprimer de cet appareil',
+  admin_delete_zone_body: 'Supprimer « {name} » de l’espace partagé ?',
+  admin_delete_local: 'Supprimer le brouillon partagé',
   admin_edit_named: 'Modifier {name}',
   admin_delete_named: 'Supprimer {name}',
   admin_toggle_named: 'Modifier le statut de {name}',
@@ -115,28 +115,37 @@ const DELIVERY_DEFAULTS = {
 
 let deliveryState;
 let deliveryZoneModal;
+let canEditWorkspace = false;
 
 function deliveryStorageKey() {
   return AdminCore.storageKeys?.delivery || AdminCore.keys?.delivery || 'am_admin_delivery_v1';
 }
 
-function loadDeliveryState() {
-  const saved = AdminCore.read(deliveryStorageKey(), null);
-  deliveryState = saved && Array.isArray(saved.zones)
-    ? saved
+function normalizeDeliveryState(saved) {
+  const next = saved && Array.isArray(saved.zones)
+    ? structuredClone(saved)
     : structuredClone(DELIVERY_DEFAULTS);
-  deliveryState.zones = deliveryState.zones.filter(zone => zone && zone.system !== true);
-  deliveryState.defaultFee = Number.isFinite(Number(deliveryState.defaultFee)) ? Number(deliveryState.defaultFee) : 20;
-  deliveryState.freeThreshold = Number.isFinite(Number(deliveryState.freeThreshold)) ? Number(deliveryState.freeThreshold) : 200;
+  next.zones = next.zones.filter(zone => zone && zone.system !== true);
+  next.defaultFee = Number.isFinite(Number(next.defaultFee)) ? Number(next.defaultFee) : 20;
+  next.freeThreshold = Number.isFinite(Number(next.freeThreshold)) ? Number(next.freeThreshold) : 200;
+  next.version = 1;
+  return next;
 }
 
-function saveDeliveryState() {
-  deliveryState.version = 1;
-  return AdminCore.write(deliveryStorageKey(), deliveryState) !== undefined;
+function loadDeliveryState() {
+  deliveryState = normalizeDeliveryState(AdminCore.read(deliveryStorageKey(), null));
 }
 
-function showDeliveryStorageError() {
-  loadDeliveryState();
+async function saveDeliveryState() {
+  deliveryState = normalizeDeliveryState(await AdminCore.saveWorkspace('delivery', deliveryState));
+}
+
+async function showDeliveryStorageError() {
+  try {
+    deliveryState = normalizeDeliveryState(await AdminCore.loadWorkspace('delivery'));
+  } catch {
+    loadDeliveryState();
+  }
   fillDeliveryRules();
   AdminCore.state(document.getElementById('deliveryZonesList'), {
     type: 'error',
@@ -172,8 +181,8 @@ function renderDeliveryZones() {
       type: 'empty',
       title: t('admin_no_zones'),
       body: t('admin_no_zones_body'),
-      actionLabel: t('admin_create_zone'),
-      onAction: () => openZoneModal()
+      actionLabel: canEditWorkspace ? t('admin_create_zone') : '',
+      onAction: canEditWorkspace ? () => openZoneModal() : null
     });
     return;
   }
@@ -195,9 +204,9 @@ function renderDeliveryZones() {
               <td data-label="${AdminCore.escape(t('admin_zone_fee'))}"><span class="admin-zone-fee">${formatPrice(zone.fee)}</span><div class="admin-delivery-summary">${t('admin_fee_summary', { fee: formatPrice(deliveryState.defaultFee), threshold: formatPrice(deliveryState.freeThreshold) })}</div></td>
               <td data-label="${AdminCore.escape(t('admin_status'))}"><span class="admin-status-badge ${zone.enabled ? 'is-active' : 'is-inactive'}"><span aria-hidden="true"></span>${t(zone.enabled ? 'admin_active' : 'admin_inactive')}</span></td>
               <td data-label="${AdminCore.escape(t('admin_actions'))}"><div class="admin-row-actions justify-content-end">
-                <button class="admin-icon-button" type="button" data-zone-toggle="${AdminCore.escape(zone.id)}" aria-label="${AdminCore.escape(t('admin_toggle_named', { name }))}" title="${t(zone.enabled ? 'admin_disable' : 'admin_enable')}"><i class="fa-solid fa-${zone.enabled ? 'pause' : 'play'}" aria-hidden="true"></i></button>
-                <button class="admin-icon-button" type="button" data-zone-edit="${AdminCore.escape(zone.id)}" aria-label="${AdminCore.escape(t('admin_edit_named', { name }))}" title="${t('admin_edit')}"><i class="fa-regular fa-pen-to-square" aria-hidden="true"></i></button>
-                <button class="admin-icon-button is-danger" type="button" data-zone-delete="${AdminCore.escape(zone.id)}" aria-label="${AdminCore.escape(t('admin_delete_named', { name }))}" title="${t('admin_delete')}"><i class="fa-regular fa-trash-can" aria-hidden="true"></i></button>
+                <button class="admin-icon-button" type="button" data-zone-toggle="${AdminCore.escape(zone.id)}"${canEditWorkspace ? '' : ' disabled'} aria-label="${AdminCore.escape(t('admin_toggle_named', { name }))}" title="${t(zone.enabled ? 'admin_disable' : 'admin_enable')}"><i class="fa-solid fa-${zone.enabled ? 'pause' : 'play'}" aria-hidden="true"></i></button>
+                <button class="admin-icon-button" type="button" data-zone-edit="${AdminCore.escape(zone.id)}"${canEditWorkspace ? '' : ' disabled'} aria-label="${AdminCore.escape(t('admin_edit_named', { name }))}" title="${t('admin_edit')}"><i class="fa-regular fa-pen-to-square" aria-hidden="true"></i></button>
+                <button class="admin-icon-button is-danger" type="button" data-zone-delete="${AdminCore.escape(zone.id)}"${canEditWorkspace ? '' : ' disabled'} aria-label="${AdminCore.escape(t('admin_delete_named', { name }))}" title="${t('admin_delete')}"><i class="fa-regular fa-trash-can" aria-hidden="true"></i></button>
               </div></td>
             </tr>`;
           }).join('')}
@@ -211,7 +220,8 @@ function renderDeliveryZones() {
 }
 
 function validateNonnegative(field) {
-  const valid = field.value !== '' && Number.isFinite(Number(field.value)) && Number(field.value) >= 0;
+  const valid = field.value !== '' && field.checkValidity() &&
+    Number.isFinite(Number(field.value)) && Number(field.value) >= 0;
   field.classList.toggle('is-invalid', !valid);
   return valid;
 }
@@ -228,9 +238,11 @@ async function submitDeliveryRules(event) {
   await Promise.resolve();
   deliveryState.defaultFee = Number(fee.value);
   deliveryState.freeThreshold = Number(threshold.value);
-  if (!saveDeliveryState()) {
+  try {
+    await saveDeliveryState();
+  } catch {
     AdminCore.setBusy(button, false);
-    showDeliveryStorageError();
+    await showDeliveryStorageError();
     return;
   }
   AdminCore.setBusy(button, false);
@@ -284,9 +296,11 @@ async function submitZone(event) {
   };
   if (existing) Object.assign(existing, record);
   else deliveryState.zones.push(record);
-  if (!saveDeliveryState()) {
+  try {
+    await saveDeliveryState();
+  } catch {
     AdminCore.setBusy(button, false);
-    showDeliveryStorageError();
+    await showDeliveryStorageError();
     return;
   }
   AdminCore.setBusy(button, false);
@@ -295,14 +309,16 @@ async function submitZone(event) {
   AdminCore.toast(t(existing ? 'admin_zone_updated' : 'admin_zone_created', { name: record.name }), 'success');
 }
 
-function toggleZone(id) {
+async function toggleZone(id) {
   const zone = deliveryState.zones.find(item => String(item.id) === String(id));
   if (!zone) return;
   const name = zoneName(zone);
   zone.enabled = !zone.enabled;
   zone.updatedAt = new Date().toISOString();
-  if (!saveDeliveryState()) {
-    showDeliveryStorageError();
+  try {
+    await saveDeliveryState();
+  } catch {
+    await showDeliveryStorageError();
     return;
   }
   renderDeliveryZones();
@@ -320,8 +336,10 @@ async function deleteZone(id) {
   });
   if (!accepted) return;
   deliveryState.zones = deliveryState.zones.filter(item => String(item.id) !== String(id));
-  if (!saveDeliveryState()) {
-    showDeliveryStorageError();
+  try {
+    await saveDeliveryState();
+  } catch {
+    await showDeliveryStorageError();
     return;
   }
   renderDeliveryZones();
@@ -329,8 +347,12 @@ async function deleteZone(id) {
 }
 
 window.addEventListener('admin:ready', () => {
+  canEditWorkspace = AdminCore.canEditWorkspace();
   deliveryZoneModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('deliveryZoneModal'));
   loadDeliveryState();
+  document.getElementById('deliveryRulesSubmit').disabled = !canEditWorkspace;
+  document.getElementById('addZoneButton').disabled = !canEditWorkspace;
+  document.getElementById('deliveryZoneSubmit').disabled = !canEditWorkspace;
   fillDeliveryRules();
   document.getElementById('deliveryRulesForm').addEventListener('submit', submitDeliveryRules);
   document.getElementById('deliveryRulesCancel').addEventListener('click', fillDeliveryRules);

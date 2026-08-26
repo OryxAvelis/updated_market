@@ -167,12 +167,12 @@ async function loadCoreSessionHarness({
           load_failed: false
         };
       },
-      seedAuthenticatedCommerce({ cartItems = [], wishlistItems = [] } = {}) {
+      seedAuthenticatedCommerce({ cartItems = [], wishlistItems = [], pricing = null, checkoutReady = false } = {}) {
         sessionExpiryHandled = false;
         currentUser = { id: 'user-1', email: 'customer@example.test' };
         authenticatedResourceState.cart = 'ready';
         authenticatedResourceState.wishlist = 'ready';
-        cart = adoptAuthenticatedCart({ cart: { items: cartItems } });
+        cart = adoptAuthenticatedCart({ cart: { items: cartItems, pricing, checkoutReady } });
         wishlist = adoptAuthenticatedWishlist({
           items: wishlistItems.map(productId => ({ productId }))
         });
@@ -188,6 +188,14 @@ async function loadCoreSessionHarness({
       cartItems: getCartItems,
       fetchCategories,
       fetchProducts,
+      normalizeNotifications: notificationsFromApi,
+      notificationMessage,
+      deliverySettings: getStoreDeliverySettings,
+      authenticatedCartPricing: getAuthenticatedCartPricing,
+      deliveryConfigReady: isStoreDeliveryConfigReady,
+      refreshDeliveryConfig: refreshStorefrontConfig,
+      calculateDeliveryFee: deliveryFee,
+      calculateSubtotal: itemsSubtotal,
       snapshot() {
         return {
           epoch: authStateEpoch,
@@ -248,6 +256,165 @@ function commerceApi({ cartEntries = [], wishlistIds = [] } = {}) {
 }
 
 describe('storefront session-expiry transition', () => {
+  it('preserves bounded notification context and translates every backend lifecycle type', async () => {
+    const { hooks } = await loadCoreSessionHarness();
+    const normalized = hooks.normalizeNotifications({
+      unreadCount: 1,
+      notifications: [{
+        id: 'notification-1',
+        type: 'return_approved',
+        payload: {
+          message: `  ${'x'.repeat(400)}  `,
+          orderNumber: 'AM-100',
+          returnId: 'return-1',
+          status: 'approved'
+        }
+      }]
+    });
+
+    expect(normalized.notifications[0].payload).toMatchObject({
+      orderNumber: 'AM-100',
+      returnId: 'return-1',
+      status: 'approved'
+    });
+    expect(normalized.notifications[0].payload.message).toHaveLength(300);
+    expect(hooks.notificationMessage(normalized.notifications[0])).toBe('notif_return_approved');
+    expect(hooks.notificationMessage({ type: 'payment_paid', payload: {} })).toBe('notif_payment_paid');
+    expect(hooks.notificationMessage({ type: 'restocked', payload: {} })).toBe('notif_back_in_stock');
+    expect(hooks.notificationMessage({ type: 'future_event', payload: { message: 'Account updated.' } }))
+      .toBe('Account updated.');
+  });
+
+  it('uses the public database-backed delivery configuration for guest totals', async () => {
+    const { hooks } = await loadCoreSessionHarness({
+      frontend: true,
+      bootstrap: async () => ({ authenticated: false }),
+      storeApiOverrides: {
+        storefront: {
+          config: async () => ({ delivery: { revision: '3', defaultFee: '17.50', freeThreshold: '150.00' } })
+        }
+      }
+    });
+
+    await hooks.ready();
+    expect(hooks.deliverySettings()).toEqual({
+      defaultFee: 17.5,
+      defaultFeeCents: 1750,
+      freeThreshold: 150,
+      freeThresholdCents: 15000,
+      revision: '3'
+    });
+    expect(hooks.calculateDeliveryFee(0)).toBe(17.5);
+    expect(hooks.calculateDeliveryFee(149.99)).toBe(17.5);
+    expect(hooks.calculateDeliveryFee(150)).toBe(0);
+  });
+
+  it('keeps delivery threshold calculations identical to integer-cent backend totals', async () => {
+    const { hooks } = await loadCoreSessionHarness({
+      frontend: true,
+      bootstrap: async () => ({ authenticated: false }),
+      storeApiOverrides: {
+        storefront: {
+          config: async () => ({
+            delivery: {
+              defaultFee: '20.00',
+              defaultFeeCents: 2000,
+              freeThreshold: '200.00',
+              freeThresholdCents: 20000,
+              revision: '8'
+            }
+          })
+        }
+      }
+    });
+
+    await hooks.ready();
+    const subtotal = hooks.calculateSubtotal([
+      { qty: 1, product: { price: '0.01' } },
+      { qty: 1, product: { price: '129.92' } },
+      { qty: 1, product: { price: '70.07' } }
+    ]);
+    expect(subtotal).toBe(200);
+    expect(hooks.calculateDeliveryFee(subtotal)).toBe(0);
+  });
+
+  it('preserves the signed-in server cart quote when public configuration is unavailable', async () => {
+    const { hooks } = await loadCoreSessionHarness({
+      frontend: true,
+      bootstrap: async () => ({ authenticated: false }),
+      storeApiOverrides: {
+        storefront: { config: async () => { throw new Error('cold start'); } }
+      }
+    });
+
+    await hooks.ready();
+    hooks.seedAuthenticatedCommerce({
+      cartItems: [{
+        productId: 'free-product', quantity: 1, name: 'Sample', unitPrice: '0.00',
+        imageUrl: null, brand: 'AM', isAvailable: true, stockQuantity: null,
+        quantityAvailable: true, verified: true
+      }],
+      pricing: {
+        deliveryRevision: '4', subtotalCents: 0, deliveryFeeCents: 2000, totalCents: 2000
+      },
+      checkoutReady: true
+    });
+    expect(hooks.deliveryConfigReady()).toBe(false);
+    expect(hooks.authenticatedCartPricing()).toEqual({
+      deliveryRevision: '4',
+      subtotalCents: 0,
+      deliveryFeeCents: 2000,
+      totalCents: 2000,
+      checkoutReady: true
+    });
+  });
+
+  it('waits for storefront configuration even when authentication bootstrap fails', async () => {
+    const { hooks } = await loadCoreSessionHarness({
+      frontend: true,
+      bootstrap: async () => { throw new Error('auth unavailable'); },
+      storeApiOverrides: {
+        storefront: {
+          config: async () => {
+            await new Promise(resolve => setTimeout(resolve, 5));
+            return {
+              delivery: {
+                defaultFeeCents: 900,
+                freeThresholdCents: 9900,
+                revision: '9'
+              }
+            };
+          }
+        }
+      }
+    });
+
+    await hooks.ready();
+    expect(hooks.deliverySettings()).toMatchObject({
+      defaultFee: 9,
+      defaultFeeCents: 900,
+      freeThreshold: 99,
+      freeThresholdCents: 9900,
+      revision: '9'
+    });
+    expect(hooks.deliveryConfigReady()).toBe(true);
+  });
+
+  it('fails checkout pricing closed when the public delivery configuration is unavailable', async () => {
+    const config = vi.fn(async () => { throw new Error('config unavailable'); });
+    const { hooks } = await loadCoreSessionHarness({
+      frontend: true,
+      bootstrap: async () => ({ authenticated: false }),
+      storeApiOverrides: { storefront: { config } }
+    });
+
+    await hooks.ready();
+    expect(hooks.deliveryConfigReady()).toBe(false);
+    await expect(hooks.refreshDeliveryConfig()).rejects.toThrow('config unavailable');
+    expect(hooks.deliveryConfigReady()).toBe(false);
+    expect(config).toHaveBeenCalledTimes(2);
+  });
+
   it('ignores guest/non-401 failures, then clears account state and emits exactly one event for concurrent 401s', async () => {
     const { hooks, events, local, session } = await loadCoreSessionHarness();
     const received = [];

@@ -147,6 +147,7 @@ function checkoutRuntimeErrorKey(error) {
   if (error?.code === 'GUEST_CHECKOUT_ACCESS_INVALID') return 'guest_checkout_access_error';
   if (['IDEMPOTENCY_KEY_REUSED', 'GUEST_ORDER_TOKEN_REUSED', 'GUEST_ORDER_CONFLICT', 'GUEST_CHECKOUT_CREDENTIALS_REUSED'].includes(error?.code)) return 'guest_checkout_conflict';
   if (error?.code === 'CART_SYNC_FAILED') return 'api_error';
+  if (error?.code === 'PRICING_CHANGED') return 'checkout_pricing_changed';
   if (['CART_CHANGED', 'CART_EMPTY', 'CART_NOT_FOUND'].includes(error?.code)) return 'checkout_cart_changed';
   if (error?.code === 'ADDRESS_NOT_FOUND') return 'checkout_address_missing';
   if (error?.code === 'AUTH_REQUIRED') return 'checkout_session_expired';
@@ -364,6 +365,7 @@ function renderCheckoutSubmit() {
 }
 
 async function guestCartForCheckout() {
+  await refreshStorefrontConfig();
   const detailed = await getCartItems();
   const items = detailed.map(({ id, qty, product }) => {
     const verified = product.load_failed !== true;
@@ -383,13 +385,22 @@ async function guestCartForCheckout() {
   });
   const available = detailed.filter(({ qty, product }) => product.load_failed !== true &&
     product.is_available !== false && (!Number.isInteger(product.stock_quantity) || qty <= product.stock_quantity));
-  const subtotal = itemsSubtotal(available);
-  const fee = deliveryFee(subtotal);
+  const subtotalCents = itemsSubtotalCents(available);
+  const feeCents = deliveryFeeCents(subtotalCents);
+  const subtotal = subtotalCents / 100;
+  const fee = feeCents / 100;
+  const pricing = {
+    deliveryRevision: getStoreDeliverySettings().revision,
+    subtotalCents,
+    deliveryFeeCents: feeCents,
+    totalCents: subtotalCents + feeCents
+  };
   return {
     items,
     subtotal,
     deliveryFee: fee,
-    total: subtotal + fee,
+    total: (subtotalCents + feeCents) / 100,
+    pricing,
     checkoutReady: items.length > 0 && available.length === items.length
   };
 }
@@ -432,7 +443,9 @@ async function renderCheckout({ fromRetry = false } = {}) {
     checkoutCartSnapshot = null;
     checkoutItems = [];
     $('coItems').innerHTML = '';
-    showCheckoutError(t('api_error'), { key: 'api_error', retry: true });
+    const pricingUnavailable = !authenticated && !isStoreDeliveryConfigReady();
+    const errorKey = pricingUnavailable ? 'delivery_pricing_unavailable' : 'api_error';
+    showCheckoutError(t(errorKey), { key: errorKey, retry: true });
     if (fromRetry) $('checkoutRetry')?.focus({ preventScroll: true });
     return false;
   } finally {
@@ -527,6 +540,7 @@ function guestOrderInput() {
   return {
     items: cart.map(item => ({ productId: String(item.id), quantity: Number(item.qty) }))
       .sort((left, right) => left.productId.localeCompare(right.productId)),
+    pricing: checkoutCartSnapshot?.pricing,
     delivery: checkoutDeliveryPayload(),
     paymentMethod: document.querySelector('input[name="pay"]:checked')?.value || 'cod',
     note: $('cNote').value.trim() || null
@@ -712,6 +726,7 @@ async function placeOrder(event) {
       checkoutIdempotencyKey ||= StoreAPI.createIdempotencyKey();
       result = await StoreAPI.orders.create({
         addressId,
+        pricing: checkoutCartSnapshot?.pricing,
         paymentMethod,
         note: $('cNote').value.trim() || null
       }, { idempotencyKey: checkoutIdempotencyKey });
@@ -735,9 +750,12 @@ async function placeOrder(event) {
     if (authenticated && handleStoreUnauthorized(error)) return;
     if (checkoutSessionExpired || (authenticated && !isAuthenticatedRequestCurrent(authContext))) return;
     const errorKey = checkoutRuntimeErrorKey(error);
-    if (error?.code === 'IDEMPOTENCY_KEY_REUSED') checkoutIdempotencyKey = null;
+    if (['IDEMPOTENCY_KEY_REUSED', 'PRICING_CHANGED'].includes(error?.code)) checkoutIdempotencyKey = null;
     let recoverySucceeded = true;
-    if (authenticated && ['CART_CHANGED', 'CART_EMPTY', 'CART_NOT_FOUND', 'CART_SYNC_FAILED'].includes(error?.code)) {
+    if (error?.code === 'PRICING_CHANGED') {
+      if (!authenticated) cart.forEach(item => { delete productCache[String(item.id)]; });
+      recoverySucceeded = await renderCheckout();
+    } else if (authenticated && ['CART_CHANGED', 'CART_EMPTY', 'CART_NOT_FOUND', 'CART_SYNC_FAILED'].includes(error?.code)) {
       recoverySucceeded = await renderCheckout();
     }
     if (checkoutSessionExpired) return;

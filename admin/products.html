@@ -23,7 +23,7 @@
       <div>
         <p class="admin-products-eyebrow mb-1" data-i18n="admin_products_catalog_label">Catalog workspace</p>
         <h1 class="admin-products-title" data-i18n="admin_products_title">Products</h1>
-        <p class="admin-products-subtitle mb-0" data-i18n="admin_products_subtitle">Review the live catalog and manage product changes saved on this device.</p>
+        <p class="admin-products-subtitle mb-0" data-i18n="admin_products_subtitle">Review the live catalog and manage shared product drafts.</p>
       </div>
       <button class="btn btn-primary admin-products-add" id="addProductButton" type="button">
         <i class="fa-solid fa-plus" aria-hidden="true"></i>
@@ -34,8 +34,8 @@
     <aside class="admin-products-local-note" role="note" aria-labelledby="productsLocalNoteTitle">
       <i class="fa-solid fa-laptop-file" aria-hidden="true"></i>
       <div>
-        <strong id="productsLocalNoteTitle" data-i18n="admin_products_local_note_title">Changes saved on this device</strong>
-        <span data-i18n="admin_products_local_note">Adds, edits, and deletions are saved for this admin workspace on this device. They do not update the catalog API or storefront.</span>
+        <strong id="productsLocalNoteTitle" data-i18n="admin_products_local_note_title">Shared workspace drafts</strong>
+        <span data-i18n="admin_products_local_note">Adds, edits, and deletions are saved in the database-backed admin workspace. They do not update the catalog API or storefront.</span>
       </div>
     </aside>
 
@@ -93,7 +93,7 @@
 
       <div id="productTableWrap" class="admin-products-table-wrap" hidden>
         <table class="admin-products-table">
-          <caption class="visually-hidden" data-i18n="admin_products_table_caption">Products from the live catalog with changes saved on this device applied</caption>
+          <caption class="visually-hidden" data-i18n="admin_products_table_caption">Products from the live catalog with shared workspace drafts applied</caption>
           <thead>
             <tr>
               <th scope="col" data-i18n="admin_products_col_product">Product</th>
@@ -129,7 +129,7 @@
         <form id="productEditorForm" novalidate>
           <div class="modal-header">
             <div>
-              <p class="admin-products-modal-eyebrow mb-1" data-i18n="admin_products_local_edit">Device-saved change</p>
+              <p class="admin-products-modal-eyebrow mb-1" data-i18n="admin_products_local_edit">Shared draft change</p>
               <h2 class="modal-title fs-5" id="productEditorTitle">Add product</h2>
             </div>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" data-i18n-aria="admin_products_close"></button>
@@ -214,7 +214,7 @@
 
             <p class="admin-products-form-note mb-0">
               <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
-              <span data-i18n="admin_products_form_note">Submitting saves this change to the admin workspace on this device.</span>
+              <span data-i18n="admin_products_form_note">Submitting saves this change to the shared admin workspace.</span>
             </p>
           </div>
 
@@ -222,7 +222,7 @@
             <button type="button" class="btn btn-outline-secondary" id="cancelProductEdit" data-bs-dismiss="modal" data-i18n="admin_products_cancel">Cancel</button>
             <button type="submit" class="btn btn-primary" id="saveProductButton">
               <i class="fa-solid fa-check" aria-hidden="true"></i>
-              <span data-i18n="admin_products_apply_local">Save on this device</span>
+              <span data-i18n="admin_products_apply_local">Save shared draft</span>
             </button>
           </div>
         </form>

@@ -2,8 +2,8 @@
  * AM MARKET admin shared UI.
  *
  * Authentication and operational order/customer data are delegated to the
- * server-backed adapter in admin-auth.js. Catalog workspace overlays remain
- * browser-local until dedicated catalog administration endpoints are added.
+ * server-backed adapter in admin-auth.js. Draft workspace documents are
+ * authoritative on the server; localStorage is only a rendering cache.
  */
 (async () => {
   'use strict';
@@ -22,6 +22,16 @@
     delivery: 'am_admin_delivery_v1',
     settings: 'am_admin_settings_v1'
   });
+
+  const WORKSPACE_RESOURCES = Object.freeze([
+    'products',
+    'categories',
+    'inventory',
+    'promotions',
+    'delivery',
+    'settings'
+  ]);
+  const WORKSPACE_RESOURCE_SET = new Set(WORKSPACE_RESOURCES);
 
   const ROUTES = Object.freeze([
     { id: 'dashboard', file: 'index.html', icon: 'fa-gauge-high', label: 'admin_nav_dashboard' },
@@ -52,7 +62,7 @@
       admin_skip_content: 'Skip to admin content',
       admin_panel: 'Admin panel',
       admin_workspace: 'Administration workspace',
-      admin_local_note: 'Orders and customers come from the secure AM MARKET database. Catalog workspace drafts stay in this browser.',
+      admin_local_note: 'Orders, customers, and shared workspace drafts come from the secure AM MARKET database.',
       admin_primary_nav: 'Admin sections',
       admin_brand_label: 'AM MARKET admin panel',
       admin_display_settings: 'Display settings',
@@ -86,8 +96,10 @@
       admin_delete: 'Delete',
       admin_confirm_title: 'Confirm this action',
       admin_confirm_body: 'This action cannot be undone in this browser.',
-      admin_storage_error: 'This browser could not store the change',
-      admin_saved_local: 'Change stored in this browser only',
+      admin_storage_error: 'The workspace cache could not be updated',
+      admin_saved_local: 'Draft saved to the shared admin workspace',
+      admin_workspace_read_only: 'Support accounts can view workspace drafts but cannot change them.',
+      admin_workspace_unavailable: 'The shared admin workspace is temporarily unavailable.',
       admin_login_eyebrow: 'AM MARKET administration',
       admin_login_title: 'Welcome back',
       admin_login_intro: 'Sign in with an authorized administrator account.',
@@ -185,7 +197,7 @@
       admin_skip_content: 'Aller au contenu administrateur',
       admin_panel: 'Espace administrateur',
       admin_workspace: 'Espace d’administration',
-      admin_local_note: 'Les commandes et clients proviennent de la base AM MARKET sécurisée. Les brouillons du catalogue restent dans ce navigateur.',
+      admin_local_note: 'Les commandes, clients et brouillons partagés proviennent de la base AM MARKET sécurisée.',
       admin_primary_nav: 'Sections administrateur',
       admin_brand_label: 'Espace administrateur AM MARKET',
       admin_display_settings: 'Paramètres d’affichage',
@@ -219,8 +231,10 @@
       admin_delete: 'Supprimer',
       admin_confirm_title: 'Confirmer cette action',
       admin_confirm_body: 'Cette action est irréversible dans ce navigateur.',
-      admin_storage_error: 'Le navigateur n’a pas pu enregistrer la modification',
-      admin_saved_local: 'Modification stockée dans ce navigateur uniquement',
+      admin_storage_error: 'Le cache de l’espace n’a pas pu être mis à jour',
+      admin_saved_local: 'Brouillon enregistré dans l’espace administrateur partagé',
+      admin_workspace_read_only: 'Les comptes support peuvent consulter les brouillons, mais pas les modifier.',
+      admin_workspace_unavailable: 'L’espace administrateur partagé est temporairement indisponible.',
       admin_login_eyebrow: 'Administration AM MARKET',
       admin_login_title: 'Heureux de vous revoir',
       admin_login_intro: 'Connectez-vous avec un compte administrateur autorisé.',
@@ -333,6 +347,12 @@
     customers: [],
     errors: { orders: null, customers: null }
   };
+  const workspaceState = {
+    documents: new Map(),
+    error: null,
+    loaded: false,
+    loading: null
+  };
   let drawerOpen = false;
   let drawerTrigger = null;
 
@@ -375,6 +395,179 @@
     } catch {
       toast(tr('admin_storage_error'), 'error');
       return undefined;
+    }
+  }
+
+  function cloneDocument(value) {
+    if (value === undefined) return undefined;
+    if (typeof structuredClone === 'function') return structuredClone(value);
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  function documentsEqual(left, right) {
+    try {
+      return JSON.stringify(left) === JSON.stringify(right);
+    } catch {
+      return false;
+    }
+  }
+
+  function workspaceResource(value) {
+    const resource = String(value || '').trim().toLowerCase();
+    if (!WORKSPACE_RESOURCE_SET.has(resource)) throw new TypeError('Unsupported admin workspace resource');
+    return resource;
+  }
+
+  function canEditWorkspace() {
+    return ['owner', 'manager'].includes(String(session?.role || '').trim().toLowerCase());
+  }
+
+  function normalizeWorkspaceEntry(resource, value) {
+    const source = value && typeof value === 'object' ? value : {};
+    const revision = Math.max(0, Math.floor(Number(source.revision) || 0));
+    return {
+      resource,
+      document: cloneDocument(source.document),
+      revision,
+      updatedAt: source.updatedAt || null
+    };
+  }
+
+  function cacheWorkspaceEntry(entry) {
+    const resource = workspaceResource(entry?.resource);
+    const normalized = normalizeWorkspaceEntry(resource, entry);
+    workspaceState.documents.set(resource, normalized);
+    write(STORAGE_KEYS[resource], normalized.document);
+    window.dispatchEvent(new CustomEvent('admin:workspacechange', {
+      detail: {
+        resource,
+        revision: normalized.revision,
+        updatedAt: normalized.updatedAt
+      }
+    }));
+    return normalized;
+  }
+
+  async function putWorkspaceDocument(resource, documentValue, expectedRevision) {
+    const payload = await window.AdminAuth.request(`/workspace/${encodeURIComponent(resource)}`, {
+      method: 'PUT',
+      body: {
+        document: cloneDocument(documentValue),
+        expectedRevision
+      }
+    });
+    if (!payload || payload.resource !== resource || !Object.prototype.hasOwnProperty.call(payload, 'document')) {
+      throw new TypeError('Invalid administrator workspace response');
+    }
+    return cacheWorkspaceEntry(normalizeWorkspaceEntry(resource, payload));
+  }
+
+  async function fetchWorkspaceDocument(resource) {
+    const payload = await window.AdminAuth.request(`/workspace/${encodeURIComponent(resource)}`);
+    if (!payload || payload.resource !== resource || !Object.prototype.hasOwnProperty.call(payload, 'document')) {
+      throw new TypeError('Invalid administrator workspace response');
+    }
+    return normalizeWorkspaceEntry(resource, payload);
+  }
+
+  async function preloadWorkspace({ force = false, migrate = true } = {}) {
+    if (publicPage) return {};
+    if (!force && workspaceState.loaded) {
+      return Object.fromEntries([...workspaceState.documents].map(([resource, entry]) => [resource, cloneDocument(entry)]));
+    }
+    if (!force && workspaceState.loading) return workspaceState.loading;
+
+    const load = (async () => {
+      try {
+        const localBeforeLoad = new Map(WORKSPACE_RESOURCES.map(resource => [
+          resource,
+          readResult(STORAGE_KEYS[resource], undefined)
+        ]));
+        const payload = await window.AdminAuth.request('/workspace');
+        if (!payload?.documents || typeof payload.documents !== 'object' || Array.isArray(payload.documents)) {
+          throw new TypeError('Invalid administrator workspace response');
+        }
+
+        const nextEntries = new Map();
+        WORKSPACE_RESOURCES.forEach((resource) => {
+          const source = payload.documents[resource];
+          if (!source || !Object.prototype.hasOwnProperty.call(source, 'document')) {
+            throw new TypeError(`Missing administrator workspace document: ${resource}`);
+          }
+          nextEntries.set(resource, normalizeWorkspaceEntry(resource, source));
+        });
+        workspaceState.documents = nextEntries;
+        workspaceState.error = null;
+
+        for (const resource of WORKSPACE_RESOURCES) {
+          let entry = workspaceState.documents.get(resource);
+          const local = localBeforeLoad.get(resource);
+          const serverLacksDocument = entry.revision === 0 && !entry.updatedAt;
+          if (migrate
+            && resource !== 'delivery'
+            && serverLacksDocument
+            && canEditWorkspace()
+            && local?.ok
+            && local.exists
+            && local.value !== undefined
+            && !documentsEqual(local.value, entry.document)) {
+            try {
+              entry = await putWorkspaceDocument(resource, local.value, 0);
+            } catch (error) {
+              console.warn(`Admin ${resource} workspace migration failed:`, error);
+              try {
+                entry = await fetchWorkspaceDocument(resource);
+                workspaceState.documents.set(resource, entry);
+              } catch (reloadError) {
+                // Keep the pre-existing local draft intact when neither the
+                // migration nor an authoritative reload can complete.
+                workspaceState.error = reloadError;
+                workspaceState.documents.set(resource, entry);
+                continue;
+              }
+            }
+          }
+          cacheWorkspaceEntry(entry);
+        }
+        workspaceState.loaded = true;
+        return Object.fromEntries([...workspaceState.documents].map(([resource, entry]) => [resource, cloneDocument(entry)]));
+      } catch (error) {
+        workspaceState.error = error;
+        workspaceState.loaded = true;
+        console.warn('Admin workspace preload failed:', error);
+        return {};
+      } finally {
+        workspaceState.loading = null;
+      }
+    })();
+    workspaceState.loading = load;
+    return load;
+  }
+
+  async function loadWorkspace(resourceValue, { refresh = false } = {}) {
+    const resource = workspaceResource(resourceValue);
+    if (refresh || !workspaceState.loaded) await preloadWorkspace({ force: refresh, migrate: !refresh });
+    const entry = workspaceState.documents.get(resource);
+    if (!entry) throw workspaceState.error || new Error(tr('admin_workspace_unavailable'));
+    return cloneDocument(entry.document);
+  }
+
+  async function saveWorkspace(resourceValue, documentValue) {
+    const resource = workspaceResource(resourceValue);
+    if (!canEditWorkspace()) {
+      const error = new Error(tr('admin_workspace_read_only'));
+      error.code = 'ADMIN_WORKSPACE_READ_ONLY';
+      throw error;
+    }
+    if (!workspaceState.loaded) await preloadWorkspace();
+    const current = workspaceState.documents.get(resource);
+    if (!current) throw workspaceState.error || new Error(tr('admin_workspace_unavailable'));
+    try {
+      const saved = await putWorkspaceDocument(resource, documentValue, current.revision);
+      return cloneDocument(saved.document);
+    } catch (error) {
+      await preloadWorkspace({ force: true, migrate: false });
+      throw error;
     }
   }
 
@@ -440,6 +633,8 @@
       id: orderNumber,
       publicId,
       orderNumber,
+      customerId: rawOrder.customerId || rawOrder.customer_id || null,
+      customerType: rawOrder.customerType || rawOrder.customer_type || rawOrder.ownerType || null,
       status: normalizedStatus(rawOrder.status),
       payment: paymentSummary(rawOrder),
       date: rawOrder.placedAt || rawOrder.date || rawOrder.createdAt || rawOrder.created_at || '',
@@ -468,10 +663,58 @@
       id,
       name: rawCustomer.name || rawCustomer.displayName || '',
       displayName: rawCustomer.displayName || rawCustomer.name || '',
+      customerType: rawCustomer.customerType || 'registered',
+      address: rawCustomer.address || '',
+      city: rawCustomer.city || '',
+      quartier: rawCustomer.quartier || rawCustomer.district || '',
       orderCount: Math.max(0, Math.floor(finiteNumber(rawCustomer.orderCount))),
       totalSpent: finiteNumber(rawCustomer.totalSpent),
       lastOrderAt: rawCustomer.lastOrderAt || null
     };
+  }
+
+  function adminListUrl(resource, { limit = 50, cursor, search, status } = {}) {
+    const params = new URLSearchParams();
+    params.set('limit', String(Math.min(100, Math.max(1, Math.floor(finiteNumber(limit, 50))))));
+    const normalizedCursor = String(cursor || '').trim();
+    const normalizedSearch = String(search || '').trim();
+    const normalizedListStatus = String(status || '').trim().toLowerCase();
+    if (normalizedCursor) params.set('cursor', normalizedCursor);
+    if (normalizedSearch) params.set('search', normalizedSearch);
+    if (normalizedListStatus) params.set('status', normalizedListStatus);
+    return `/${resource}?${params.toString()}`;
+  }
+
+  async function fetchAdminListPage(resource, itemKey, normalizer, options = {}) {
+    try {
+      const payload = await window.AdminAuth.request(adminListUrl(resource, options));
+      if (!Array.isArray(payload?.[itemKey]) || !Number.isFinite(Number(payload?.total))) {
+        throw new TypeError(`Invalid administrator ${resource} response`);
+      }
+      const hasMore = payload.hasMore === true;
+      const nextCursor = typeof payload.nextCursor === 'string' && payload.nextCursor.trim()
+        ? payload.nextCursor
+        : null;
+      if (hasMore && !nextCursor) throw new TypeError(`Invalid administrator ${resource} cursor`);
+      liveData.errors[resource] = null;
+      return {
+        [itemKey]: payload[itemKey].map(normalizer),
+        total: Math.max(0, Math.floor(Number(payload.total))),
+        hasMore,
+        nextCursor
+      };
+    } catch (error) {
+      liveData.errors[resource] = error;
+      throw error;
+    }
+  }
+
+  function fetchOrdersPage(options = {}) {
+    return fetchAdminListPage('orders', 'orders', normalizeOrder, options);
+  }
+
+  function fetchCustomersPage(options = {}) {
+    return fetchAdminListPage('customers', 'customers', normalizeCustomer, options);
   }
 
   function publishOrders(nextOrders) {
@@ -484,10 +727,8 @@
 
   async function refreshOrders() {
     try {
-      const payload = await window.AdminAuth.request('/orders?limit=200');
-      if (!Array.isArray(payload?.orders)) throw new TypeError('Invalid administrator orders response');
-      const nextOrders = payload.orders.map(normalizeOrder);
-      liveData.errors.orders = null;
+      const page = await fetchOrdersPage({ limit: 100 });
+      const nextOrders = page.orders;
       publishOrders(nextOrders);
       return nextOrders;
     } catch (error) {
@@ -499,10 +740,8 @@
 
   async function refreshCustomers() {
     try {
-      const payload = await window.AdminAuth.request('/customers?limit=200');
-      if (!Array.isArray(payload?.customers)) throw new TypeError('Invalid administrator customers response');
-      liveData.customers = payload.customers.map(normalizeCustomer);
-      liveData.errors.customers = null;
+      const page = await fetchCustomersPage({ limit: 100 });
+      liveData.customers = page.customers;
       window.dispatchEvent(new CustomEvent('admin:datachange', { detail: { resource: 'customers' } }));
       return liveData.customers;
     } catch (error) {
@@ -513,8 +752,12 @@
     }
   }
 
-  async function refreshLiveData({ includeCustomers = page === 'dashboard' || page === 'customers' } = {}) {
-    const tasks = [refreshOrders()];
+  async function refreshLiveData({
+    includeCustomers = page === 'dashboard' || page === 'customers',
+    includeOrders = true
+  } = {}) {
+    const tasks = [];
+    if (includeOrders) tasks.push(refreshOrders());
     if (includeCustomers) tasks.push(refreshCustomers());
     await Promise.all(tasks);
     return { orders: [...liveData.orders], customers: [...liveData.customers] };
@@ -736,7 +979,7 @@
           <nav class="admin-nav" aria-label="Admin sections" data-i18n-aria="admin_primary_nav">${links}</nav>
           <div class="admin-sidebar-note">
             <i class="fa-solid fa-laptop-file" aria-hidden="true"></i>
-            <div><strong data-i18n="admin_workspace">Administration workspace</strong><p data-i18n="admin_local_note">Orders and customers come from the secure AM MARKET database. Catalog workspace drafts stay in this browser.</p></div>
+            <div><strong data-i18n="admin_workspace">Administration workspace</strong><p data-i18n="admin_local_note">Orders, customers, and shared workspace drafts come from the secure AM MARKET database.</p></div>
           </div>
         </aside>
         <button class="admin-drawer-overlay" type="button" data-admin-drawer-close tabindex="-1" aria-label="Close admin menu" data-i18n-aria="admin_close_menu"></button>
@@ -875,6 +1118,12 @@
     read,
     readResult,
     write,
+    workspaceResources: WORKSPACE_RESOURCES,
+    canEditWorkspace,
+    loadWorkspace,
+    saveWorkspace,
+    workspaceError: () => workspaceState.error,
+    workspaceRevision: resource => workspaceState.documents.get(workspaceResource(resource))?.revision ?? null,
     toast,
     confirm: confirmAction,
     state,
@@ -885,9 +1134,12 @@
     flattenCategories,
     getOrders: () => [...liveData.orders],
     getCustomers: () => [...liveData.customers],
+    fetchOrdersPage,
+    fetchCustomersPage,
     dataError: resource => liveData.errors[String(resource)] || null,
     refreshLiveData,
-    updateOrderStatus
+    updateOrderStatus,
+    normalizeOrder
   });
   window.AdminCore = api;
 
@@ -926,7 +1178,10 @@
     if (!publicPage) buildShell();
     else bindControls(document);
     updateDynamicControls();
-    if (!publicPage && LIVE_DATA_PAGES.has(page)) await refreshLiveData();
+    if (!publicPage) await preloadWorkspace();
+    if (!publicPage && LIVE_DATA_PAGES.has(page)) {
+      await refreshLiveData({ includeOrders: page !== 'customers' });
+    }
     body?.classList.add('admin-ready');
     window.dispatchEvent(new CustomEvent('admin:ready', { detail: { session, page, core: api } }));
   }

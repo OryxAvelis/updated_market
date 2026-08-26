@@ -4,17 +4,35 @@ import { z } from 'zod';
 import { requireAdmin } from './session.js';
 import { releaseOrderInventory } from '../catalog/inventory.js';
 import { databaseDateToIso, nullableDatabaseDateToIso } from '../db/date.js';
-import { conflict, forbidden, notFound } from '../http/errors.js';
+import { badRequest, conflict, forbidden, notFound } from '../http/errors.js';
 import { publicIdSchema } from '../validation/common.js';
 
 const orderListSchema = z.object({
-  limit: z.coerce.number().int().min(1).max(200).default(100),
-  status: z.enum(['confirmed', 'preparing', 'shipping', 'delivered', 'cancelled']).optional()
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  status: z.enum(['confirmed', 'preparing', 'shipping', 'delivered', 'cancelled']).optional(),
+  search: z.string().trim().max(100).optional(),
+  cursor: z.string().trim().min(1).max(1024).optional()
 }).strip();
 
 const customerListSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  search: z.string().trim().max(100).optional(),
+  cursor: z.string().trim().min(1).max(1024).optional()
+}).strip();
+
+const customerHistorySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(100)
 }).strip();
+
+const adminListCursorPayloadSchema = z.object({
+  version: z.literal(1),
+  resource: z.enum(['orders', 'customers']),
+  anchor: z.string().datetime({ offset: true }),
+  sortAt: z.string().datetime({ offset: true }),
+  rank: z.number().int().min(0).max(1),
+  id: z.string().trim().min(1).max(64),
+  scope: z.string().max(512)
+}).strict();
 
 const orderStatusSchema = z.object({
   status: z.enum(['confirmed', 'preparing', 'shipping', 'delivered', 'cancelled'])
@@ -130,6 +148,53 @@ function nullableIso(value) {
   return nullableDatabaseDateToIso(value);
 }
 
+function normalizedAdminSearch(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function adminListScope({ search, status } = {}) {
+  return JSON.stringify({
+    search: normalizedAdminSearch(search),
+    status: String(status || '').trim().toLowerCase()
+  });
+}
+
+export function encodeAdminListCursor({ resource, anchor, sortAt, rank = 0, id, scope }) {
+  return Buffer.from(JSON.stringify(adminListCursorPayloadSchema.parse({
+    version: 1,
+    resource,
+    anchor: iso(anchor),
+    sortAt: iso(sortAt),
+    rank,
+    id: String(id),
+    scope
+  }))).toString('base64url');
+}
+
+export function decodeAdminListCursor(value, { resource, scope } = {}) {
+  const text = z.string().trim().min(1).max(1024).parse(value);
+  const payload = adminListCursorPayloadSchema.parse(
+    JSON.parse(Buffer.from(text, 'base64url').toString('utf8'))
+  );
+  if ((resource && payload.resource !== resource) || (scope !== undefined && payload.scope !== scope)) {
+    throw new Error('The admin list cursor does not match this result set.');
+  }
+  return {
+    ...payload,
+    anchor: new Date(payload.anchor),
+    sortAt: new Date(payload.sortAt)
+  };
+}
+
+function parseAdminListCursor(value, options) {
+  if (!value) return null;
+  try {
+    return decodeAdminListCursor(value, options);
+  } catch {
+    throw badRequest('ADMIN_LIST_CURSOR_INVALID', 'The administrator list cursor is invalid or no longer matches these filters.');
+  }
+}
+
 function customerAddress(row) {
   return [row.address_line1, row.address_line2, row.district, row.city, row.postal_code]
     .filter(Boolean)
@@ -157,6 +222,8 @@ function serializeOrder(row, itemsByOrder, returnsByOrder) {
     date: iso(row.placed_at),
     cancelledAt: nullableIso(row.cancelled_at),
     deliveredAt: nullableIso(row.delivered_at),
+    customerId: row.customer_public_id || null,
+    customerType: row.user_id ? 'registered' : 'guest',
     buyer: {
       name: row.recipient_name,
       phone: row.phone_e164,
@@ -175,7 +242,15 @@ function serializeOrder(row, itemsByOrder, returnsByOrder) {
   };
 }
 
-async function loadAdminOrders(database, { publicId, limit = 100, status } = {}) {
+function adminOrderFilter({
+  publicId,
+  status,
+  customerPublicId,
+  guestOrderPublicId,
+  anchor,
+  before,
+  search
+} = {}) {
   const conditions = [];
   const params = [];
   if (publicId) {
@@ -186,18 +261,67 @@ async function loadAdminOrders(database, { publicId, limit = 100, status } = {})
     conditions.push('o.status = ?');
     params.push(status);
   }
-  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  if (customerPublicId) {
+    conditions.push('u.public_id = ?');
+    params.push(customerPublicId);
+  }
+  if (guestOrderPublicId) {
+    conditions.push('o.user_id IS NULL');
+    conditions.push('o.public_id = ?');
+    params.push(guestOrderPublicId);
+  }
+  if (anchor) {
+    conditions.push('o.placed_at <= ?');
+    params.push(anchor);
+  }
+  const normalizedSearch = normalizedAdminSearch(search);
+  if (normalizedSearch) {
+    conditions.push(`(
+      LOCATE(?, LOWER(CONCAT_WS(' ',
+        o.public_id, o.order_number, u.public_id, a.recipient_name,
+        a.phone_e164, a.email, a.address_line1, a.address_line2,
+        a.district, a.city, a.postal_code
+      ))) > 0
+      OR EXISTS (
+        SELECT 1
+          FROM order_items search_items
+         WHERE search_items.order_id = o.id
+           AND LOCATE(?, LOWER(CONCAT_WS(' ',
+             search_items.external_product_id, search_items.product_name,
+             search_items.product_brand, search_items.product_sku
+           ))) > 0
+      )
+    )`);
+    params.push(normalizedSearch, normalizedSearch);
+  }
+  if (before) {
+    conditions.push('(o.placed_at < ? OR (o.placed_at = ? AND o.public_id < ?))');
+    params.push(before.sortAt, before.sortAt, before.id);
+  }
+  return {
+    where: conditions.length ? `WHERE ${conditions.join(' AND ')}` : '',
+    params
+  };
+}
+
+async function loadAdminOrders(database, {
+  limit = 100,
+  ...filters
+} = {}) {
+  const { where, params } = adminOrderFilter(filters);
   const [rows] = await database.execute(
-    `SELECT o.id, o.public_id, o.order_number, o.status, o.payment_method,
+    `SELECT o.id, o.public_id, o.order_number, o.user_id,
+            u.public_id AS customer_public_id, o.status, o.payment_method,
             o.payment_status, o.currency, o.subtotal, o.delivery_fee, o.total,
             o.note, o.placed_at, o.cancelled_at, o.delivered_at,
             a.recipient_name, a.phone_e164, a.email, a.address_line1,
             a.address_line2, a.district, a.city, a.postal_code,
             a.country_code, a.delivery_instructions
        FROM orders o
+       LEFT JOIN users u ON u.id = o.user_id
        JOIN order_addresses a ON a.order_id = o.id
        ${where}
-      ORDER BY o.placed_at DESC, o.id DESC
+      ORDER BY o.placed_at DESC, o.public_id DESC
       LIMIT ${Number(limit)}`,
     params
   );
@@ -272,6 +396,20 @@ async function loadAdminOrders(database, { publicId, limit = 100, status } = {})
   }
 
   return rows.map((row) => serializeOrder(row, itemsByOrder, returnsByOrder));
+}
+
+async function countAdminOrders(database, filters = {}) {
+  const { before: _before, ...snapshotFilters } = filters;
+  const { where, params } = adminOrderFilter(snapshotFilters);
+  const [rows] = await database.execute(
+    `SELECT COUNT(*) AS total
+       FROM orders o
+       LEFT JOIN users u ON u.id = o.user_id
+       JOIN order_addresses a ON a.order_id = o.id
+       ${where}`,
+    params
+  );
+  return Number(rows[0]?.total || 0);
 }
 
 async function loadAdminOrder(database, publicId) {
@@ -547,45 +685,255 @@ async function transitionReturn(database, req, returnPublicId, targetStatus) {
   return { return: updatedReturn, order, replayed };
 }
 
+function customerDirectoryBase({ anchor, search } = {}) {
+  const normalizedSearch = normalizedAdminSearch(search);
+  const registeredParams = [anchor, anchor];
+  let registeredSearch = '';
+  if (normalizedSearch) {
+    registeredSearch = `AND (
+      LOCATE(?, LOWER(CONCAT_WS(' ',
+        u.public_id, u.email, u.display_name, u.phone_e164, u.status
+      ))) > 0
+      OR EXISTS (
+        SELECT 1
+          FROM orders search_orders
+          JOIN order_addresses search_address ON search_address.order_id = search_orders.id
+         WHERE search_orders.user_id = u.id
+           AND search_orders.placed_at <= ?
+           AND LOCATE(?, LOWER(CONCAT_WS(' ',
+             search_orders.public_id, search_orders.order_number,
+             search_address.recipient_name, search_address.email,
+             search_address.phone_e164, search_address.address_line1,
+             search_address.address_line2, search_address.district,
+             search_address.city, search_address.postal_code
+           ))) > 0
+      )
+    )`;
+    registeredParams.push(normalizedSearch, anchor, normalizedSearch);
+  }
+
+  const guestParams = [anchor];
+  let guestSearch = '';
+  if (normalizedSearch) {
+    guestSearch = `AND LOCATE(?, LOWER(CONCAT_WS(' ',
+      o.public_id, o.order_number, a.recipient_name, a.email, a.phone_e164,
+      a.address_line1, a.address_line2, a.district, a.city, a.postal_code
+    ))) > 0`;
+    guestParams.push(normalizedSearch);
+  }
+
+  return {
+    sql: `
+      SELECT u.id AS internal_id, 0 AS sort_rank,
+             COALESCE(MAX(o.placed_at), u.created_at) AS sort_at,
+             u.public_id, 'registered' AS customer_type,
+             NULL AS guest_order_number, u.email, u.display_name,
+             u.phone_e164, u.status, u.created_at,
+             COUNT(o.id) AS order_count, COALESCE(SUM(o.total), 0) AS total_spent,
+             MAX(o.placed_at) AS last_order_at,
+             NULL AS address_line1, NULL AS address_line2,
+             NULL AS district, NULL AS city, NULL AS postal_code
+        FROM users u
+        LEFT JOIN local_demo_accounts demo ON demo.user_id = u.id
+        LEFT JOIN orders o ON o.user_id = u.id AND o.placed_at <= ?
+       WHERE demo.user_id IS NULL
+         AND u.created_at <= ?
+         ${registeredSearch}
+       GROUP BY u.id, u.public_id, u.email, u.display_name, u.phone_e164,
+                u.status, u.created_at
+      UNION ALL
+      SELECT o.id AS internal_id, 1 AS sort_rank, o.placed_at AS sort_at,
+             o.public_id, 'guest' AS customer_type,
+             o.order_number AS guest_order_number, a.email,
+             a.recipient_name AS display_name, a.phone_e164,
+             'guest' AS status, o.placed_at AS created_at,
+             1 AS order_count, o.total AS total_spent,
+             o.placed_at AS last_order_at,
+             a.address_line1, a.address_line2, a.district, a.city, a.postal_code
+        FROM orders o
+        JOIN order_addresses a ON a.order_id = o.id
+       WHERE o.user_id IS NULL
+         AND o.placed_at <= ?
+         ${guestSearch}`,
+    params: [...registeredParams, ...guestParams]
+  };
+}
+
+async function loadAdminCustomerPage(database, {
+  limit = 50,
+  anchor,
+  before,
+  search
+} = {}) {
+  const base = customerDirectoryBase({ anchor, search });
+  const cursorParams = [];
+  let cursorWhere = '';
+  if (before) {
+    cursorWhere = `WHERE (
+      customer_directory.sort_at < ?
+      OR (customer_directory.sort_at = ? AND customer_directory.sort_rank > ?)
+      OR (customer_directory.sort_at = ? AND customer_directory.sort_rank = ? AND customer_directory.internal_id < ?)
+    )`;
+    cursorParams.push(
+      before.sortAt,
+      before.sortAt,
+      before.rank,
+      before.sortAt,
+      before.rank,
+      before.id
+    );
+  }
+
+  const [[countRows], [rows]] = await Promise.all([
+    database.execute(
+      `SELECT COUNT(*) AS total FROM (${base.sql}) customer_directory`,
+      base.params
+    ),
+    database.execute(
+      `SELECT *
+         FROM (${base.sql}) customer_directory
+         ${cursorWhere}
+        ORDER BY customer_directory.sort_at DESC,
+                 customer_directory.sort_rank ASC,
+                 customer_directory.internal_id DESC
+        LIMIT ${Number(limit) + 1}`,
+      [...base.params, ...cursorParams]
+    )
+  ]);
+
+  const hasMore = rows.length > limit;
+  const visibleRows = rows.slice(0, limit);
+  const customers = visibleRows.map((row) => ({
+    id: row.public_id,
+    publicId: row.public_id,
+    customerType: row.customer_type,
+    guestOrderNumber: row.guest_order_number || undefined,
+    email: row.email,
+    displayName: row.display_name,
+    name: row.display_name,
+    phone: row.phone_e164,
+    status: row.status,
+    createdAt: iso(row.created_at),
+    orderCount: Number(row.order_count),
+    totalSpent: row.total_spent,
+    lastOrderAt: nullableIso(row.last_order_at),
+    ...(row.customer_type === 'guest' ? {
+      address: [row.address_line1, row.address_line2].filter(Boolean).join(', '),
+      district: row.district,
+      city: row.city,
+      postalCode: row.postal_code
+    } : {})
+  }));
+
+  return {
+    customers,
+    hasMore,
+    total: Number(countRows[0]?.total || 0),
+    lastRow: visibleRows.at(-1) || null
+  };
+}
+
 export function createAdminOperationsRouter() {
   const router = Router();
   router.use(requireAdmin);
 
   router.get('/orders', async (req, res) => {
     const query = orderListSchema.parse(req.query);
-    const orders = await loadAdminOrders(req.app.locals.db, query);
-    res.set('Cache-Control', 'no-store').json({ orders });
+    const scope = adminListScope(query);
+    const cursor = parseAdminListCursor(query.cursor, { resource: 'orders', scope });
+    if (cursor && (cursor.rank !== 0 || !publicIdSchema.safeParse(cursor.id).success)) {
+      throw badRequest('ADMIN_LIST_CURSOR_INVALID', 'The administrator order cursor is invalid.');
+    }
+    const anchor = cursor?.anchor || new Date();
+    const [loadedOrders, total] = await Promise.all([
+      loadAdminOrders(req.app.locals.db, {
+        limit: query.limit + 1,
+        status: query.status,
+        search: query.search,
+        anchor,
+        before: cursor
+      }),
+      countAdminOrders(req.app.locals.db, {
+        status: query.status,
+        search: query.search,
+        anchor
+      })
+    ]);
+    const hasMore = loadedOrders.length > query.limit;
+    const orders = loadedOrders.slice(0, query.limit);
+    const lastOrder = orders.at(-1);
+    const nextCursor = hasMore && lastOrder
+      ? encodeAdminListCursor({
+        resource: 'orders',
+        anchor,
+        sortAt: lastOrder.placedAt,
+        rank: 0,
+        id: lastOrder.publicId,
+        scope
+      })
+      : null;
+    res.set('Cache-Control', 'no-store').json({ orders, total, hasMore, nextCursor });
   });
 
   router.get('/customers', async (req, res) => {
     const query = customerListSchema.parse(req.query);
-    const [rows] = await req.app.locals.db.execute(
-      `SELECT u.public_id, u.email, u.display_name, u.phone_e164, u.status,
-              u.created_at, COUNT(o.id) AS order_count,
-              COALESCE(SUM(o.total), 0) AS total_spent,
-              MAX(o.placed_at) AS last_order_at
+    const scope = adminListScope(query);
+    const cursor = parseAdminListCursor(query.cursor, { resource: 'customers', scope });
+    if (cursor && !/^\d+$/.test(cursor.id)) {
+      throw badRequest('ADMIN_LIST_CURSOR_INVALID', 'The administrator customer cursor is invalid.');
+    }
+    const anchor = cursor?.anchor || new Date();
+    const page = await loadAdminCustomerPage(req.app.locals.db, {
+      limit: query.limit,
+      search: query.search,
+      anchor,
+      before: cursor
+    });
+    const nextCursor = page.hasMore && page.lastRow
+      ? encodeAdminListCursor({
+        resource: 'customers',
+        anchor,
+        sortAt: page.lastRow.sort_at,
+        rank: Number(page.lastRow.sort_rank),
+        id: page.lastRow.internal_id,
+        scope
+      })
+      : null;
+    res.set('Cache-Control', 'no-store').json({
+      customers: page.customers,
+      total: page.total,
+      hasMore: page.hasMore,
+      nextCursor
+    });
+  });
+
+  router.get('/customers/:customerId/orders', async (req, res) => {
+    const customerId = publicIdSchema.parse(req.params.customerId);
+    const query = customerHistorySchema.parse(req.query);
+    const [registeredRows] = await req.app.locals.db.execute(
+      `SELECT u.public_id
          FROM users u
          LEFT JOIN local_demo_accounts demo ON demo.user_id = u.id
-         LEFT JOIN orders o ON o.user_id = u.id
-        WHERE demo.user_id IS NULL
-        GROUP BY u.id, u.public_id, u.email, u.display_name, u.phone_e164,
-                 u.status, u.created_at
-        ORDER BY u.created_at DESC, u.id DESC
-        LIMIT ${Number(query.limit)}`
+        WHERE u.public_id = ? AND demo.user_id IS NULL
+        LIMIT 1`,
+      [customerId]
     );
+    const customerType = registeredRows.length ? 'registered' : 'guest';
+    const orders = await loadAdminOrders(req.app.locals.db, {
+      limit: query.limit + 1,
+      ...(customerType === 'registered'
+        ? { customerPublicId: customerId }
+        : { guestOrderPublicId: customerId })
+    });
+    if (customerType === 'guest' && !orders.length) {
+      throw notFound('CUSTOMER_NOT_FOUND', 'The customer record was not found.');
+    }
+    const hasMore = orders.length > query.limit;
     res.set('Cache-Control', 'no-store').json({
-      customers: rows.map((row) => ({
-        id: row.public_id,
-        email: row.email,
-        displayName: row.display_name,
-        name: row.display_name,
-        phone: row.phone_e164,
-        status: row.status,
-        createdAt: iso(row.created_at),
-        orderCount: Number(row.order_count),
-        totalSpent: row.total_spent,
-        lastOrderAt: nullableIso(row.last_order_at)
-      }))
+      customerId,
+      customerType,
+      orders: orders.slice(0, query.limit),
+      hasMore
     });
   });
 

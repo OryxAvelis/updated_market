@@ -50,4 +50,10 @@ describe('delivery fee boundary', () => {
   ])('charges the expected fee for a subtotal of %i centimes', (subtotal, expected) => {
     expect(deliveryFeeCents(subtotal)).toBe(expected);
   });
+
+  it('uses typed store delivery settings when provided', () => {
+    const settings = { defaultFeeCents: 1750, freeDeliveryThresholdCents: 25000 };
+    expect(deliveryFeeCents(24999, settings)).toBe(1750);
+    expect(deliveryFeeCents(25000, settings)).toBe(0);
+  });
 });

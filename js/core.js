@@ -103,6 +103,8 @@ let wishlistSyncPromise = Promise.resolve();
 // Baselines detect each local edit; touched IDs stay pending until a current
 // authoritative refresh succeeds, so a later queued save can repair a failed one.
 let authenticatedCartSyncBaseline = new Map();
+let authenticatedCartPricing = null;
+let authenticatedCartCheckoutReady = false;
 let authenticatedWishlistSyncBaseline = new Set();
 let authenticatedCartPendingSyncIds = new Set();
 let authenticatedWishlistPendingSyncIds = new Set();
@@ -120,6 +122,14 @@ const authenticatedResourceState = {
   search: 'ready'
 };
 let accountRecoveryPending = false;
+let storeDeliverySettings = {
+  defaultFee: 20,
+  defaultFeeCents: 2000,
+  freeThreshold: 200,
+  freeThresholdCents: 20000,
+  revision: null
+};
+let storeDeliveryConfigState = 'loading';
 
 function normalizeCart(value) {
   if (!Array.isArray(value)) return [];
@@ -188,8 +198,36 @@ function adoptAuthenticatedCartState(items) {
   return normalized;
 }
 
+function pricingFromApi(payload) {
+  const pricing = payload?.cart?.pricing;
+  if (!pricing) return null;
+  const normalized = {
+    deliveryRevision: String(pricing.deliveryRevision ?? ''),
+    subtotalCents: Number(pricing.subtotalCents),
+    deliveryFeeCents: Number(pricing.deliveryFeeCents),
+    totalCents: Number(pricing.totalCents)
+  };
+  if (!/^(0|[1-9][0-9]{0,19})$/.test(normalized.deliveryRevision) ||
+      !Number.isSafeInteger(normalized.subtotalCents) || normalized.subtotalCents < 0 ||
+      !Number.isSafeInteger(normalized.deliveryFeeCents) || normalized.deliveryFeeCents < 0 ||
+      !Number.isSafeInteger(normalized.totalCents) || normalized.totalCents < 0 ||
+      normalized.subtotalCents + normalized.deliveryFeeCents !== normalized.totalCents) {
+    throw new TypeError('Invalid cart pricing quote');
+  }
+  return normalized;
+}
+
 function adoptAuthenticatedCart(payload) {
-  return adoptAuthenticatedCartState(cartFromApi(payload));
+  const normalized = cartFromApi(payload);
+  authenticatedCartPricing = pricingFromApi(payload);
+  authenticatedCartCheckoutReady = Boolean(payload?.cart?.checkoutReady);
+  return adoptAuthenticatedCartState(normalized);
+}
+
+function getAuthenticatedCartPricing() {
+  return authenticatedCartPricing
+    ? { ...authenticatedCartPricing, checkoutReady: authenticatedCartCheckoutReady }
+    : null;
 }
 
 function adoptAuthenticatedWishlistState(items) {
@@ -205,6 +243,8 @@ function adoptAuthenticatedWishlist(payload) {
 
 function resetAuthenticatedCommerceSyncState() {
   authenticatedCartSyncBaseline = new Map();
+  authenticatedCartPricing = null;
+  authenticatedCartCheckoutReady = false;
   authenticatedWishlistSyncBaseline = new Set();
   authenticatedCartPendingSyncIds = new Set();
   authenticatedWishlistPendingSyncIds = new Set();
@@ -242,13 +282,23 @@ function notificationsFromApi(payload) {
   }
   const notifications = payload.notifications.map(item => {
     if (!item || typeof item !== 'object' || item.id == null) throw new TypeError('Invalid notification item');
+    const sourcePayload = item.payload && typeof item.payload === 'object' ? item.payload : {};
+    const message = typeof sourcePayload.message === 'string'
+      ? sourcePayload.message.trim().slice(0, 300)
+      : '';
     return {
       id: String(item.id),
       type: typeof item.type === 'string' ? item.type : '',
       orderId: item.orderId == null ? null : String(item.orderId),
       productId: item.productId == null ? null : String(item.productId),
       productName: typeof item.productName === 'string' ? item.productName : '',
-      payload: { stockQuantity: item.payload?.stockQuantity },
+      payload: {
+        stockQuantity: sourcePayload.stockQuantity,
+        message,
+        orderNumber: sourcePayload.orderNumber == null ? null : String(sourcePayload.orderNumber),
+        returnId: sourcePayload.returnId == null ? null : String(sourcePayload.returnId),
+        status: sourcePayload.status == null ? null : String(sourcePayload.status)
+      },
       readAt: item.readAt || null,
       createdAt: item.createdAt || null,
       expiresAt: item.expiresAt || null
@@ -1162,8 +1212,72 @@ function toggleWish(id) {
   return true;
 }
 
+function adoptStorefrontConfig(payload) {
+  const delivery = payload?.delivery;
+  const defaultFeeCents = Number.isSafeInteger(Number(delivery?.defaultFeeCents))
+    ? Number(delivery.defaultFeeCents)
+    : currencyAmountToCents(delivery?.defaultFee);
+  const freeThresholdCents = Number.isSafeInteger(Number(delivery?.freeThresholdCents))
+    ? Number(delivery.freeThresholdCents)
+    : currencyAmountToCents(delivery?.freeThreshold);
+  const revision = String(delivery?.revision ?? '');
+  if (!Number.isSafeInteger(defaultFeeCents) || defaultFeeCents < 0 ||
+      !Number.isSafeInteger(freeThresholdCents) || freeThresholdCents < 0 ||
+      !/^(0|[1-9][0-9]{0,19})$/.test(revision)) {
+    throw new TypeError('Invalid storefront delivery settings');
+  }
+  storeDeliverySettings = {
+    defaultFee: defaultFeeCents / 100,
+    defaultFeeCents,
+    freeThreshold: freeThresholdCents / 100,
+    freeThresholdCents,
+    revision
+  };
+  storeDeliveryConfigState = 'ready';
+  return { ...storeDeliverySettings };
+}
+
+function getStoreDeliverySettings() {
+  return { ...storeDeliverySettings };
+}
+
+function isStoreDeliveryConfigReady() {
+  return storeDeliveryConfigState === 'ready';
+}
+
+async function refreshStorefrontConfig() {
+  if (typeof window.StoreAPI?.storefront?.config !== 'function') {
+    storeDeliveryConfigState = 'error';
+    throw new Error('Storefront delivery configuration is unavailable');
+  }
+  storeDeliveryConfigState = 'loading';
+  try {
+    return adoptStorefrontConfig(
+      await window.StoreAPI.storefront.config({ timeoutMs: 12000 })
+    );
+  } catch (error) {
+    storeDeliveryConfigState = 'error';
+    throw error;
+  }
+}
+
+function currencyAmountToCents(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return null;
+  const cents = Math.round(amount * 100);
+  return Number.isSafeInteger(cents) ? cents : null;
+}
+
+function deliveryFeeCents(subtotalCents) {
+  return subtotalCents >= storeDeliverySettings.freeThresholdCents
+    ? 0
+    : storeDeliverySettings.defaultFeeCents;
+}
+
 function deliveryFee(sub) {
-  return (sub >= 200 || sub === 0) ? 0 : 20;
+  const subtotalCents = currencyAmountToCents(sub);
+  if (!Number.isSafeInteger(subtotalCents) || subtotalCents < 0) return 0;
+  return deliveryFeeCents(subtotalCents) / 100;
 }
 
 // Detailed cart items: product data from the localStorage snapshot, the
@@ -1224,8 +1338,18 @@ async function getCartItems() {
   return items;
 }
 
+function itemsSubtotalCents(items) {
+  return items.reduce((subtotalCents, item) => {
+    const unitPriceCents = currencyAmountToCents(item.product.price);
+    const quantity = Number.isSafeInteger(item.qty) && item.qty > 0 ? item.qty : 0;
+    return subtotalCents + (Number.isSafeInteger(unitPriceCents) && unitPriceCents >= 0
+      ? unitPriceCents * quantity
+      : 0);
+  }, 0);
+}
+
 function itemsSubtotal(items) {
-  return items.reduce((s, i) => s + (parseFloat(i.product.price) || 0) * i.qty, 0);
+  return itemsSubtotalCents(items) / 100;
 }
 
 // ---------- Badges / header widgets ----------
@@ -1251,11 +1375,20 @@ function notificationMessage(notification) {
     order_delivered: 'notif_order_delivered',
     order_cancelled: 'notif_order_cancelled',
     return_requested: 'notif_return_requested',
+    return_approved: 'notif_return_approved',
+    return_rejected: 'notif_return_rejected',
+    return_received: 'notif_return_received',
+    return_refunded: 'notif_return_refunded',
+    return_cancelled: 'notif_return_cancelled',
+    payment_paid: 'notif_payment_paid',
+    payment_failed: 'notif_payment_failed',
+    payment_refunded: 'notif_payment_refunded',
     low_stock: 'notif_low_stock',
-    back_in_stock: 'notif_back_in_stock'
+    back_in_stock: 'notif_back_in_stock',
+    restocked: 'notif_back_in_stock'
   };
   const key = typeKeys[notification?.type];
-  if (!key) return t('notif_generic');
+  if (!key) return notification?.payload?.message || t('notif_generic');
   return t(key, {
     product: notification.productName || (getLang() === 'fr' ? 'Ce produit' : 'This product'),
     quantity: Number.isFinite(Number(notification.payload?.stockQuantity))
@@ -2306,20 +2439,21 @@ async function loadAuthenticatedState() {
 
 async function initializeStorefrontState() {
   if (!STORE_FRONTEND_CONTEXT || !window.StoreAPI) return;
-  try {
-    await loadAuthenticatedState();
-  } catch (error) {
+  const configLoad = refreshStorefrontConfig().catch(error => {
+    console.error('Storefront configuration bootstrap failed; checkout pricing is unavailable', error);
+  });
+  const [authResult] = await Promise.allSettled([loadAuthenticatedState(), configLoad]);
+  if (authResult.status === 'rejected') {
     sessionKnown = true;
     currentUser = null;
-    console.error('Store session bootstrap failed', error);
-  } finally {
-    updateBadges();
-    renderNotifMenu();
-    renderAccountPanel();
-    updateAccountUI();
-    renderAccountRecovery();
-    window.dispatchEvent(new CustomEvent('am:store-ready'));
+    console.error('Store session bootstrap failed', authResult.reason);
   }
+  updateBadges();
+  renderNotifMenu();
+  renderAccountPanel();
+  updateAccountUI();
+  renderAccountRecovery();
+  window.dispatchEvent(new CustomEvent('am:store-ready'));
 }
 
 (function coreInit() {

@@ -4,7 +4,9 @@ import { z } from 'zod';
 import { requireAuth } from '../auth/session.js';
 import { upsertProductRef } from '../catalog/refs.js';
 import { conflict, notFound } from '../http/errors.js';
-import { centsToDecimal, decimalToCents, deliveryFeeCents } from '../money.js';
+import { centsToDecimal, decimalToCents } from '../money.js';
+import { loadStoreDeliverySettings } from '../storefront/config.js';
+import { createPricingQuote } from '../storefront/pricing.js';
 import { productIdSchema } from '../validation/common.js';
 
 const itemSchema = z.object({
@@ -133,15 +135,24 @@ async function renderCart(database, catalog, userId) {
 
   const pricedItems = items.filter((item) => item.verified && item.isAvailable && item.quantityAvailable);
   const subtotalCents = pricedItems.reduce((sum, item) => sum + decimalToCents(item.unitPrice) * item.quantity, 0);
-  const feeCents = items.length && pricedItems.length === items.length ? deliveryFeeCents(subtotalCents) : 0;
+  const deliverySettings = await loadStoreDeliverySettings(database);
+  const pricing = items.length && pricedItems.length === items.length
+    ? createPricingQuote(deliverySettings, subtotalCents)
+    : {
+        deliveryRevision: deliverySettings.revision,
+        subtotalCents,
+        deliveryFeeCents: 0,
+        totalCents: subtotalCents
+      };
   return {
     id: cart.public_id,
     version: cart.version,
     items,
     currency: 'MAD',
-    subtotal: centsToDecimal(subtotalCents),
-    deliveryFee: centsToDecimal(feeCents),
-    total: centsToDecimal(subtotalCents + feeCents),
+    subtotal: centsToDecimal(pricing.subtotalCents),
+    deliveryFee: centsToDecimal(pricing.deliveryFeeCents),
+    total: centsToDecimal(pricing.totalCents),
+    pricing,
     checkoutReady: items.length > 0 && pricedItems.length === items.length,
     updatedAt: cart.updated_at
   };

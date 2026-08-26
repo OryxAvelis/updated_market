@@ -37,6 +37,29 @@ function reviewDto(row) {
   };
 }
 
+async function withLockedPersonalization(database, userId, work) {
+  const connection = await database.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [rows] = await connection.execute(
+      `SELECT personalization_enabled
+         FROM user_preferences
+        WHERE user_id = ?
+        LIMIT 1 FOR UPDATE`,
+      [userId]
+    );
+    const enabled = Boolean(rows[0]?.personalization_enabled);
+    const result = await work(connection, enabled);
+    await connection.commit();
+    return { enabled, result };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
 export function createProductReviewsRouter(catalog) {
   const router = Router({ mergeParams: true });
 
@@ -218,13 +241,16 @@ export function createHistoryRouter(catalog) {
     );
     if (!prefs[0]?.personalization_enabled) return res.status(204).end();
     const product = await catalog.getProduct(input.productId);
-    const productRefId = await upsertProductRef(req.app.locals.db, product);
-    await req.app.locals.db.execute(
-      `INSERT INTO recently_viewed_products (user_id, product_ref_id, view_count, last_viewed_at)
-       VALUES (?, ?, 1, UTC_TIMESTAMP(3))
-       ON DUPLICATE KEY UPDATE view_count = view_count + 1, last_viewed_at = UTC_TIMESTAMP(3)`,
-      [req.auth.userId, productRefId]
-    );
+    await withLockedPersonalization(req.app.locals.db, req.auth.userId, async (connection, enabled) => {
+      if (!enabled) return;
+      const productRefId = await upsertProductRef(connection, product);
+      await connection.execute(
+        `INSERT INTO recently_viewed_products (user_id, product_ref_id, view_count, last_viewed_at)
+         VALUES (?, ?, 1, UTC_TIMESTAMP(3))
+         ON DUPLICATE KEY UPDATE view_count = view_count + 1, last_viewed_at = UTC_TIMESTAMP(3)`,
+        [req.auth.userId, productRefId]
+      );
+    });
     res.status(204).end();
   });
 
@@ -354,14 +380,38 @@ export function createRecommendationsRouter(catalog) {
       'SELECT personalization_enabled FROM user_preferences WHERE user_id = ? LIMIT 1',
       [req.auth.userId]
     );
-    if (!prefs[0]?.personalization_enabled) return res.json({ products: [], personalized: false });
+    if (!prefs[0]?.personalization_enabled) {
+      const { enabled } = await withLockedPersonalization(
+        req.app.locals.db,
+        req.auth.userId,
+        async (connection, finalEnabled) => {
+          if (!finalEnabled) {
+            await connection.execute(
+              'DELETE FROM recommendation_snapshots WHERE user_id = ?',
+              [req.auth.userId]
+            );
+          }
+        }
+      );
+      return res.json({ products: [], personalized: enabled });
+    }
     const [seedRows] = await req.app.locals.db.execute(
       `SELECT p.external_id FROM recently_viewed_products r
         JOIN catalog_product_refs p ON p.id = r.product_ref_id
        WHERE r.user_id = ? ORDER BY r.last_viewed_at DESC LIMIT 5`,
       [req.auth.userId]
     );
-    if (!seedRows.length) return res.json({ products: [], personalized: true });
+    if (!seedRows.length) {
+      const { enabled } = await withLockedPersonalization(
+        req.app.locals.db,
+        req.auth.userId,
+        (connection) => connection.execute(
+          'DELETE FROM recommendation_snapshots WHERE user_id = ?',
+          [req.auth.userId]
+        )
+      );
+      return res.json({ products: [], personalized: enabled });
+    }
     const seeds = await Promise.all(seedRows.map((row) => catalog.getProduct(row.external_id)));
     const categories = [...new Set(seeds.map((product) => product.category).filter(Boolean))];
     const seen = new Set(seedRows.map((row) => row.external_id));
@@ -373,11 +423,12 @@ export function createRecommendationsRouter(catalog) {
       }
     }
     const selected = candidates.slice(0, limit);
-    if (selected.length) {
-      const connection = await req.app.locals.db.getConnection();
-      try {
-        await connection.beginTransaction();
+    const finalState = await withLockedPersonalization(
+      req.app.locals.db,
+      req.auth.userId,
+      async (connection, enabled) => {
         await connection.execute('DELETE FROM recommendation_snapshots WHERE user_id = ?', [req.auth.userId]);
+        if (!enabled) return [];
         for (let index = 0; index < selected.length; index += 1) {
           const refId = await upsertProductRef(connection, selected[index]);
           await connection.execute(
@@ -387,15 +438,10 @@ export function createRecommendationsRouter(catalog) {
             [req.auth.userId, refId, (selected.length - index) / selected.length]
           );
         }
-        await connection.commit();
-      } catch (error) {
-        await connection.rollback();
-        throw error;
-      } finally {
-        connection.release();
+        return selected;
       }
-    }
-    res.json({ products: selected, personalized: true });
+    );
+    res.json({ products: finalState.result, personalized: finalState.enabled });
   });
   return router;
 }

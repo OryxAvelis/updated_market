@@ -5,11 +5,14 @@ import { requireAuth } from '../auth/session.js';
 import { releaseOrderInventory, reserveOrderInventory } from '../catalog/inventory.js';
 import { databaseDateToIso, nullableDatabaseDateToIso } from '../db/date.js';
 import { conflict, notFound } from '../http/errors.js';
-import { centsToDecimal, decimalToCents, deliveryFeeCents } from '../money.js';
+import { centsToDecimal, decimalToCents } from '../money.js';
+import { loadStoreDeliverySettings } from '../storefront/config.js';
+import { createPricingQuote, pricingQuoteSchema, pricingQuotesEqual } from '../storefront/pricing.js';
 import { publicIdSchema } from '../validation/common.js';
 
 const checkoutSchema = z.object({
   addressId: publicIdSchema,
+  pricing: pricingQuoteSchema,
   paymentMethod: z.enum(['cod', 'wafacash', 'cashplus']).default('cod'),
   note: z.union([z.string().trim().max(500), z.literal(''), z.null()]).transform((value) => value || null).optional()
 }).strict();
@@ -93,6 +96,7 @@ const listSchema = z.object({
 function requestDigest(input) {
   return createHash('sha256').update(JSON.stringify({
     addressId: input.addressId,
+    pricing: input.pricing,
     paymentMethod: input.paymentMethod,
     note: input.note || null
   })).digest();
@@ -326,7 +330,6 @@ export function createOrdersRouter(catalog) {
       });
     }
     const subtotalCents = verified.reduce((sum, item) => sum + item.product.priceCents * item.quantity, 0);
-    const deliveryCents = deliveryFeeCents(subtotalCents);
     const orderPublicId = randomUUID();
     let replayedPublicId = null;
 
@@ -375,6 +378,13 @@ export function createOrdersRouter(catalog) {
         const address = addresses[0];
         if (!address) throw notFound('ADDRESS_NOT_FOUND', 'The delivery address was not found.');
 
+        const deliverySettings = await loadStoreDeliverySettings(connection, { forUpdate: true });
+        const pricing = createPricingQuote(deliverySettings, subtotalCents);
+        if (!pricingQuotesEqual(input.pricing, pricing)) {
+          throw conflict('PRICING_CHANGED', 'Pricing changed during checkout. Review the new total and try again.');
+        }
+        const deliveryCents = pricing.deliveryFeeCents;
+
         const [orderInsert] = await connection.execute(
           `INSERT INTO orders
             (public_id, order_number, user_id, status, payment_method, payment_status,
@@ -401,9 +411,11 @@ export function createOrdersRouter(catalog) {
           await connection.execute(
             `INSERT INTO order_items
               (public_id, order_id, line_no, product_ref_id, external_product_id, product_name,
-               product_image_url, unit_price, quantity)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+               product_brand, product_sku, product_image_url, unit_price, quantity)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [randomUUID(), orderId, index + 1, productRefs.get(product.id), product.id, product.name,
+              product.brand_name ? String(product.brand_name).slice(0, 160) : null,
+              product.sku ? String(product.sku).slice(0, 120) : null,
               product.image_url || null, product.price, quantity]
           );
         }

@@ -7,6 +7,7 @@ import helmet from 'helmet';
 import pinoHttp from 'pino-http';
 import { createAdminAuthRouter } from './admin/routes.js';
 import { createAdminOperationsRouter } from './admin/operations-routes.js';
+import { createAdminWorkspaceRouter } from './admin/workspace-routes.js';
 import { requireAdminCsrf } from './admin/csrf.js';
 import { loadAdminSession, requireAdminPage } from './admin/session.js';
 import { createAccountRouter } from './account/routes.js';
@@ -34,6 +35,7 @@ import { createFulfillmentRouter } from './integrations/fulfillment-routes.js';
 import { logger } from './logger.js';
 import { createGuestOrdersRouter } from './orders/guest-routes.js';
 import { createOrdersRouter, createReturnsRouter } from './orders/routes.js';
+import { createStorefrontConfigRouter } from './storefront/routes.js';
 import { requireCsrf } from './security/csrf.js';
 import { requireTrustedOrigin } from './security/origin.js';
 
@@ -209,11 +211,13 @@ export function createApp({
     loadAdminSession,
     requireAdminCsrf,
     createAdminAuthRouter(),
-    createAdminOperationsRouter()
+    createAdminOperationsRouter(),
+    createAdminWorkspaceRouter()
   );
   app.use('/api/v1', requireTrustedOrigin, loadSession, preventPrivateResponseCaching, requireCsrf);
 
   app.use('/api/v1/health', createHealthRouter());
+  app.use('/api/v1/storefront', createStorefrontConfigRouter());
   app.use('/api/v1/auth', createAuthRouter({ mailService }));
   app.use('/api/v1/me', createAccountRouter());
   app.use('/api/v1/me/low-stock-subscriptions', createLowStockSubscriptionsRouter(catalog));

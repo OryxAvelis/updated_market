@@ -565,6 +565,10 @@
     product: (productId, options) => read(`/catalog/products/${encodeSegment(productId, 'product ID')}`, null, { ...(options || {}), longTimeout: true })
   });
 
+  const storefront = Object.freeze({
+    config: (options) => read('/storefront/config', null, options)
+  });
+
   global.StoreAPI = Object.freeze({
     baseUrl: BASE_URL,
     Error: StoreAPIError,
@@ -586,6 +590,7 @@
     notifications,
     lowStock,
     recommendations,
-    catalog
+    catalog,
+    storefront
   });
 })(window);

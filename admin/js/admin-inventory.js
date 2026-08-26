@@ -1,6 +1,6 @@
 /**
  * Inventory admin page.
- * Catalog availability is read-only; overrides and optional quantities remain localStorage-only.
+ * Catalog availability is read-only; draft overrides are shared through the admin workspace.
  */
 (() => {
   'use strict';
@@ -9,9 +9,9 @@
     title_admin_inventory: 'Inventory — AM MARKET Admin',
     admin_inventory_kicker: 'Live catalog view',
     admin_inventory_title: 'Inventory',
-    admin_inventory_intro: 'Review catalog availability and add optional browser-local stock notes.',
+    admin_inventory_intro: 'Review catalog availability and add optional shared stock-note drafts.',
     admin_refresh_catalog: 'Refresh catalog',
-    admin_inventory_local_note: 'Inventory overrides and optional quantities are stored only in this browser. They do not update api.mmarket.ma or storefront availability.',
+    admin_inventory_local_note: 'Inventory overrides and optional quantities are saved as shared admin drafts. They do not update api.mmarket.ma or storefront availability.',
     admin_inventory_search_label: 'Search catalog',
     admin_inventory_search_placeholder: 'Product, brand or category',
     admin_inventory_filter_label: 'Stock state',
@@ -23,13 +23,13 @@
     admin_clear_filters: 'Clear filters',
     admin_inventory_loading: 'Loading the live catalog…',
     admin_inventory_loading_progress: 'Loaded {loaded} of {total} catalog batches.',
-    admin_inventory_table_caption: 'Live catalog with browser-local inventory controls',
+    admin_inventory_table_caption: 'Live catalog with shared draft inventory controls',
     admin_inventory_col_product: 'Product',
     admin_inventory_col_category: 'Category',
     admin_inventory_col_catalog: 'Catalog',
-    admin_inventory_col_local_state: 'Local state',
+    admin_inventory_col_local_state: 'Draft state',
     admin_inventory_col_quantity: 'Optional quantity',
-    admin_inventory_col_updated: 'Local update',
+    admin_inventory_col_updated: 'Draft update',
     admin_actions: 'Actions',
     admin_inventory_pagination: 'Inventory pages',
     admin_previous: 'Previous',
@@ -42,26 +42,26 @@
     admin_inventory_filtered_title: 'No matching inventory records',
     admin_inventory_filtered_text: 'Try another search or stock-state filter.',
     admin_inventory_error_title: 'Catalog unavailable',
-    admin_inventory_error_text: 'The live read-only catalog could not be loaded. Local overrides were not changed.',
+    admin_inventory_error_text: 'The live read-only catalog could not be loaded. Shared draft overrides were not changed.',
     admin_retry: 'Retry',
     admin_inventory_catalog_state: 'Use catalog: {state}',
-    admin_inventory_quantity_label: 'Optional local quantity for {product}',
-    admin_inventory_state_label: 'Local stock state for {product}',
-    admin_inventory_save_label: 'Store local inventory note for {product}',
+    admin_inventory_quantity_label: 'Optional draft quantity for {product}',
+    admin_inventory_state_label: 'Draft stock state for {product}',
+    admin_inventory_save_label: 'Save shared inventory note for {product}',
     admin_inventory_cancel_label: 'Cancel unsaved changes for {product}',
-    admin_inventory_save: 'Save local',
+    admin_inventory_save: 'Save draft',
     admin_cancel: 'Cancel',
     admin_inventory_saving: 'Storing…',
     admin_inventory_quantity_hint: 'Blank means not tracked',
     admin_inventory_quantity_invalid: 'Enter a whole number of zero or more, or leave it blank.',
-    admin_inventory_never_updated: 'No local override',
-    admin_inventory_updated_local: 'Updated locally {date}',
-    admin_inventory_stored: 'Inventory note for {product} was stored in this browser only.',
-    admin_inventory_cleared: 'The local inventory override for {product} was removed.',
-    admin_inventory_unchanged: 'No local inventory changes were needed for {product}.',
-    admin_inventory_store_failed: 'The local inventory note could not be stored.',
+    admin_inventory_never_updated: 'No draft override',
+    admin_inventory_updated_local: 'Draft updated {date}',
+    admin_inventory_stored: 'Inventory note for {product} was saved to the shared workspace.',
+    admin_inventory_cleared: 'The shared inventory override for {product} was removed.',
+    admin_inventory_unchanged: 'No draft inventory changes were needed for {product}.',
+    admin_inventory_store_failed: 'The inventory draft could not be saved. The latest shared version was restored.',
     admin_inventory_clear_title: 'Use live catalog state?',
-    admin_inventory_clear_confirm: 'This removes the local inventory override for {product}. The live catalog state will be shown again.',
+    admin_inventory_clear_confirm: 'This removes the shared inventory override for {product}. The live catalog state will be shown again.',
     admin_inventory_use_catalog: 'Use catalog state',
     admin_inventory_refreshed: 'The live catalog view was refreshed.',
     admin_inventory_product_missing: 'This product is no longer in the loaded catalog.',
@@ -75,9 +75,9 @@
     title_admin_inventory: 'Stock — Administration AM MARKET',
     admin_inventory_kicker: 'Vue du catalogue réel',
     admin_inventory_title: 'Stock',
-    admin_inventory_intro: 'Consultez la disponibilité du catalogue et ajoutez des notes de stock locales facultatives.',
+    admin_inventory_intro: 'Consultez la disponibilité du catalogue et ajoutez des brouillons partagés de notes de stock.',
     admin_refresh_catalog: 'Actualiser le catalogue',
-    admin_inventory_local_note: 'Les états et quantités facultatives sont stockés uniquement dans ce navigateur. Ils ne modifient ni api.mmarket.ma ni la disponibilité de la boutique.',
+    admin_inventory_local_note: 'Les états et quantités facultatives sont enregistrés comme brouillons administrateur partagés. Ils ne modifient ni api.mmarket.ma ni la disponibilité de la boutique.',
     admin_inventory_search_label: 'Rechercher dans le catalogue',
     admin_inventory_search_placeholder: 'Produit, marque ou catégorie',
     admin_inventory_filter_label: 'État du stock',
@@ -89,13 +89,13 @@
     admin_clear_filters: 'Effacer les filtres',
     admin_inventory_loading: 'Chargement du catalogue réel…',
     admin_inventory_loading_progress: '{loaded} lot(s) du catalogue sur {total} chargé(s).',
-    admin_inventory_table_caption: 'Catalogue réel avec contrôles de stock locaux au navigateur',
+    admin_inventory_table_caption: 'Catalogue réel avec contrôles de brouillon de stock partagés',
     admin_inventory_col_product: 'Produit',
     admin_inventory_col_category: 'Catégorie',
     admin_inventory_col_catalog: 'Catalogue',
-    admin_inventory_col_local_state: 'État local',
+    admin_inventory_col_local_state: 'État du brouillon',
     admin_inventory_col_quantity: 'Quantité facultative',
-    admin_inventory_col_updated: 'Mise à jour locale',
+    admin_inventory_col_updated: 'Mise à jour du brouillon',
     admin_actions: 'Actions',
     admin_inventory_pagination: 'Pages du stock',
     admin_previous: 'Précédent',
@@ -111,23 +111,23 @@
     admin_inventory_error_text: 'Le catalogue réel en lecture seule n’a pas pu être chargé. Les états locaux n’ont pas été modifiés.',
     admin_retry: 'Réessayer',
     admin_inventory_catalog_state: 'Utiliser le catalogue : {state}',
-    admin_inventory_quantity_label: 'Quantité locale facultative pour {product}',
-    admin_inventory_state_label: 'État de stock local pour {product}',
-    admin_inventory_save_label: 'Stocker la note de stock locale pour {product}',
+    admin_inventory_quantity_label: 'Quantité de brouillon facultative pour {product}',
+    admin_inventory_state_label: 'État de stock du brouillon pour {product}',
+    admin_inventory_save_label: 'Enregistrer la note de stock partagée pour {product}',
     admin_inventory_cancel_label: 'Annuler les modifications non enregistrées pour {product}',
-    admin_inventory_save: 'Stocker localement',
+    admin_inventory_save: 'Enregistrer le brouillon',
     admin_cancel: 'Annuler',
     admin_inventory_saving: 'Stockage…',
     admin_inventory_quantity_hint: 'Vide signifie non suivi',
     admin_inventory_quantity_invalid: 'Saisissez un nombre entier positif ou nul, ou laissez le champ vide.',
-    admin_inventory_never_updated: 'Aucun état local',
-    admin_inventory_updated_local: 'Mis à jour localement le {date}',
-    admin_inventory_stored: 'La note de stock pour {product} a été stockée uniquement dans ce navigateur.',
-    admin_inventory_cleared: 'L’état de stock local de {product} a été supprimé.',
-    admin_inventory_unchanged: 'Aucune modification locale du stock n’était nécessaire pour {product}.',
-    admin_inventory_store_failed: 'La note de stock locale n’a pas pu être stockée.',
+    admin_inventory_never_updated: 'Aucun brouillon de stock',
+    admin_inventory_updated_local: 'Brouillon mis à jour le {date}',
+    admin_inventory_stored: 'La note de stock pour {product} a été enregistrée dans l’espace partagé.',
+    admin_inventory_cleared: 'L’état de stock partagé de {product} a été supprimé.',
+    admin_inventory_unchanged: 'Aucune modification du brouillon de stock n’était nécessaire pour {product}.',
+    admin_inventory_store_failed: 'Impossible d’enregistrer le brouillon de stock. La dernière version partagée a été restaurée.',
     admin_inventory_clear_title: 'Utiliser l’état du catalogue réel ?',
-    admin_inventory_clear_confirm: 'Cette action supprime l’état local de {product}. L’état du catalogue réel sera de nouveau affiché.',
+    admin_inventory_clear_confirm: 'Cette action supprime l’état partagé de {product}. L’état du catalogue réel sera de nouveau affiché.',
     admin_inventory_use_catalog: 'Utiliser le catalogue',
     admin_inventory_refreshed: 'La vue du catalogue réel a été actualisée.',
     admin_inventory_product_missing: 'Ce produit ne figure plus dans le catalogue chargé.',
@@ -151,6 +151,7 @@
   let currentPage = 1;
   let loadSequence = 0;
   let initialized = false;
+  let canEditWorkspace = false;
 
   const byId = id => document.getElementById(id);
   const esc = value => AdminCore.escape(value == null ? '' : String(value));
@@ -314,14 +315,14 @@
       </td>
       <td data-label="${esc(t('admin_inventory_col_local_state'))}" class="admin-inventory-edit">
         <label class="visually-hidden" for="${stateControlId}">${esc(t('admin_inventory_state_label', { product: productName }))}</label>
-        <select id="${stateControlId}" class="admin-select admin-inventory-state-select" name="state" form="${formId}" data-product-id="${esc(id)}">
+        <select id="${stateControlId}" class="admin-select admin-inventory-state-select" name="state" form="${formId}" data-product-id="${esc(id)}"${canEditWorkspace ? '' : ' disabled'}>
           <option value="catalog" ${selectedState === 'catalog' ? 'selected' : ''}>${esc(t('admin_inventory_catalog_state', { state: stateLabel(catalogState) }))}</option>
           ${LOCAL_STATES.map(state => `<option value="${state}" ${selectedState === state ? 'selected' : ''}>${esc(stateLabel(state))}</option>`).join('')}
         </select>
       </td>
       <td data-label="${esc(t('admin_inventory_col_quantity'))}" class="admin-inventory-quantity">
         <label class="visually-hidden" for="${quantityControlId}">${esc(t('admin_inventory_quantity_label', { product: productName }))}</label>
-        <input id="${quantityControlId}" class="admin-input admin-inventory-quantity-input" name="quantity" form="${formId}" type="number" min="0" step="1" inputmode="numeric" value="${esc(quantity)}" ${stateDisabled ? 'disabled' : ''}>
+        <input id="${quantityControlId}" class="admin-input admin-inventory-quantity-input" name="quantity" form="${formId}" type="number" min="0" step="1" inputmode="numeric" value="${esc(quantity)}" ${(stateDisabled || !canEditWorkspace) ? 'disabled' : ''}>
         <small>${esc(t('admin_inventory_quantity_hint'))}</small>
         <p class="admin-inventory-error" data-inventory-error="${esc(id)}" role="alert"></p>
       </td>
@@ -329,7 +330,7 @@
       <td data-label="${esc(t('admin_actions'))}">
         <form id="${formId}" class="admin-inventory-row-form" data-product-id="${esc(id)}"></form>
         <div class="admin-inventory-actions">
-          <button class="admin-button admin-button--primary" type="submit" form="${formId}" data-inventory-save="${esc(id)}" aria-label="${esc(t('admin_inventory_save_label', { product: productName }))}">${esc(t('admin_inventory_save'))}</button>
+          <button class="admin-button admin-button--primary" type="submit" form="${formId}" data-inventory-save="${esc(id)}"${canEditWorkspace ? '' : ' disabled'} aria-label="${esc(t('admin_inventory_save_label', { product: productName }))}">${esc(t('admin_inventory_save'))}</button>
           <button class="admin-button admin-button--secondary" type="button" data-inventory-cancel="${esc(id)}" aria-label="${esc(t('admin_inventory_cancel_label', { product: productName }))}">${esc(t('admin_cancel'))}</button>
         </div>
       </td>
@@ -523,14 +524,20 @@
       return;
     }
 
-    const result = AdminCore.write(storageKey, nextOverrides);
-    if (result === undefined) {
+    try {
+      overrides = await AdminCore.saveWorkspace('inventory', nextOverrides);
+    } catch (requestError) {
+      try {
+        const authoritative = await AdminCore.loadWorkspace('inventory');
+        overrides = authoritative && typeof authoritative === 'object' && !Array.isArray(authoritative) ? authoritative : {};
+      } catch {
+        readOverrides();
+      }
       error.textContent = t('admin_inventory_store_failed');
       AdminCore.setBusy(saveButton, false);
+      renderInventory();
       return;
     }
-
-    overrides = nextOverrides;
     AdminCore.toast(t(chosenState === 'catalog' ? 'admin_inventory_cleared' : 'admin_inventory_stored', {
       product: product.name || productId
     }), 'success');
@@ -541,6 +548,7 @@
   function init() {
     if (initialized) return;
     initialized = true;
+    canEditWorkspace = AdminCore.canEditWorkspace();
     storageKey = AdminCore.keys?.inventory === 'am_admin_inventory_v1'
       ? AdminCore.keys.inventory
       : 'am_admin_inventory_v1';

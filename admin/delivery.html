@@ -28,7 +28,7 @@
 
     <aside class="admin-inline-notice admin-delivery-notice" role="note">
       <i class="fa-solid fa-laptop" aria-hidden="true"></i>
-      <div><strong data-i18n="admin_local_only">Saved on this device</strong><p data-i18n="admin_delivery_local_note">These settings are saved on this device. Storefront checkout remains at 20 DH and free over 200 DH.</p></div>
+      <div><strong data-i18n="admin_local_only">Shared admin workspace</strong><p data-i18n="admin_delivery_local_note">Rules and zones are shared database-backed settings. The default fee and free-delivery threshold are published to checkout; zones remain planning drafts.</p></div>
     </aside>
 
     <section class="admin-card admin-delivery-rules" aria-labelledby="deliveryRulesTitle">
@@ -36,17 +36,17 @@
       <form id="deliveryRulesForm" class="admin-card-body admin-inline-form" novalidate>
         <div class="admin-field-group">
           <label class="form-label admin-form-label" for="defaultDeliveryFee"><span data-i18n="admin_default_fee">Default delivery fee</span> <span class="admin-required" aria-hidden="true">*</span></label>
-          <div class="input-group"><input class="form-control admin-input" id="defaultDeliveryFee" type="number" min="0" step="1" required><span class="input-group-text">DH</span></div>
+          <div class="input-group"><input class="form-control admin-input" id="defaultDeliveryFee" type="number" min="0" max="100000" step="0.01" required><span class="input-group-text">DH</span></div>
           <div class="invalid-feedback" data-i18n="admin_nonnegative_required">Enter zero or a positive amount.</div>
         </div>
         <div class="admin-field-group">
           <label class="form-label admin-form-label" for="freeDeliveryThreshold"><span data-i18n="admin_free_threshold">Free-delivery threshold</span> <span class="admin-required" aria-hidden="true">*</span></label>
-          <div class="input-group"><input class="form-control admin-input" id="freeDeliveryThreshold" type="number" min="0" step="1" required><span class="input-group-text">DH</span></div>
+          <div class="input-group"><input class="form-control admin-input" id="freeDeliveryThreshold" type="number" min="0" max="1000000" step="0.01" required><span class="input-group-text">DH</span></div>
           <div class="invalid-feedback" data-i18n="admin_nonnegative_required">Enter zero or a positive amount.</div>
         </div>
         <div class="admin-inline-actions">
           <button class="admin-button admin-button--secondary" id="deliveryRulesCancel" type="button" data-i18n="admin_cancel">Cancel</button>
-          <button class="admin-button admin-button--primary" id="deliveryRulesSubmit" type="submit"><span data-i18n="admin_save_local">Save on this device</span></button>
+          <button class="admin-button admin-button--primary" id="deliveryRulesSubmit" type="submit"><span data-i18n="admin_save_local">Save shared settings</span></button>
         </div>
       </form>
     </section>
@@ -62,15 +62,15 @@
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
         <form id="deliveryZoneForm" novalidate>
-          <div class="modal-header"><div><p class="admin-page-eyebrow mb-1" data-i18n="admin_local_only">Saved on this device</p><h2 class="modal-title fs-5" id="deliveryZoneModalTitle" data-i18n="admin_add_zone">Add zone</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" data-i18n-aria="close" aria-label="Close"></button></div>
+          <div class="modal-header"><div><p class="admin-page-eyebrow mb-1" data-i18n="admin_local_only">Shared admin workspace</p><h2 class="modal-title fs-5" id="deliveryZoneModalTitle" data-i18n="admin_add_zone">Add zone</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" data-i18n-aria="close" aria-label="Close"></button></div>
           <div class="modal-body">
             <input id="deliveryZoneId" type="hidden">
             <div class="mb-3"><label class="form-label admin-form-label" for="deliveryZoneName"><span data-i18n="admin_zone_name">Zone name</span> <span class="admin-required" aria-hidden="true">*</span></label><input class="form-control admin-input" id="deliveryZoneName" required maxlength="80"><div class="invalid-feedback" data-i18n="admin_name_required">Enter a name.</div></div>
             <div class="mb-3"><label class="form-label admin-form-label" for="deliveryZoneCoverage"><span data-i18n="admin_coverage">Coverage</span> <span class="admin-required" aria-hidden="true">*</span></label><input class="form-control admin-input" id="deliveryZoneCoverage" required maxlength="120" data-i18n-ph="admin_coverage_placeholder" placeholder="Cities or service area"><div class="invalid-feedback" data-i18n="admin_coverage_required">Describe the service area.</div></div>
-            <div class="mb-3"><label class="form-label admin-form-label" for="deliveryZoneFee"><span data-i18n="admin_zone_fee">Zone fee</span> <span class="admin-required" aria-hidden="true">*</span></label><div class="input-group"><input class="form-control admin-input" id="deliveryZoneFee" type="number" min="0" step="1" required><span class="input-group-text">DH</span></div><div class="invalid-feedback" data-i18n="admin_nonnegative_required">Enter zero or a positive amount.</div></div>
+            <div class="mb-3"><label class="form-label admin-form-label" for="deliveryZoneFee"><span data-i18n="admin_zone_fee">Zone fee</span> <span class="admin-required" aria-hidden="true">*</span></label><div class="input-group"><input class="form-control admin-input" id="deliveryZoneFee" type="number" min="0" max="1000000" step="0.01" required><span class="input-group-text">DH</span></div><div class="invalid-feedback" data-i18n="admin_nonnegative_required">Enter zero or a positive amount.</div></div>
             <div class="form-check form-switch admin-switch-row"><input class="form-check-input" id="deliveryZoneEnabled" type="checkbox" role="switch" checked><label class="form-check-label" for="deliveryZoneEnabled" data-i18n="admin_enable_zone">Enable this zone</label></div>
           </div>
-          <div class="modal-footer"><button type="button" class="admin-button admin-button--secondary" data-bs-dismiss="modal" data-i18n="admin_cancel">Cancel</button><button type="submit" class="admin-button admin-button--primary" id="deliveryZoneSubmit"><span data-i18n="admin_save_local">Save on this device</span></button></div>
+          <div class="modal-footer"><button type="button" class="admin-button admin-button--secondary" data-bs-dismiss="modal" data-i18n="admin_cancel">Cancel</button><button type="submit" class="admin-button admin-button--primary" id="deliveryZoneSubmit"><span data-i18n="admin_save_local">Save shared settings</span></button></div>
         </form>
       </div>
     </div>

@@ -3,10 +3,10 @@ Object.assign(I18N.en, {
   admin_categories_skip: 'Skip to category management',
   admin_categories_catalog_label: 'Catalog workspace',
   admin_categories_title: 'Categories',
-  admin_categories_subtitle: 'Explore the live hierarchy and manage category changes saved on this device.',
+  admin_categories_subtitle: 'Explore the live hierarchy and manage shared category drafts.',
   admin_categories_add: 'Add category',
-  admin_categories_local_note_title: 'Changes saved on this device',
-  admin_categories_local_note: 'Category changes are saved for this admin workspace on this device and do not update the catalog API or storefront.',
+  admin_categories_local_note_title: 'Shared workspace drafts',
+  admin_categories_local_note: 'Category changes are saved in the database-backed admin workspace and do not update the catalog API or storefront.',
   admin_categories_list_title: 'Catalog categories',
   admin_categories_search_label: 'Search categories',
   admin_categories_search_placeholder: 'Search by category name',
@@ -19,29 +19,29 @@ Object.assign(I18N.en, {
   admin_categories_disabled: 'Disabled',
   admin_categories_reset: 'Reset',
   admin_categories_search_button: 'Search',
-  admin_categories_table_caption: 'Categories from the live catalog with changes saved on this device applied',
+  admin_categories_table_caption: 'Categories from the live catalog with shared workspace drafts applied',
   admin_categories_col_category: 'Category',
   admin_categories_col_parent: 'Parent',
   admin_categories_col_products: 'Catalog products',
   admin_categories_col_status: 'Status',
   admin_categories_col_source: 'Source',
   admin_categories_col_actions: 'Actions',
-  admin_categories_local_edit: 'Device-saved change',
+  admin_categories_local_edit: 'Shared draft change',
   admin_categories_close: 'Close',
   admin_categories_field_name: 'Category name',
   admin_categories_field_parent: 'Parent category',
   admin_categories_no_parent: 'No parent (top level)',
   admin_categories_parent_help: 'A category cannot be placed inside itself or one of its descendants.',
   admin_categories_field_icon: 'Icon or emoji (optional)',
-  admin_categories_icon_help: 'Used in the admin view on this device.',
+  admin_categories_icon_help: 'Used in the shared admin draft.',
   admin_categories_field_enabled: 'Enabled in this admin view',
-  admin_categories_form_note: 'Submitting saves this change to the admin workspace on this device.',
+  admin_categories_form_note: 'Submitting saves this change to the shared admin workspace.',
   admin_categories_cancel: 'Cancel',
-  admin_categories_apply_local: 'Save on this device',
+  admin_categories_apply_local: 'Save shared draft',
   admin_categories_add_title: 'Add category',
   admin_categories_edit_title: 'Edit category',
   admin_categories_loading_title: 'Loading categories',
-  admin_categories_loading_body: 'Reading the live hierarchy and applying changes saved on this device.',
+  admin_categories_loading_body: 'Reading the live hierarchy and applying shared workspace drafts.',
   admin_categories_error_title: 'Categories could not be loaded',
   admin_categories_error_body: 'Check your connection and try the live catalog again.',
   admin_categories_retry: 'Retry',
@@ -51,8 +51,8 @@ Object.assign(I18N.en, {
   admin_categories_summary: 'Showing {shown} of {total} categories',
   admin_categories_top_level: 'Top level',
   admin_categories_source_live: 'Live catalog',
-  admin_categories_source_local: 'This device',
-  admin_categories_source_edited: 'Live + device edit',
+  admin_categories_source_local: 'Workspace draft',
+  admin_categories_source_edited: 'Live + shared draft',
   admin_categories_reference: 'ID {id}',
   admin_categories_count_loading: 'Reading…',
   admin_categories_count_loading_named: 'Reading product count for {name}',
@@ -66,26 +66,26 @@ Object.assign(I18N.en, {
   admin_categories_validation_duplicate: 'A category with this name already exists under the selected parent.',
   admin_categories_validation_parent: 'Choose a valid parent that is not this category or one of its descendants.',
   admin_categories_validation_icon: 'Use no more than 12 characters for the icon.',
-  admin_categories_saving: 'Saving on this device…',
-  admin_categories_added_local: '“{name}” was added to the admin workspace on this device.',
-  admin_categories_updated_local: '“{name}” was updated in the admin workspace on this device.',
-  admin_categories_removed_local: '“{name}” was removed from this device.',
-  admin_categories_hidden_local: '“{name}” is hidden in the admin view on this device; the storefront is unchanged.',
-  admin_categories_enabled_local: '“{name}” was enabled in the admin view on this device.',
-  admin_categories_disabled_local: '“{name}” was disabled in the admin view on this device; the storefront is unchanged.',
-  admin_categories_write_error: 'The category change could not be saved on this device.',
+  admin_categories_saving: 'Saving shared draft…',
+  admin_categories_added_local: '“{name}” was added to the shared admin workspace.',
+  admin_categories_updated_local: '“{name}” was updated in the shared admin workspace.',
+  admin_categories_removed_local: '“{name}” was removed from the shared admin workspace.',
+  admin_categories_hidden_local: '“{name}” is hidden in the shared admin draft; the storefront is unchanged.',
+  admin_categories_enabled_local: '“{name}” was enabled in the shared admin draft.',
+  admin_categories_disabled_local: '“{name}” was disabled in the shared admin draft; the storefront is unchanged.',
+  admin_categories_write_error: 'The category change could not be saved. The latest shared draft was restored.',
   admin_categories_delete_title: 'Delete “{name}”?',
-  admin_categories_delete_live_message: 'This hides the live category in the admin view on this device. It does not delete it from the API or storefront.',
-  admin_categories_delete_local_message: 'This removes the category created on this device. Server data is unchanged.',
-  admin_categories_delete_children_note: ' {count} direct child category(s) will move up one level in the workspace on this device.',
-  admin_categories_delete_confirm: 'Delete from this device',
-  admin_categories_delete_blocked_products: '“{name}” still contains {count} catalog or device-saved product(s). Reassign those products before deleting the category.',
+  admin_categories_delete_live_message: 'This hides the live category in the shared admin draft. It does not delete it from the API or storefront.',
+  admin_categories_delete_local_message: 'This removes the category created in the shared admin draft. The catalog API is unchanged.',
+  admin_categories_delete_children_note: ' {count} direct child category(s) will move up one level in the shared workspace.',
+  admin_categories_delete_confirm: 'Delete shared draft',
+  admin_categories_delete_blocked_products: '“{name}” still contains {count} catalog or draft product(s). Reassign those products before deleting the category.',
   admin_categories_disable_title: 'Disable “{name}”?',
   admin_categories_enable_title: 'Enable “{name}”?',
-  admin_categories_disable_message: 'This changes the admin view on this device. The category remains enabled on the live storefront.',
-  admin_categories_enable_message: 'This changes the admin view on this device and does not update the storefront.',
-  admin_categories_disable_confirm: 'Disable on this device',
-  admin_categories_enable_confirm: 'Enable on this device'
+  admin_categories_disable_message: 'This changes the shared admin draft. The category remains enabled on the live storefront.',
+  admin_categories_enable_message: 'This changes the shared admin draft and does not update the storefront.',
+  admin_categories_disable_confirm: 'Disable in shared draft',
+  admin_categories_enable_confirm: 'Enable in shared draft'
 });
 
 Object.assign(I18N.fr, {
@@ -93,10 +93,10 @@ Object.assign(I18N.fr, {
   admin_categories_skip: 'Aller à la gestion des catégories',
   admin_categories_catalog_label: 'Espace catalogue',
   admin_categories_title: 'Catégories',
-  admin_categories_subtitle: 'Explorez la hiérarchie en ligne et gérez les modifications enregistrées sur cet appareil.',
+  admin_categories_subtitle: 'Explorez la hiérarchie en ligne et gérez les brouillons de catégorie partagés.',
   admin_categories_add: 'Ajouter une catégorie',
-  admin_categories_local_note_title: 'Modifications enregistrées sur cet appareil',
-  admin_categories_local_note: 'Les modifications de catégories sont enregistrées dans l’espace admin sur cet appareil. Elles ne modifient ni l’API du catalogue ni la boutique.',
+  admin_categories_local_note_title: 'Brouillons partagés',
+  admin_categories_local_note: 'Les modifications sont enregistrées dans l’espace administrateur partagé en base. Elles ne modifient ni l’API du catalogue ni la boutique.',
   admin_categories_list_title: 'Catégories du catalogue',
   admin_categories_search_label: 'Rechercher des catégories',
   admin_categories_search_placeholder: 'Rechercher par nom de catégorie',
@@ -109,29 +109,29 @@ Object.assign(I18N.fr, {
   admin_categories_disabled: 'Désactivée',
   admin_categories_reset: 'Réinitialiser',
   admin_categories_search_button: 'Rechercher',
-  admin_categories_table_caption: 'Catégories du catalogue en ligne avec les modifications enregistrées sur cet appareil',
+  admin_categories_table_caption: 'Catégories du catalogue en ligne avec les brouillons partagés appliqués',
   admin_categories_col_category: 'Catégorie',
   admin_categories_col_parent: 'Parent',
   admin_categories_col_products: 'Produits catalogue',
   admin_categories_col_status: 'Statut',
   admin_categories_col_source: 'Source',
   admin_categories_col_actions: 'Actions',
-  admin_categories_local_edit: 'Modification enregistrée sur cet appareil',
+  admin_categories_local_edit: 'Modification du brouillon partagé',
   admin_categories_close: 'Fermer',
   admin_categories_field_name: 'Nom de la catégorie',
   admin_categories_field_parent: 'Catégorie parente',
   admin_categories_no_parent: 'Aucun parent (niveau principal)',
   admin_categories_parent_help: 'Une catégorie ne peut pas être placée dans elle-même ni dans l’un de ses descendants.',
   admin_categories_field_icon: 'Icône ou emoji (facultatif)',
-  admin_categories_icon_help: 'Utilisée dans la vue admin sur cet appareil.',
+  admin_categories_icon_help: 'Utilisée dans le brouillon administrateur partagé.',
   admin_categories_field_enabled: 'Activée dans cette vue admin',
-  admin_categories_form_note: 'La validation enregistre cette modification dans l’espace admin sur cet appareil.',
+  admin_categories_form_note: 'La validation enregistre cette modification dans l’espace administrateur partagé.',
   admin_categories_cancel: 'Annuler',
-  admin_categories_apply_local: 'Enregistrer sur cet appareil',
+  admin_categories_apply_local: 'Enregistrer le brouillon partagé',
   admin_categories_add_title: 'Ajouter une catégorie',
   admin_categories_edit_title: 'Modifier la catégorie',
   admin_categories_loading_title: 'Chargement des catégories',
-  admin_categories_loading_body: 'Lecture de la hiérarchie en ligne et application des modifications enregistrées sur cet appareil.',
+  admin_categories_loading_body: 'Lecture de la hiérarchie en ligne et application des brouillons partagés.',
   admin_categories_error_title: 'Impossible de charger les catégories',
   admin_categories_error_body: 'Vérifiez votre connexion puis réessayez de lire le catalogue en ligne.',
   admin_categories_retry: 'Réessayer',
@@ -141,8 +141,8 @@ Object.assign(I18N.fr, {
   admin_categories_summary: '{shown} catégorie(s) affichée(s) sur {total}',
   admin_categories_top_level: 'Niveau principal',
   admin_categories_source_live: 'Catalogue en ligne',
-  admin_categories_source_local: 'Cet appareil',
-  admin_categories_source_edited: 'En ligne + modif. appareil',
+  admin_categories_source_local: 'Brouillon partagé',
+  admin_categories_source_edited: 'En ligne + brouillon',
   admin_categories_reference: 'ID {id}',
   admin_categories_count_loading: 'Lecture…',
   admin_categories_count_loading_named: 'Lecture du nombre de produits pour {name}',
@@ -156,26 +156,26 @@ Object.assign(I18N.fr, {
   admin_categories_validation_duplicate: 'Une catégorie portant ce nom existe déjà sous le parent sélectionné.',
   admin_categories_validation_parent: 'Choisissez un parent valide qui n’est ni cette catégorie ni l’un de ses descendants.',
   admin_categories_validation_icon: 'Utilisez au maximum 12 caractères pour l’icône.',
-  admin_categories_saving: 'Enregistrement sur cet appareil…',
-  admin_categories_added_local: '« {name} » a été ajoutée à l’espace admin sur cet appareil.',
-  admin_categories_updated_local: '« {name} » a été modifiée dans l’espace admin sur cet appareil.',
-  admin_categories_removed_local: '« {name} » a été retirée de cet appareil.',
-  admin_categories_hidden_local: '« {name} » est masquée dans la vue admin sur cet appareil ; la boutique reste inchangée.',
-  admin_categories_enabled_local: '« {name} » a été activée dans la vue admin sur cet appareil.',
-  admin_categories_disabled_local: '« {name} » a été désactivée dans la vue admin sur cet appareil ; la boutique reste inchangée.',
-  admin_categories_write_error: 'La modification de la catégorie n’a pas pu être enregistrée sur cet appareil.',
+  admin_categories_saving: 'Enregistrement du brouillon partagé…',
+  admin_categories_added_local: '« {name} » a été ajoutée à l’espace administrateur partagé.',
+  admin_categories_updated_local: '« {name} » a été modifiée dans l’espace administrateur partagé.',
+  admin_categories_removed_local: '« {name} » a été retirée de l’espace administrateur partagé.',
+  admin_categories_hidden_local: '« {name} » est masquée dans le brouillon partagé ; la boutique reste inchangée.',
+  admin_categories_enabled_local: '« {name} » a été activée dans le brouillon partagé.',
+  admin_categories_disabled_local: '« {name} » a été désactivée dans le brouillon partagé ; la boutique reste inchangée.',
+  admin_categories_write_error: 'Impossible d’enregistrer la modification. Le dernier brouillon partagé a été restauré.',
   admin_categories_delete_title: 'Supprimer « {name} » ?',
-  admin_categories_delete_live_message: 'Cette action masque la catégorie en ligne dans la vue admin sur cet appareil. Elle ne la supprime ni de l’API ni de la boutique.',
-  admin_categories_delete_local_message: 'Cette action retire la catégorie créée sur cet appareil. Les données du serveur restent inchangées.',
-  admin_categories_delete_children_note: ' {count} catégorie(s) enfant(s) directe(s) remonteront d’un niveau dans l’espace sur cet appareil.',
-  admin_categories_delete_confirm: 'Supprimer de cet appareil',
-  admin_categories_delete_blocked_products: '« {name} » contient encore {count} produit(s) du catalogue ou enregistré(s) sur cet appareil. Réaffectez ces produits avant de supprimer la catégorie.',
+  admin_categories_delete_live_message: 'Cette action masque la catégorie en ligne dans le brouillon administrateur partagé. Elle ne la supprime ni de l’API ni de la boutique.',
+  admin_categories_delete_local_message: 'Cette action retire la catégorie créée dans le brouillon partagé. L’API du catalogue reste inchangée.',
+  admin_categories_delete_children_note: ' {count} catégorie(s) enfant(s) directe(s) remonteront d’un niveau dans l’espace partagé.',
+  admin_categories_delete_confirm: 'Supprimer le brouillon partagé',
+  admin_categories_delete_blocked_products: '« {name} » contient encore {count} produit(s) du catalogue ou en brouillon. Réaffectez ces produits avant de supprimer la catégorie.',
   admin_categories_disable_title: 'Désactiver « {name} » ?',
   admin_categories_enable_title: 'Activer « {name} » ?',
-  admin_categories_disable_message: 'Cette action modifie la vue admin sur cet appareil. La catégorie reste activée sur la boutique en ligne.',
-  admin_categories_enable_message: 'Cette action modifie la vue admin sur cet appareil et ne met pas à jour la boutique.',
-  admin_categories_disable_confirm: 'Désactiver sur cet appareil',
-  admin_categories_enable_confirm: 'Activer sur cet appareil'
+  admin_categories_disable_message: 'Cette action modifie le brouillon administrateur partagé. La catégorie reste activée sur la boutique en ligne.',
+  admin_categories_enable_message: 'Cette action modifie le brouillon administrateur partagé et ne met pas à jour la boutique.',
+  admin_categories_disable_confirm: 'Désactiver dans le brouillon',
+  admin_categories_enable_confirm: 'Activer dans le brouillon'
 });
 
 (() => {
@@ -193,6 +193,7 @@ Object.assign(I18N.fr, {
   let renderSequence = 0;
   const countCache = new Map();
   let productCountDeltas = new Map();
+  let canEditWorkspace = false;
 
   const byId = id => document.getElementById(id);
   const asId = value => value == null || value === '' ? '' : String(value);
@@ -212,9 +213,17 @@ Object.assign(I18N.fr, {
     };
   }
 
-  function persistOverlay() {
+  async function persistOverlay() {
     overlay = sanitizeOverlay(overlay);
-    if (core.write(categoryStorageKey, overlay) === undefined) throw new Error('Category overlay write failed');
+    overlay = sanitizeOverlay(await core.saveWorkspace('categories', overlay));
+  }
+
+  async function restoreOverlay() {
+    try {
+      overlay = sanitizeOverlay(await core.loadWorkspace('categories', { refresh: true }));
+    } catch {
+      overlay = sanitizeOverlay(core.read(categoryStorageKey, emptyOverlay()));
+    }
   }
 
   function isLocalId(id) {
@@ -434,13 +443,13 @@ Object.assign(I18N.fr, {
       <td data-label="${esc(t('admin_categories_col_source'))}">${sourceMarkup(category)}</td>
       <td data-label="${esc(t('admin_categories_col_actions'))}">
         <div class="admin-categories-actions">
-          <button class="admin-categories-action" type="button" data-category-action="edit" aria-label="${esc(t('admin_categories_edit_named', { name }))}" title="${esc(t('admin_categories_edit_named', { name }))}">
+          <button class="admin-categories-action" type="button" data-category-action="edit"${canEditWorkspace ? '' : ' disabled'} aria-label="${esc(t('admin_categories_edit_named', { name }))}" title="${esc(t('admin_categories_edit_named', { name }))}">
             <i class="fa-solid fa-pen" aria-hidden="true"></i>
           </button>
-          <button class="admin-categories-action" type="button" data-category-action="toggle" aria-label="${esc(t(toggleKey, { name }))}" title="${esc(t(toggleKey, { name }))}">
+          <button class="admin-categories-action" type="button" data-category-action="toggle"${canEditWorkspace ? '' : ' disabled'} aria-label="${esc(t(toggleKey, { name }))}" title="${esc(t(toggleKey, { name }))}">
             <i class="fa-solid ${toggleIcon}" aria-hidden="true"></i>
           </button>
-          <button class="admin-categories-action is-delete" type="button" data-category-action="delete" aria-label="${esc(t('admin_categories_delete_named', { name }))}" title="${esc(t('admin_categories_delete_named', { name }))}">
+          <button class="admin-categories-action is-delete" type="button" data-category-action="delete"${canEditWorkspace ? '' : ' disabled'} aria-label="${esc(t('admin_categories_delete_named', { name }))}" title="${esc(t('admin_categories_delete_named', { name }))}">
             <i class="fa-solid fa-trash" aria-hidden="true"></i>
           </button>
         </div>
@@ -621,18 +630,18 @@ Object.assign(I18N.fr, {
       await new Promise(resolve => requestAnimationFrame(resolve));
       if (!editId) {
         overlay.created.unshift({ ...values, id: nextLocalId(), createdAt: new Date().toISOString(), source: 'local' });
-        persistOverlay();
+        await persistOverlay();
         categoryModal.hide();
         core.toast(t('admin_categories_added_local', { name: values.name }));
       } else if (isLocalId(editId)) {
         const index = overlay.created.findIndex(item => asId(item.id) === editId);
         if (index >= 0) overlay.created[index] = { ...overlay.created[index], ...values, id: editId };
-        persistOverlay();
+        await persistOverlay();
         categoryModal.hide();
         core.toast(t('admin_categories_updated_local', { name: values.name }));
       } else {
         overlay.patches[editId] = { ...(overlay.patches[editId] || {}), ...values };
-        persistOverlay();
+        await persistOverlay();
         categoryModal.hide();
         core.toast(t('admin_categories_updated_local', { name: values.name }));
       }
@@ -640,6 +649,9 @@ Object.assign(I18N.fr, {
       renderCategories();
     } catch (error) {
       console.warn('Admin category overlay write failed:', error);
+      await restoreOverlay();
+      rebuildCategories();
+      renderCategories();
       core.toast(t('admin_categories_write_error'), 'error');
     } finally {
       core.setBusy(saveButton, false);
@@ -665,12 +677,15 @@ Object.assign(I18N.fr, {
     if (!confirmed) return;
     try {
       updateCategoryRecord(category.id, { enabled: enabling, updatedAt: new Date().toISOString() });
-      persistOverlay();
+      await persistOverlay();
       core.toast(t(enabling ? 'admin_categories_enabled_local' : 'admin_categories_disabled_local', { name: category.name }));
       rebuildCategories();
       renderCategories();
     } catch (error) {
       console.warn('Admin category status write failed:', error);
+      await restoreOverlay();
+      rebuildCategories();
+      renderCategories();
       core.toast(t('admin_categories_write_error'), 'error');
     }
   }
@@ -714,12 +729,15 @@ Object.assign(I18N.fr, {
         overlay.hiddenIds = [...new Set([...overlay.hiddenIds.map(asId), category.id])];
         delete overlay.patches[category.id];
       }
-      persistOverlay();
+      await persistOverlay();
       core.toast(t(local ? 'admin_categories_removed_local' : 'admin_categories_hidden_local', { name: category.name }));
       rebuildCategories();
       renderCategories();
     } catch (error) {
       console.warn('Admin category delete failed:', error);
+      await restoreOverlay();
+      rebuildCategories();
+      renderCategories();
       core.toast(t('admin_categories_write_error'), 'error');
     }
   }
@@ -762,10 +780,13 @@ Object.assign(I18N.fr, {
 
   async function initCategories(event) {
     core = event.detail?.core || window.AdminCore;
+    canEditWorkspace = core.canEditWorkspace();
     if (!core) return;
     categoryStorageKey = core.storageKeys?.categories || core.keys?.categories || 'am_admin_categories_v1';
     productStorageKey = core.storageKeys?.products || core.keys?.products || 'am_admin_products_v1';
     overlay = sanitizeOverlay(core.read(categoryStorageKey, emptyOverlay()));
+    byId('addCategoryButton').disabled = !canEditWorkspace;
+    byId('saveCategoryButton').disabled = !canEditWorkspace;
     categoryModal = bootstrap.Modal.getOrCreateInstance(byId('categoryEditorModal'));
     bindEvents();
     await loadCategories();

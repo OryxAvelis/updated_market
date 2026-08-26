@@ -180,6 +180,14 @@ export function createAccountRouter() {
     }
     await inTransaction(req.app.locals.db, async (connection) => {
       if (input.action === 'delete') {
+        await connection.execute(
+          'SELECT user_id FROM user_preferences WHERE user_id = ? LIMIT 1 FOR UPDATE',
+          [req.auth.userId]
+        );
+        await connection.execute(
+          'UPDATE user_preferences SET personalization_enabled = 0 WHERE user_id = ?',
+          [req.auth.userId]
+        );
         const anonymizedEmail = `deleted-${randomUUID()}@deleted.invalid`;
         await connection.execute(
           `UPDATE users
@@ -244,17 +252,29 @@ export function createAccountRouter() {
       personalizationEnabled: 'personalization_enabled'
     };
     const entries = Object.entries(input);
-    await req.app.locals.db.execute(
-      `UPDATE user_preferences SET ${entries.map(([key]) => `${mapping[key]} = ?`).join(', ')} WHERE user_id = ?`,
-      [...entries.map(([, value]) => value), req.auth.userId]
-    );
-    const [rows] = await req.app.locals.db.execute(
-      `SELECT language, theme, default_payment, order_notifications,
-              low_stock_notifications, personalization_enabled, updated_at
-         FROM user_preferences WHERE user_id = ? LIMIT 1`,
-      [req.auth.userId]
-    );
-    const row = rows[0];
+    const row = await inTransaction(req.app.locals.db, async (connection) => {
+      await connection.execute(
+        'SELECT user_id FROM user_preferences WHERE user_id = ? LIMIT 1 FOR UPDATE',
+        [req.auth.userId]
+      );
+      await connection.execute(
+        `UPDATE user_preferences SET ${entries.map(([key]) => `${mapping[key]} = ?`).join(', ')} WHERE user_id = ?`,
+        [...entries.map(([, value]) => value), req.auth.userId]
+      );
+      if (Object.hasOwn(input, 'personalizationEnabled') && input.personalizationEnabled === false) {
+        await connection.execute(
+          'DELETE FROM recommendation_snapshots WHERE user_id = ?',
+          [req.auth.userId]
+        );
+      }
+      const [rows] = await connection.execute(
+        `SELECT language, theme, default_payment, order_notifications,
+                low_stock_notifications, personalization_enabled, updated_at
+           FROM user_preferences WHERE user_id = ? LIMIT 1`,
+        [req.auth.userId]
+      );
+      return rows[0];
+    });
     res.json({ preferences: {
       language: row.language,
       theme: row.theme,

@@ -15,7 +15,7 @@
     admin_orders_search_placeholder: 'Order, customer, phone or email',
     admin_orders_filter_label: 'Status',
     admin_orders_all_statuses: 'All statuses',
-    admin_status_processing: 'Processing',
+    admin_status_processing: 'Processing (same as Confirmed)',
     admin_status_confirmed: 'Confirmed',
     admin_status_preparing: 'Preparing',
     admin_status_shipping: 'Shipping',
@@ -23,6 +23,8 @@
     admin_clear_filters: 'Clear filters',
     admin_orders_local_note: 'Status changes are validated and saved to the AM MARKET database.',
     admin_orders_loading: 'Loading database orders…',
+    admin_orders_load_more: 'Load more orders',
+    admin_orders_loading_more: 'Loading…',
     admin_orders_table_caption: 'Database order list',
     admin_orders_col_order: 'Order',
     admin_orders_col_customer: 'Customer',
@@ -74,7 +76,8 @@
     admin_orders_status_failed: 'The status change could not be saved to the database.',
     admin_orders_role_required: 'Owner or manager access is required to update order status.',
     admin_orders_cancel_title: 'Cancel this order?',
-    admin_orders_cancel_message: 'Reserved inventory will be released and the customer will be notified. This cannot be undone.',
+    admin_orders_cancel_registered_message: 'Reserved inventory will be released and the registered customer will receive an account notification. This cannot be undone.',
+    admin_orders_cancel_guest_message: 'Reserved inventory will be released. Guest orders do not receive account notifications; only registered customers do. This cannot be undone.',
     admin_orders_cancel_confirm: 'Cancel order',
     admin_orders_status_unchanged: 'Order {id} already has this status.',
     admin_orders_missing: 'This order is no longer available.',
@@ -91,7 +94,7 @@
     admin_orders_search_placeholder: 'Commande, client, téléphone ou e-mail',
     admin_orders_filter_label: 'État',
     admin_orders_all_statuses: 'Tous les états',
-    admin_status_processing: 'En traitement',
+    admin_status_processing: 'En traitement (équivaut à Confirmée)',
     admin_status_confirmed: 'Confirmée',
     admin_status_preparing: 'En préparation',
     admin_status_shipping: 'En livraison',
@@ -99,6 +102,8 @@
     admin_clear_filters: 'Effacer les filtres',
     admin_orders_local_note: 'Les changements d’état sont validés et enregistrés dans la base AM MARKET.',
     admin_orders_loading: 'Chargement des commandes de la base…',
+    admin_orders_load_more: 'Charger plus de commandes',
+    admin_orders_loading_more: 'Chargement…',
     admin_orders_table_caption: 'Liste des commandes de la base',
     admin_orders_col_order: 'Commande',
     admin_orders_col_customer: 'Client',
@@ -150,15 +155,17 @@
     admin_orders_status_failed: 'Le changement d’état n’a pas pu être enregistré dans la base.',
     admin_orders_role_required: 'Un accès propriétaire ou responsable est requis pour modifier l’état d’une commande.',
     admin_orders_cancel_title: 'Annuler cette commande ?',
-    admin_orders_cancel_message: 'Le stock réservé sera libéré et le client sera informé. Cette action est irréversible.',
+    admin_orders_cancel_registered_message: 'Le stock réservé sera libéré et le client enregistré recevra une notification dans son compte. Cette action est irréversible.',
+    admin_orders_cancel_guest_message: 'Le stock réservé sera libéré. Une commande invitée ne reçoit pas de notification de compte ; seuls les clients enregistrés en reçoivent. Cette action est irréversible.',
     admin_orders_cancel_confirm: 'Annuler la commande',
     admin_orders_status_unchanged: 'La commande {id} possède déjà cet état.',
     admin_orders_missing: 'Cette commande n’est plus disponible.',
     admin_not_available: 'Non disponible'
   });
 
-  const STATUSES = ['Confirmed', 'Preparing', 'Shipping', 'Delivered', 'Cancelled'];
+  const STATUSES = ['Processing', 'Confirmed', 'Preparing', 'Shipping', 'Delivered', 'Cancelled'];
   const STATUS_TRANSITIONS = Object.freeze({
+    Processing: Object.freeze(['Preparing', 'Cancelled']),
     Confirmed: Object.freeze(['Preparing', 'Cancelled']),
     Preparing: Object.freeze(['Shipping', 'Cancelled']),
     Shipping: Object.freeze(['Delivered']),
@@ -169,10 +176,19 @@
   let activeOrderIndex = -1;
   let initialized = false;
   let canUpdateOrders = false;
+  let nextCursor = null;
+  let hasMore = false;
+  let totalOrders = 0;
+  let requestGeneration = 0;
+  let loadingMore = false;
+  let searchTimer = null;
+
+  const PAGE_SIZE = 50;
 
   const byId = id => document.getElementById(id);
   const esc = value => AdminCore.escape(value == null ? '' : String(value));
   const normalized = value => String(value || '').trim().toLowerCase();
+  const canonicalStatus = value => normalized(value) === 'processing' ? 'confirmed' : normalized(value);
 
   function statusKey(status) {
     const match = STATUSES.find(item => normalized(item) === normalized(status));
@@ -190,65 +206,47 @@
     return order.items.reduce((sum, item) => sum + Math.max(1, Math.floor(Number(item?.qty) || 1)), 0);
   }
 
-  function orderSearchValue(order) {
-    const buyer = order?.buyer && typeof order.buyer === 'object' ? order.buyer : {};
-    const items = Array.isArray(order?.items) ? order.items.map(item => item?.name || '').join(' ') : '';
-    return normalized([
-      order?.id,
-      buyer.name,
-      buyer.phone,
-      buyer.email,
-      buyer.address,
-      buyer.city,
-      buyer.quartier,
-      items
-    ].filter(Boolean).join(' '));
-  }
-
   function showState(kind, titleKey, textKey, retry = false) {
     const state = byId('adminOrdersState');
     const wrap = byId('adminOrdersTableWrap');
     wrap.hidden = true;
+    byId('adminOrdersLoadMore').hidden = true;
     state.hidden = false;
     AdminCore.state(state, {
       type: kind,
       title: t(titleKey),
       body: t(textKey),
       actionLabel: retry ? t('admin_retry') : '',
-      onAction: retry ? () => loadOrders({ refresh: true }) : null
+      onAction: retry ? () => loadOrders() : null
     });
   }
 
-  function filterOrders() {
-    const query = normalized(byId('adminOrderSearch')?.value);
-    const status = byId('adminOrderStatus')?.value || 'all';
-    return sourceOrders
-      .map((order, index) => ({ order, index }))
-      .filter(({ order }) => !query || orderSearchValue(order).includes(query))
-      .filter(({ order }) => status === 'all' || normalized(order?.status || 'Processing') === normalized(status));
+  function activeFilters() {
+    return Boolean(normalized(byId('adminOrderSearch')?.value))
+      || (byId('adminOrderStatus')?.value || 'all') !== 'all';
   }
 
   function renderOrders() {
     const state = byId('adminOrdersState');
     const wrap = byId('adminOrdersTableWrap');
     const body = byId('adminOrdersBody');
-    const filtered = filterOrders();
+    const loadMore = byId('adminOrdersLoadMore');
 
     byId('adminOrdersCount').textContent = t('admin_orders_count', {
-      shown: filtered.length,
-      total: sourceOrders.length
+      shown: sourceOrders.length,
+      total: totalOrders
     });
 
     if (!sourceOrders.length) {
-      showState('empty', 'admin_orders_empty_title', 'admin_orders_empty_text');
-      return;
-    }
-    if (!filtered.length) {
-      showState('empty', 'admin_orders_filtered_title', 'admin_orders_filtered_text');
+      showState(
+        'empty',
+        activeFilters() ? 'admin_orders_filtered_title' : 'admin_orders_empty_title',
+        activeFilters() ? 'admin_orders_filtered_text' : 'admin_orders_empty_text'
+      );
       return;
     }
 
-    body.innerHTML = filtered.map(({ order, index }) => {
+    body.innerHTML = sourceOrders.map((order, index) => {
       const buyer = order?.buyer && typeof order.buyer === 'object' ? order.buyer : {};
       const contact = [buyer.email, buyer.phone].filter(Boolean).join(' · ');
       const payment = order?.payment || t('admin_orders_payment_unavailable');
@@ -275,6 +273,7 @@
 
     state.hidden = true;
     wrap.hidden = false;
+    loadMore.hidden = !hasMore;
     body.querySelectorAll('[data-order-index]').forEach(button => {
       button.addEventListener('click', () => openOrder(Number(button.dataset.orderIndex)));
     });
@@ -333,7 +332,9 @@
       select.value = current;
       const allowed = STATUS_TRANSITIONS[current] || [];
       [...select.options].forEach(option => {
-        option.disabled = option.value !== current && !allowed.includes(option.value);
+        const isCurrentAlias = canonicalStatus(option.value) === canonicalStatus(current);
+        const isAllowed = allowed.some(status => canonicalStatus(status) === canonicalStatus(option.value));
+        option.disabled = !isCurrentAlias && !isAllowed;
       });
     } else {
       const option = document.createElement('option');
@@ -390,15 +391,17 @@
       select.focus();
       return;
     }
-    if (normalized(order.status || 'Processing') === normalized(nextStatus)) {
+    if (canonicalStatus(order.status || 'Processing') === canonicalStatus(nextStatus)) {
       AdminCore.toast(t('admin_orders_status_unchanged', { id: order.id }));
       closeOrder();
       return;
     }
     if (nextStatus === 'Cancelled') {
+      const registeredCustomer = Boolean(order.customerId)
+        && ['registered', 'user'].includes(normalized(order.customerType));
       const accepted = await AdminCore.confirm({
         title: t('admin_orders_cancel_title'),
-        message: t('admin_orders_cancel_message'),
+        message: t(registeredCustomer ? 'admin_orders_cancel_registered_message' : 'admin_orders_cancel_guest_message'),
         confirmLabel: t('admin_orders_cancel_confirm')
       });
       if (!accepted) return;
@@ -406,14 +409,13 @@
 
     AdminCore.setBusy(button, true);
     try {
-      const updated = await AdminCore.updateOrderStatus(order.publicId, nextStatus.toLowerCase());
-      sourceOrders = AdminCore.getOrders();
+      const updated = await AdminCore.updateOrderStatus(order.publicId, canonicalStatus(nextStatus));
       AdminCore.toast(t('admin_orders_status_changed', {
         id: updated.id,
         status: statusLabel(updated.status)
       }), 'success');
-      renderOrders();
       closeOrder();
+      await loadOrders();
     } catch (requestError) {
       error.textContent = requestError?.message || t('admin_orders_status_failed');
       AdminCore.toast(t('admin_orders_status_failed'), 'error');
@@ -422,21 +424,69 @@
     }
   }
 
-  async function loadOrders({ refresh = false } = {}) {
-    const state = byId('adminOrdersState');
-    byId('adminOrdersTableWrap').hidden = true;
-    state.hidden = false;
-    AdminCore.state(state, { type: 'loading', title: t('admin_orders_loading') });
+  function listQuery() {
+    const selectedStatus = byId('adminOrderStatus')?.value || 'all';
+    return {
+      search: String(byId('adminOrderSearch')?.value || '').trim(),
+      status: selectedStatus === 'all' ? '' : canonicalStatus(selectedStatus)
+    };
+  }
 
-    if (refresh) await AdminCore.refreshLiveData({ includeCustomers: false });
-    if (AdminCore.dataError('orders')) {
-      sourceOrders = [];
-      byId('adminOrdersCount').textContent = '';
-      showState('error', 'admin_orders_error_title', 'admin_orders_error_text', true);
-      return;
+  function appendUniqueOrders(nextOrders) {
+    const merged = new Map(sourceOrders.map(order => [order.publicId, order]));
+    nextOrders.forEach(order => merged.set(order.publicId, order));
+    return [...merged.values()];
+  }
+
+  async function loadOrders({ append = false } = {}) {
+    if (append && (!hasMore || !nextCursor || loadingMore)) return;
+    const generation = append ? requestGeneration : ++requestGeneration;
+    const state = byId('adminOrdersState');
+    const loadMore = byId('adminOrdersLoadMore');
+    if (append) {
+      loadingMore = true;
+      AdminCore.setBusy(loadMore, true, t('admin_orders_loading_more'));
+    } else {
+      loadingMore = false;
+      AdminCore.setBusy(loadMore, false);
+      byId('adminOrdersTableWrap').hidden = true;
+      loadMore.hidden = true;
+      state.hidden = false;
+      AdminCore.state(state, { type: 'loading', title: t('admin_orders_loading') });
     }
-    sourceOrders = AdminCore.getOrders();
-    renderOrders();
+
+    try {
+      const page = await AdminCore.fetchOrdersPage({
+        limit: PAGE_SIZE,
+        cursor: append ? nextCursor : '',
+        ...listQuery()
+      });
+      if (generation !== requestGeneration) return;
+      sourceOrders = append ? appendUniqueOrders(page.orders) : page.orders;
+      nextCursor = page.nextCursor;
+      hasMore = page.hasMore;
+      totalOrders = page.total;
+      renderOrders();
+    } catch (error) {
+      if (generation !== requestGeneration) return;
+      if (append) {
+        AdminCore.toast(t('admin_orders_error_text'), 'error');
+        renderOrders();
+      } else {
+        sourceOrders = [];
+        nextCursor = null;
+        hasMore = false;
+        totalOrders = 0;
+        byId('adminOrdersCount').textContent = '';
+        showState('error', 'admin_orders_error_title', 'admin_orders_error_text', true);
+      }
+    } finally {
+      if (append && generation === requestGeneration) {
+        loadingMore = false;
+        AdminCore.setBusy(loadMore, false);
+        loadMore.hidden = !hasMore;
+      }
+    }
   }
 
   function init() {
@@ -445,14 +495,22 @@
     canUpdateOrders = ['owner', 'manager'].includes(String(AdminCore.session?.role || '').toLowerCase());
     applyI18n(document);
 
-    byId('adminOrderSearch').addEventListener('input', renderOrders);
-    byId('adminOrderStatus').addEventListener('change', renderOrders);
+    byId('adminOrderSearch').addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => { void loadOrders(); }, 300);
+    });
+    byId('adminOrderStatus').addEventListener('change', () => {
+      clearTimeout(searchTimer);
+      void loadOrders();
+    });
     byId('adminOrdersClear').addEventListener('click', () => {
+      clearTimeout(searchTimer);
       byId('adminOrderSearch').value = '';
       byId('adminOrderStatus').value = 'all';
-      renderOrders();
+      void loadOrders();
       byId('adminOrderSearch').focus();
     });
+    byId('adminOrdersLoadMore').addEventListener('click', () => { void loadOrders({ append: true }); });
     byId('adminOrderDialogClose').addEventListener('click', closeOrder);
     byId('adminOrderStatusCancel').addEventListener('click', closeOrder);
     byId('adminOrderStatusForm').addEventListener('submit', saveStatus);
@@ -474,7 +532,14 @@
   });
   window.addEventListener('admin:datachange', event => {
     if (!initialized || event.detail?.resource !== 'orders') return;
-    sourceOrders = AdminCore.getOrders();
-    renderOrders();
+    const updates = new Map(AdminCore.getOrders().map(order => [order.publicId, order]));
+    let changed = false;
+    sourceOrders = sourceOrders.map(order => {
+      const updated = updates.get(order.publicId);
+      if (!updated) return order;
+      changed = true;
+      return updated;
+    });
+    if (changed) renderOrders();
   });
 })();

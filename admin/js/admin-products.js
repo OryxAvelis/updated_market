@@ -3,10 +3,10 @@ Object.assign(I18N.en, {
   admin_products_skip: 'Skip to product management',
   admin_products_catalog_label: 'Catalog workspace',
   admin_products_title: 'Products',
-  admin_products_subtitle: 'Review the live catalog and manage product changes saved on this device.',
+  admin_products_subtitle: 'Review the live catalog and manage shared product drafts.',
   admin_products_add: 'Add product',
-  admin_products_local_note_title: 'Changes saved on this device',
-  admin_products_local_note: 'Adds, edits, and deletions are saved for this admin workspace on this device. They do not update the catalog API or storefront.',
+  admin_products_local_note_title: 'Shared workspace drafts',
+  admin_products_local_note: 'Adds, edits, and deletions are saved in the database-backed admin workspace. They do not update the catalog API or storefront.',
   admin_products_list_title: 'Catalog products',
   admin_products_search_label: 'Search products',
   admin_products_search_placeholder: 'Search by product name',
@@ -24,7 +24,7 @@ Object.assign(I18N.en, {
   admin_products_sort_price_high: 'Price: high to low',
   admin_products_reset: 'Reset',
   admin_products_search_button: 'Search',
-  admin_products_table_caption: 'Products from the live catalog with changes saved on this device applied',
+  admin_products_table_caption: 'Products from the live catalog with shared workspace drafts applied',
   admin_products_col_product: 'Product',
   admin_products_col_category: 'Category',
   admin_products_col_price: 'Price',
@@ -35,7 +35,7 @@ Object.assign(I18N.en, {
   admin_products_pagination: 'Product pages',
   admin_products_previous: 'Previous',
   admin_products_next: 'Next',
-  admin_products_local_edit: 'Device-saved change',
+  admin_products_local_edit: 'Shared draft change',
   admin_products_close: 'Close',
   admin_products_field_name: 'Product name',
   admin_products_field_category: 'Category',
@@ -48,13 +48,13 @@ Object.assign(I18N.en, {
   admin_products_image_help: 'The image URL is shown here; no image file is uploaded.',
   admin_products_field_available: 'Available for sale',
   admin_products_image_preview: 'Image preview',
-  admin_products_form_note: 'Submitting saves this change to the admin workspace on this device.',
+  admin_products_form_note: 'Submitting saves this change to the shared admin workspace.',
   admin_products_cancel: 'Cancel',
-  admin_products_apply_local: 'Save on this device',
+  admin_products_apply_local: 'Save shared draft',
   admin_products_add_title: 'Add product',
   admin_products_edit_title: 'Edit product',
   admin_products_loading_title: 'Loading products',
-  admin_products_loading_body: 'Reading the live catalog and applying changes saved on this device.',
+  admin_products_loading_body: 'Reading the live catalog and applying shared workspace drafts.',
   admin_products_error_title: 'Products could not be loaded',
   admin_products_error_body: 'Check your connection and try the live catalog again.',
   admin_products_retry: 'Retry',
@@ -62,12 +62,12 @@ Object.assign(I18N.en, {
   admin_products_empty_body: 'Adjust the search or filters to see catalog products.',
   admin_products_clear_filters: 'Clear filters',
   admin_products_summary: 'Showing {shown} on this page · {total} catalog results',
-  admin_products_summary_local_category: 'Showing {shown} device-saved product(s) in this category',
+  admin_products_summary_local_category: 'Showing {shown} draft product(s) in this category',
   admin_products_available: 'Available',
   admin_products_unavailable: 'Unavailable',
   admin_products_source_live: 'Live catalog',
-  admin_products_source_local: 'This device',
-  admin_products_source_edited: 'Live + device edit',
+  admin_products_source_local: 'Workspace draft',
+  admin_products_source_edited: 'Live + shared draft',
   admin_products_unknown_category: 'Uncategorized',
   admin_products_no_discount: 'None',
   admin_products_reference: 'ID {id}',
@@ -80,16 +80,16 @@ Object.assign(I18N.en, {
   admin_products_validation_price: 'Enter a valid price of 0 DH or more.',
   admin_products_validation_discount: 'Enter a discount from 0 to 100.',
   admin_products_validation_image: 'Use an http(s) URL or a safe relative image path.',
-  admin_products_saving: 'Saving on this device…',
-  admin_products_added_local: '“{name}” was added to the admin workspace on this device.',
-  admin_products_updated_local: '“{name}” was updated in the admin workspace on this device.',
-  admin_products_removed_local: '“{name}” was removed from this device.',
-  admin_products_hidden_local: '“{name}” is hidden in the admin view on this device; the storefront is unchanged.',
-  admin_products_write_error: 'The product change could not be saved on this device.',
+  admin_products_saving: 'Saving shared draft…',
+  admin_products_added_local: '“{name}” was added to the shared admin workspace.',
+  admin_products_updated_local: '“{name}” was updated in the shared admin workspace.',
+  admin_products_removed_local: '“{name}” was removed from the shared admin workspace.',
+  admin_products_hidden_local: '“{name}” is hidden in the shared admin draft; the storefront is unchanged.',
+  admin_products_write_error: 'The product change could not be saved. The latest shared draft was restored.',
   admin_products_delete_title: 'Delete “{name}”?',
-  admin_products_delete_live_message: 'This hides the live product in the admin view on this device. It does not delete it from the API or storefront.',
-  admin_products_delete_local_message: 'This removes the product created on this device. Server data is unchanged.',
-  admin_products_delete_confirm: 'Delete from this device'
+  admin_products_delete_live_message: 'This hides the live product in the shared admin draft. It does not delete it from the API or storefront.',
+  admin_products_delete_local_message: 'This removes the product created in the shared admin draft. The catalog API is unchanged.',
+  admin_products_delete_confirm: 'Delete shared draft'
 });
 
 Object.assign(I18N.fr, {
@@ -97,10 +97,10 @@ Object.assign(I18N.fr, {
   admin_products_skip: 'Aller à la gestion des produits',
   admin_products_catalog_label: 'Espace catalogue',
   admin_products_title: 'Produits',
-  admin_products_subtitle: 'Consultez le catalogue en ligne et gérez les modifications enregistrées sur cet appareil.',
+  admin_products_subtitle: 'Consultez le catalogue en ligne et gérez les brouillons produit partagés.',
   admin_products_add: 'Ajouter un produit',
-  admin_products_local_note_title: 'Modifications enregistrées sur cet appareil',
-  admin_products_local_note: 'Les ajouts, modifications et suppressions sont enregistrés dans l’espace admin sur cet appareil. Ils ne modifient ni l’API du catalogue ni la boutique.',
+  admin_products_local_note_title: 'Brouillons partagés',
+  admin_products_local_note: 'Les ajouts, modifications et suppressions sont enregistrés dans l’espace administrateur partagé en base. Ils ne modifient ni l’API du catalogue ni la boutique.',
   admin_products_list_title: 'Produits du catalogue',
   admin_products_search_label: 'Rechercher des produits',
   admin_products_search_placeholder: 'Rechercher par nom de produit',
@@ -118,7 +118,7 @@ Object.assign(I18N.fr, {
   admin_products_sort_price_high: 'Prix : décroissant',
   admin_products_reset: 'Réinitialiser',
   admin_products_search_button: 'Rechercher',
-  admin_products_table_caption: 'Produits du catalogue en ligne avec les modifications enregistrées sur cet appareil',
+  admin_products_table_caption: 'Produits du catalogue en ligne avec les brouillons partagés appliqués',
   admin_products_col_product: 'Produit',
   admin_products_col_category: 'Catégorie',
   admin_products_col_price: 'Prix',
@@ -129,7 +129,7 @@ Object.assign(I18N.fr, {
   admin_products_pagination: 'Pages de produits',
   admin_products_previous: 'Précédent',
   admin_products_next: 'Suivant',
-  admin_products_local_edit: 'Modification enregistrée sur cet appareil',
+  admin_products_local_edit: 'Modification du brouillon partagé',
   admin_products_close: 'Fermer',
   admin_products_field_name: 'Nom du produit',
   admin_products_field_category: 'Catégorie',
@@ -142,13 +142,13 @@ Object.assign(I18N.fr, {
   admin_products_image_help: 'L’URL de l’image est affichée ici ; aucun fichier image n’est envoyé.',
   admin_products_field_available: 'Disponible à la vente',
   admin_products_image_preview: 'Aperçu de l’image',
-  admin_products_form_note: 'La validation enregistre cette modification dans l’espace admin sur cet appareil.',
+  admin_products_form_note: 'La validation enregistre cette modification dans l’espace administrateur partagé.',
   admin_products_cancel: 'Annuler',
-  admin_products_apply_local: 'Enregistrer sur cet appareil',
+  admin_products_apply_local: 'Enregistrer le brouillon partagé',
   admin_products_add_title: 'Ajouter un produit',
   admin_products_edit_title: 'Modifier le produit',
   admin_products_loading_title: 'Chargement des produits',
-  admin_products_loading_body: 'Lecture du catalogue en ligne et application des modifications enregistrées sur cet appareil.',
+  admin_products_loading_body: 'Lecture du catalogue en ligne et application des brouillons partagés.',
   admin_products_error_title: 'Impossible de charger les produits',
   admin_products_error_body: 'Vérifiez votre connexion puis réessayez de lire le catalogue en ligne.',
   admin_products_retry: 'Réessayer',
@@ -156,12 +156,12 @@ Object.assign(I18N.fr, {
   admin_products_empty_body: 'Modifiez la recherche ou les filtres pour afficher des produits.',
   admin_products_clear_filters: 'Effacer les filtres',
   admin_products_summary: '{shown} affiché(s) sur cette page · {total} résultat(s) catalogue',
-  admin_products_summary_local_category: '{shown} produit(s) enregistré(s) sur cet appareil dans cette catégorie',
+  admin_products_summary_local_category: '{shown} produit(s) en brouillon dans cette catégorie',
   admin_products_available: 'Disponible',
   admin_products_unavailable: 'Indisponible',
   admin_products_source_live: 'Catalogue en ligne',
-  admin_products_source_local: 'Cet appareil',
-  admin_products_source_edited: 'En ligne + modif. appareil',
+  admin_products_source_local: 'Brouillon partagé',
+  admin_products_source_edited: 'En ligne + brouillon',
   admin_products_unknown_category: 'Sans catégorie',
   admin_products_no_discount: 'Aucune',
   admin_products_reference: 'ID {id}',
@@ -174,16 +174,16 @@ Object.assign(I18N.fr, {
   admin_products_validation_price: 'Saisissez un prix valide supérieur ou égal à 0 DH.',
   admin_products_validation_discount: 'Saisissez une remise entre 0 et 100.',
   admin_products_validation_image: 'Utilisez une URL http(s) ou un chemin d’image relatif sûr.',
-  admin_products_saving: 'Enregistrement sur cet appareil…',
-  admin_products_added_local: '« {name} » a été ajouté à l’espace admin sur cet appareil.',
-  admin_products_updated_local: '« {name} » a été modifié dans l’espace admin sur cet appareil.',
-  admin_products_removed_local: '« {name} » a été retiré de cet appareil.',
-  admin_products_hidden_local: '« {name} » est masqué dans la vue admin sur cet appareil ; la boutique reste inchangée.',
-  admin_products_write_error: 'La modification du produit n’a pas pu être enregistrée sur cet appareil.',
+  admin_products_saving: 'Enregistrement du brouillon partagé…',
+  admin_products_added_local: '« {name} » a été ajouté à l’espace administrateur partagé.',
+  admin_products_updated_local: '« {name} » a été modifié dans l’espace administrateur partagé.',
+  admin_products_removed_local: '« {name} » a été retiré de l’espace administrateur partagé.',
+  admin_products_hidden_local: '« {name} » est masqué dans le brouillon administrateur partagé ; la boutique reste inchangée.',
+  admin_products_write_error: 'Impossible d’enregistrer la modification. Le dernier brouillon partagé a été restauré.',
   admin_products_delete_title: 'Supprimer « {name} » ?',
-  admin_products_delete_live_message: 'Cette action masque le produit en ligne dans la vue admin sur cet appareil. Elle ne le supprime ni de l’API ni de la boutique.',
-  admin_products_delete_local_message: 'Cette action retire le produit créé sur cet appareil. Les données du serveur restent inchangées.',
-  admin_products_delete_confirm: 'Supprimer de cet appareil'
+  admin_products_delete_live_message: 'Cette action masque le produit en ligne dans le brouillon administrateur partagé. Elle ne le supprime ni de l’API ni de la boutique.',
+  admin_products_delete_local_message: 'Cette action retire le produit créé dans le brouillon partagé. L’API du catalogue reste inchangée.',
+  admin_products_delete_confirm: 'Supprimer le brouillon partagé'
 });
 
 (() => {
@@ -206,6 +206,7 @@ Object.assign(I18N.fr, {
   let requestSequence = 0;
   let searchTimer = null;
   let productModal = null;
+  let canEditWorkspace = false;
 
   const byId = id => document.getElementById(id);
   const esc = value => core.escape(value == null ? '' : String(value));
@@ -231,9 +232,17 @@ Object.assign(I18N.fr, {
     };
   }
 
-  function persistOverlay() {
+  async function persistOverlay() {
     overlay = sanitizeOverlay(overlay);
-    if (core.write(productStorageKey, overlay) === undefined) throw new Error('Product overlay write failed');
+    overlay = sanitizeOverlay(await core.saveWorkspace('products', overlay));
+  }
+
+  async function restoreOverlay() {
+    try {
+      overlay = sanitizeOverlay(await core.loadWorkspace('products', { refresh: true }));
+    } catch {
+      overlay = sanitizeOverlay(core.read(productStorageKey, emptyOverlay()));
+    }
   }
 
   function isLocalId(id) {
@@ -521,10 +530,10 @@ Object.assign(I18N.fr, {
       <td data-label="${esc(t('admin_products_col_source'))}">${sourceMarkup(product)}</td>
       <td data-label="${esc(t('admin_products_col_actions'))}">
         <div class="admin-products-actions">
-          <button class="admin-products-action" type="button" data-product-action="edit" aria-label="${esc(t('admin_products_edit_named', { name }))}" title="${esc(t('admin_products_edit_named', { name }))}">
+          <button class="admin-products-action" type="button" data-product-action="edit"${canEditWorkspace ? '' : ' disabled'} aria-label="${esc(t('admin_products_edit_named', { name }))}" title="${esc(t('admin_products_edit_named', { name }))}">
             <i class="fa-solid fa-pen" aria-hidden="true"></i>
           </button>
-          <button class="admin-products-action is-delete" type="button" data-product-action="delete" aria-label="${esc(t('admin_products_delete_named', { name }))}" title="${esc(t('admin_products_delete_named', { name }))}">
+          <button class="admin-products-action is-delete" type="button" data-product-action="delete"${canEditWorkspace ? '' : ' disabled'} aria-label="${esc(t('admin_products_delete_named', { name }))}" title="${esc(t('admin_products_delete_named', { name }))}">
             <i class="fa-solid fa-trash" aria-hidden="true"></i>
           </button>
         </div>
@@ -696,13 +705,13 @@ Object.assign(I18N.fr, {
       if (!editId) {
         const createdAt = new Date().toISOString();
         overlay.created.unshift({ ...values, id: nextLocalId(), createdAt, source: 'local' });
-        persistOverlay();
+        await persistOverlay();
         productModal.hide();
         core.toast(t('admin_products_added_local', { name: values.name }));
       } else if (isLocalId(editId)) {
         const index = overlay.created.findIndex(item => asId(item.id) === editId);
         if (index >= 0) overlay.created[index] = { ...overlay.created[index], ...values, id: editId };
-        persistOverlay();
+        await persistOverlay();
         productModal.hide();
         core.toast(t('admin_products_updated_local', { name: values.name }));
       } else {
@@ -714,7 +723,7 @@ Object.assign(I18N.fr, {
           status: editedProduct.status
         } : null);
         overlay.patches[editId] = { ...previousPatch, ...(base ? { _base: base } : {}), ...values };
-        persistOverlay();
+        await persistOverlay();
         productModal.hide();
         core.toast(t('admin_products_updated_local', { name: values.name }));
       }
@@ -722,6 +731,7 @@ Object.assign(I18N.fr, {
       await loadProducts();
     } catch (error) {
       console.warn('Admin product overlay write failed:', error);
+      await restoreOverlay();
       core.toast(t('admin_products_write_error'), 'error');
     } finally {
       core.setBusy(saveButton, false);
@@ -748,12 +758,13 @@ Object.assign(I18N.fr, {
         overlay.hiddenIds = [...new Set([...overlay.hiddenIds.map(asId), product.id])];
         delete overlay.patches[product.id];
       }
-      persistOverlay();
+      await persistOverlay();
       if (currentRows.length === 1 && currentPage > 1) currentPage -= 1;
       core.toast(t(local ? 'admin_products_removed_local' : 'admin_products_hidden_local', { name: product.name }));
       await loadProducts();
     } catch (error) {
       console.warn('Admin product overlay delete failed:', error);
+      await restoreOverlay();
       core.toast(t('admin_products_write_error'), 'error');
     }
   }
@@ -821,10 +832,13 @@ Object.assign(I18N.fr, {
 
   async function initProducts(event) {
     core = event.detail?.core || window.AdminCore;
+    canEditWorkspace = core.canEditWorkspace();
     if (!core) return;
     productStorageKey = core.storageKeys?.products || core.keys?.products || 'am_admin_products_v1';
     categoryStorageKey = core.storageKeys?.categories || core.keys?.categories || 'am_admin_categories_v1';
     overlay = sanitizeOverlay(core.read(productStorageKey, emptyOverlay()));
+    byId('addProductButton').disabled = !canEditWorkspace;
+    byId('saveProductButton').disabled = !canEditWorkspace;
     productModal = bootstrap.Modal.getOrCreateInstance(byId('productEditorModal'));
     bindEvents();
 
