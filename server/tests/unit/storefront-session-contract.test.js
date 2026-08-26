@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 const coreUrl = new URL('../../../js/core.js', import.meta.url);
 const settingsUrl = new URL('../../../js/settings.js', import.meta.url);
@@ -52,6 +52,7 @@ async function loadCoreSessionHarness({
   authBroadcast = null,
   locks = null,
   bootstrap = null,
+  storeApiOverrides = {},
   fetchImpl = fetch
 } = {}) {
   const events = new EventTarget();
@@ -85,7 +86,10 @@ async function loadCoreSessionHarness({
     querySelectorAll() { return []; },
     createElement() { throw new Error('The session clear path must not create UI when no recovery banner exists.'); }
   };
-  const storeApi = frontend ? { bootstrap: bootstrap || (() => new Promise(() => {})) } : null;
+  const storeApi = frontend ? {
+    bootstrap: bootstrap || (() => new Promise(() => {})),
+    ...storeApiOverrides
+  } : null;
   const window = {
     addEventListener: events.addEventListener.bind(events),
     removeEventListener: events.removeEventListener.bind(events),
@@ -163,6 +167,24 @@ async function loadCoreSessionHarness({
           load_failed: false
         };
       },
+      seedAuthenticatedCommerce({ cartItems = [], wishlistItems = [] } = {}) {
+        sessionExpiryHandled = false;
+        currentUser = { id: 'user-1', email: 'customer@example.test' };
+        authenticatedResourceState.cart = 'ready';
+        authenticatedResourceState.wishlist = 'ready';
+        cart = adoptAuthenticatedCart({ cart: { items: cartItems } });
+        wishlist = adoptAuthenticatedWishlist({
+          items: wishlistItems.map(productId => ({ productId }))
+        });
+      },
+      replaceCart(items) {
+        cart = normalizeCart(items);
+        return saveCart();
+      },
+      replaceWishlist(items) {
+        wishlist = [...new Set(items.map(String))];
+        return saveWish();
+      },
       cartItems: getCartItems,
       fetchCategories,
       fetchProducts,
@@ -187,6 +209,42 @@ async function loadCoreSessionHarness({
   `;
   vm.runInNewContext(`${source}\n${hooks}`, context, { filename: 'js/core.js' });
   return { hooks: context.__sessionTest, events, local, session };
+}
+
+function commerceApi({ cartEntries = [], wishlistIds = [] } = {}) {
+  const remoteCart = new Map(cartEntries.map(([id, quantity]) => [String(id), Number(quantity)]));
+  const remoteWishlist = new Set(wishlistIds.map(String));
+  const api = {
+    cart: {
+      get: vi.fn(async () => ({
+        cart: {
+          items: [...remoteCart].map(([productId, quantity]) => ({ productId, quantity }))
+        }
+      })),
+      addItem: vi.fn(async ({ productId, quantity }) => {
+        const id = String(productId);
+        remoteCart.set(id, (remoteCart.get(id) || 0) + Number(quantity));
+      }),
+      updateItem: vi.fn(async (productId, { quantity }) => {
+        remoteCart.set(String(productId), Number(quantity));
+      }),
+      removeItem: vi.fn(async productId => {
+        remoteCart.delete(String(productId));
+      })
+    },
+    wishlist: {
+      get: vi.fn(async () => ({
+        items: [...remoteWishlist].map(productId => ({ productId }))
+      })),
+      addItem: vi.fn(async ({ productId }) => {
+        remoteWishlist.add(String(productId));
+      }),
+      removeItem: vi.fn(async productId => {
+        remoteWishlist.delete(String(productId));
+      })
+    }
+  };
+  return { api, remoteCart, remoteWishlist };
 }
 
 describe('storefront session-expiry transition', () => {
@@ -243,6 +301,197 @@ describe('storefront session-expiry transition', () => {
       name: 'Stored milk', image_url: '/stored.jpg', is_available: false,
       stock_quantity: 0, quantity_available: false, load_failed: true
     });
+  });
+
+  it('syncs only cart intents so a concurrent remote addition survives an update and explicit removal', async () => {
+    const commerce = commerceApi({
+      cartEntries: [['remove-me', 1], ['update-me', 1]]
+    });
+    const { hooks } = await loadCoreSessionHarness({
+      frontend: true,
+      storeApiOverrides: commerce.api
+    });
+    hooks.seedAuthenticatedCommerce({
+      cartItems: [
+        { productId: 'remove-me', quantity: 1 },
+        { productId: 'update-me', quantity: 1 }
+      ]
+    });
+
+    commerce.remoteCart.set('remote-added', 4);
+    await hooks.replaceCart([{ id: 'update-me', qty: 2 }]);
+
+    expect([...commerce.remoteCart]).toEqual([
+      ['update-me', 2],
+      ['remote-added', 4]
+    ]);
+    expect(commerce.api.cart.removeItem).toHaveBeenCalledTimes(1);
+    expect(commerce.api.cart.removeItem).toHaveBeenCalledWith('remove-me');
+    expect(commerce.api.cart.removeItem).not.toHaveBeenCalledWith('remote-added');
+  });
+
+  it('matches the additive cart API when another device adds the same product between read and write', async () => {
+    const commerce = commerceApi();
+    commerce.api.cart.get.mockImplementationOnce(async () => {
+      // The response is the stale empty snapshot that this device read. Before
+      // its POST reaches MySQL, another device has added one unit.
+      commerce.remoteCart.set('shared-product', 1);
+      return { cart: { items: [] } };
+    });
+    const { hooks } = await loadCoreSessionHarness({
+      frontend: true,
+      storeApiOverrides: commerce.api
+    });
+    hooks.seedAuthenticatedCommerce();
+
+    await expect(hooks.replaceCart([{ id: 'shared-product', qty: 2 }])).resolves.toBe(true);
+
+    expect(commerce.api.cart.addItem).toHaveBeenCalledWith({
+      productId: 'shared-product',
+      quantity: 2
+    });
+    expect(commerce.remoteCart.get('shared-product')).toBe(3);
+    expect(hooks.snapshot().cart).toContainEqual(expect.objectContaining({
+      id: 'shared-product',
+      qty: 3
+    }));
+  });
+
+  it('syncs only wishlist intents so a concurrent remote addition survives an add and explicit removal', async () => {
+    const commerce = commerceApi({
+      wishlistIds: ['remove-me', 'keep-me']
+    });
+    const { hooks } = await loadCoreSessionHarness({
+      frontend: true,
+      storeApiOverrides: commerce.api
+    });
+    hooks.seedAuthenticatedCommerce({
+      wishlistItems: ['remove-me', 'keep-me']
+    });
+
+    commerce.remoteWishlist.add('remote-added');
+    await hooks.replaceWishlist(['keep-me', 'local-added']);
+
+    expect([...commerce.remoteWishlist]).toEqual(['keep-me', 'remote-added', 'local-added']);
+    expect(commerce.api.wishlist.removeItem).toHaveBeenCalledTimes(1);
+    expect(commerce.api.wishlist.removeItem).toHaveBeenCalledWith('remove-me');
+    expect(commerce.api.wishlist.removeItem).not.toHaveBeenCalledWith('remote-added');
+  });
+
+  it('replays every pending cart intent when an earlier queued add fails', async () => {
+    const commerce = commerceApi({ cartEntries: [['seed', 1]] });
+    commerce.api.cart.addItem.mockRejectedValueOnce(new Error('first cart add failed'));
+    const { hooks } = await loadCoreSessionHarness({
+      frontend: true,
+      storeApiOverrides: commerce.api
+    });
+    hooks.seedAuthenticatedCommerce({
+      cartItems: [{ productId: 'seed', quantity: 1 }]
+    });
+    commerce.remoteCart.set('remote-added', 3);
+
+    const first = hooks.replaceCart([
+      { id: 'seed', qty: 1 },
+      { id: 'first-local', qty: 2 }
+    ]);
+    const second = hooks.replaceCart([
+      { id: 'seed', qty: 1 },
+      { id: 'first-local', qty: 2 },
+      { id: 'second-local', qty: 4 }
+    ]);
+
+    await expect(first).resolves.toBe(false);
+    await expect(second).resolves.toBe(true);
+    expect([...commerce.remoteCart]).toEqual([
+      ['seed', 1],
+      ['remote-added', 3],
+      ['first-local', 2],
+      ['second-local', 4]
+    ]);
+    expect(commerce.api.cart.addItem).toHaveBeenCalledTimes(3);
+  });
+
+  it('removes a cart item added by an earlier queued sync whose refresh failed', async () => {
+    const commerce = commerceApi({ cartEntries: [['seed', 1]] });
+    let getCount = 0;
+    commerce.api.cart.get.mockImplementation(async () => {
+      getCount += 1;
+      if (getCount === 2) throw new Error('cart refresh failed after add');
+      return {
+        cart: {
+          items: [...commerce.remoteCart].map(([productId, quantity]) => ({ productId, quantity }))
+        }
+      };
+    });
+    const { hooks } = await loadCoreSessionHarness({
+      frontend: true,
+      storeApiOverrides: commerce.api
+    });
+    hooks.seedAuthenticatedCommerce({
+      cartItems: [{ productId: 'seed', quantity: 1 }]
+    });
+
+    const add = hooks.replaceCart([
+      { id: 'seed', qty: 1 },
+      { id: 'transient', qty: 2 }
+    ]);
+    const remove = hooks.replaceCart([{ id: 'seed', qty: 1 }]);
+
+    await expect(add).resolves.toBe(false);
+    await expect(remove).resolves.toBe(true);
+    expect([...commerce.remoteCart]).toEqual([['seed', 1]]);
+    expect(commerce.api.cart.addItem).toHaveBeenCalledWith({ productId: 'transient', quantity: 2 });
+    expect(commerce.api.cart.removeItem).toHaveBeenCalledWith('transient');
+  });
+
+  it('replays every pending wishlist intent when an earlier queued add fails', async () => {
+    const commerce = commerceApi({ wishlistIds: ['seed'] });
+    commerce.api.wishlist.addItem.mockRejectedValueOnce(new Error('first wishlist add failed'));
+    const { hooks } = await loadCoreSessionHarness({
+      frontend: true,
+      storeApiOverrides: commerce.api
+    });
+    hooks.seedAuthenticatedCommerce({ wishlistItems: ['seed'] });
+    commerce.remoteWishlist.add('remote-added');
+
+    const first = hooks.replaceWishlist(['seed', 'first-local']);
+    const second = hooks.replaceWishlist(['seed', 'first-local', 'second-local']);
+
+    await expect(first).resolves.toBeNull();
+    await expect(second).resolves.toBeUndefined();
+    expect([...commerce.remoteWishlist]).toEqual([
+      'seed',
+      'remote-added',
+      'first-local',
+      'second-local'
+    ]);
+    expect(commerce.api.wishlist.addItem).toHaveBeenCalledTimes(3);
+  });
+
+  it('removes a wishlist item added by an earlier queued sync whose refresh failed', async () => {
+    const commerce = commerceApi({ wishlistIds: ['seed'] });
+    let getCount = 0;
+    commerce.api.wishlist.get.mockImplementation(async () => {
+      getCount += 1;
+      if (getCount === 2) throw new Error('wishlist refresh failed after add');
+      return {
+        items: [...commerce.remoteWishlist].map(productId => ({ productId }))
+      };
+    });
+    const { hooks } = await loadCoreSessionHarness({
+      frontend: true,
+      storeApiOverrides: commerce.api
+    });
+    hooks.seedAuthenticatedCommerce({ wishlistItems: ['seed'] });
+
+    const add = hooks.replaceWishlist(['seed', 'transient']);
+    const remove = hooks.replaceWishlist(['seed']);
+
+    await expect(add).resolves.toBeNull();
+    await expect(remove).resolves.toBeUndefined();
+    expect([...commerce.remoteWishlist]).toEqual(['seed']);
+    expect(commerce.api.wishlist.addItem).toHaveBeenCalledWith({ productId: 'transient' });
+    expect(commerce.api.wishlist.removeItem).toHaveBeenCalledWith('transient');
   });
 
   it('does not turn an inactive maximum-price filter into max_price=0', async () => {

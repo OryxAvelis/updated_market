@@ -7,7 +7,8 @@
 (() => {
   'use strict';
 
-  const BASE_URL = '/api/v1/admin/auth';
+  const API_BASE_URL = '/api/v1/admin';
+  const AUTH_BASE_URL = '/api/v1/admin/auth';
   const TIMEOUT_MS = 12_000;
   let csrfToken = null;
   let session = null;
@@ -43,17 +44,29 @@
     }
   }
 
-  async function request(path, { method = 'GET', body, retryCsrf = true } = {}) {
+  function safePath(path) {
+    const value = String(path || '');
+    if (!value.startsWith('/') || value.startsWith('//') || value.includes('\\')) {
+      throw new AdminAuthError('The administrator request path is invalid.', {
+        code: 'INVALID_REQUEST_PATH'
+      });
+    }
+    return value;
+  }
+
+  async function requestFrom(baseUrl, path, { method = 'GET', body, retryCsrf = true } = {}) {
+    const requestPath = safePath(path);
+    const requestMethod = String(method || 'GET').toUpperCase();
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
       const headers = { Accept: 'application/json' };
       if (body !== undefined) headers['Content-Type'] = 'application/json';
-      if (method !== 'GET' && method !== 'HEAD' && csrfToken) {
+      if (requestMethod !== 'GET' && requestMethod !== 'HEAD' && csrfToken) {
         headers['X-CSRF-Token'] = csrfToken;
       }
-      const response = await fetch(`${BASE_URL}${path}`, {
-        method,
+      const response = await fetch(`${baseUrl}${requestPath}`, {
+        method: requestMethod,
         headers,
         credentials: 'same-origin',
         body: body === undefined ? undefined : JSON.stringify(body),
@@ -67,9 +80,9 @@
           status: response.status,
           code: payload?.error?.code || 'ADMIN_AUTH_FAILED'
         });
-        if (retryCsrf && error.code === 'ADMIN_CSRF_INVALID' && method !== 'GET' && method !== 'HEAD') {
+        if (retryCsrf && error.code === 'ADMIN_CSRF_INVALID' && requestMethod !== 'GET' && requestMethod !== 'HEAD') {
           await bootstrap(true);
-          return request(path, { method, body, retryCsrf: false });
+          return requestFrom(baseUrl, requestPath, { method: requestMethod, body, retryCsrf: false });
         }
         throw error;
       }
@@ -85,10 +98,18 @@
     }
   }
 
+  function request(path, options) {
+    return requestFrom(API_BASE_URL, path, options);
+  }
+
+  function authRequest(path, options) {
+    return requestFrom(AUTH_BASE_URL, path, options);
+  }
+
   async function bootstrap(force = false) {
     if (force) bootstrapPromise = null;
     if (!bootstrapPromise) {
-      bootstrapPromise = request('/session', { retryCsrf: false })
+      bootstrapPromise = authRequest('/session', { retryCsrf: false })
         .then((payload) => {
           session = payload?.authenticated ? payload.admin : null;
           return session;
@@ -105,7 +126,7 @@
   async function login(email, password) {
     try {
       await bootstrap();
-      const payload = await request('/login', {
+      const payload = await authRequest('/login', {
         method: 'POST',
         body: { email: String(email || '').trim(), password: String(password || '') }
       });
@@ -120,7 +141,7 @@
   async function logout() {
     try {
       await bootstrap();
-      await request('/logout', { method: 'POST' });
+      await authRequest('/logout', { method: 'POST' });
     } finally {
       session = null;
     }
@@ -131,6 +152,7 @@
     login,
     getSession,
     isAuthenticated: async () => Boolean(await getSession()),
-    logout
+    logout,
+    request
   });
 })();

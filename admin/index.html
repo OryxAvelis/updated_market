@@ -21,9 +21,9 @@
   <main id="adminMain" class="admin-main" tabindex="-1">
     <header class="admin-page-header">
       <div>
-        <p class="admin-page-eyebrow" data-i18n="admin_dashboard_eyebrow">Browser snapshot</p>
+        <p class="admin-page-eyebrow" data-i18n="admin_dashboard_eyebrow">Live store snapshot</p>
         <h1 class="admin-page-title" data-i18n="admin_dashboard_title">Store overview</h1>
-        <p class="admin-page-intro" data-i18n="admin_dashboard_intro">Local orders and the read-only AM MARKET catalog at a glance.</p>
+        <p class="admin-page-intro" data-i18n="admin_dashboard_intro">Database-backed orders, customers, and the AM MARKET catalog at a glance.</p>
       </div>
       <button class="admin-button admin-button--secondary" id="adminDashboardRefresh" type="button">
         <i class="fa-solid fa-rotate" aria-hidden="true"></i>
@@ -37,7 +37,7 @@
       <article class="admin-card admin-metric-card">
         <div class="admin-metric-icon"><i class="fa-solid fa-coins" aria-hidden="true"></i></div>
         <div>
-          <p data-i18n="admin_dashboard_sales">Sales</p>
+          <p data-i18n="admin_dashboard_sales">Gross order value</p>
           <strong id="adminMetricSales">—</strong>
           <small id="adminMetricSalesNote"></small>
         </div>
@@ -72,7 +72,7 @@
       <article class="admin-card admin-dashboard-chart-card">
         <header class="admin-card-header">
           <div>
-            <h3 class="admin-card-title" data-i18n="admin_dashboard_sales_trend">Sales trend</h3>
+            <h3 class="admin-card-title" data-i18n="admin_dashboard_sales_trend">Gross order value trend</h3>
             <p class="admin-card-subtitle" id="adminSalesChartSubtitle"></p>
           </div>
           <span class="admin-badge admin-badge--info" id="adminSalesChartBadge"></span>
@@ -97,7 +97,7 @@
         <header class="admin-card-header">
           <div>
             <h3 class="admin-card-title" data-i18n="admin_dashboard_recent_orders">Recent orders</h3>
-            <p class="admin-card-subtitle" data-i18n="admin_dashboard_recent_intro">The newest orders stored in this browser.</p>
+            <p class="admin-card-subtitle" data-i18n="admin_dashboard_recent_intro">The newest orders stored in the AM MARKET database.</p>
           </div>
           <a class="admin-button admin-button--secondary" href="orders.html"><span data-i18n="admin_nav_orders">Orders</span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
         </header>

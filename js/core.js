@@ -100,6 +100,14 @@ let authenticatedSearches = [];
 let sessionKnown = !STORE_FRONTEND_CONTEXT;
 let cartSyncPromise = Promise.resolve(true);
 let wishlistSyncPromise = Promise.resolve();
+// Baselines detect each local edit; touched IDs stay pending until a current
+// authoritative refresh succeeds, so a later queued save can repair a failed one.
+let authenticatedCartSyncBaseline = new Map();
+let authenticatedWishlistSyncBaseline = new Set();
+let authenticatedCartPendingSyncIds = new Set();
+let authenticatedWishlistPendingSyncIds = new Set();
+let cartSyncRevision = 0;
+let wishlistSyncRevision = 0;
 let storeReady = Promise.resolve();
 let authStateEpoch = 0;
 let sessionExpiryHandled = false;
@@ -163,6 +171,69 @@ function wishlistFromApi(payload) {
   const items = payload.items.map(item => String(item.productId));
   if (new Set(items).size !== items.length) throw new TypeError('Duplicate wishlist item');
   return items;
+}
+
+function cartSyncState(items) {
+  return new Map(normalizeCart(items).map(item => [String(item.id), Number(item.qty)]));
+}
+
+function wishlistSyncState(items) {
+  return new Set((Array.isArray(items) ? items : []).filter(id => id != null).map(String));
+}
+
+function adoptAuthenticatedCartState(items) {
+  const normalized = normalizeCart(items);
+  authenticatedCartSyncBaseline = cartSyncState(normalized);
+  authenticatedCartPendingSyncIds = new Set();
+  return normalized;
+}
+
+function adoptAuthenticatedCart(payload) {
+  return adoptAuthenticatedCartState(cartFromApi(payload));
+}
+
+function adoptAuthenticatedWishlistState(items) {
+  const normalized = [...wishlistSyncState(items)];
+  authenticatedWishlistSyncBaseline = new Set(normalized);
+  authenticatedWishlistPendingSyncIds = new Set();
+  return normalized;
+}
+
+function adoptAuthenticatedWishlist(payload) {
+  return adoptAuthenticatedWishlistState(wishlistFromApi(payload));
+}
+
+function resetAuthenticatedCommerceSyncState() {
+  authenticatedCartSyncBaseline = new Map();
+  authenticatedWishlistSyncBaseline = new Set();
+  authenticatedCartPendingSyncIds = new Set();
+  authenticatedWishlistPendingSyncIds = new Set();
+  cartSyncRevision += 1;
+  wishlistSyncRevision += 1;
+}
+
+function cartSyncIntents(previous, desired) {
+  const intents = [];
+  previous.forEach((_quantity, id) => {
+    if (!desired.has(id)) intents.push({ type: 'remove', id });
+  });
+  desired.forEach((quantity, id) => {
+    if (!previous.has(id) || previous.get(id) !== quantity) {
+      intents.push({ type: 'set', id, quantity });
+    }
+  });
+  return intents;
+}
+
+function wishlistSyncIntents(previous, desired) {
+  const intents = [];
+  previous.forEach(id => {
+    if (!desired.has(id)) intents.push({ type: 'remove', id });
+  });
+  desired.forEach(id => {
+    if (!previous.has(id)) intents.push({ type: 'add', id });
+  });
+  return intents;
 }
 
 function notificationsFromApi(payload) {
@@ -270,6 +341,7 @@ function preserveGuestCommerceAfterExternalSessionChange() {
   accountRecoveryPending = false;
   cartSyncPromise = Promise.resolve(true);
   wishlistSyncPromise = Promise.resolve();
+  resetAuthenticatedCommerceSyncState();
   Object.keys(authenticatedResourceState).forEach(resource => {
     authenticatedResourceState[resource] = 'ready';
   });
@@ -304,6 +376,7 @@ function transitionStoreToSignedOut({ reason = 'unauthorized', notify = true } =
   accountRecoveryPending = false;
   cartSyncPromise = Promise.resolve(true);
   wishlistSyncPromise = Promise.resolve();
+  resetAuthenticatedCommerceSyncState();
   Object.keys(authenticatedResourceState).forEach(resource => {
     authenticatedResourceState[resource] = 'ready';
   });
@@ -478,37 +551,35 @@ function assertAuthenticatedRequestCurrent(context) {
   throw error;
 }
 
-async function syncCartToServer(snapshot, authContext) {
+async function syncCartToServer(desired, touchedIds, authContext, revision) {
   assertAuthenticatedRequestCurrent(authContext);
   const remotePayload = await StoreAPI.cart.get();
   assertAuthenticatedRequestCurrent(authContext);
   const remote = new Map(cartFromApi(remotePayload).map(item => [String(item.id), Number(item.qty)]));
-  const desired = new Map(snapshot.map(item => [String(item.id), Number(item.qty)]));
-  if (desired.size === 0) {
-    if (remote.size) {
-      await StoreAPI.cart.clear();
-      assertAuthenticatedRequestCurrent(authContext);
-    }
-    cart = [];
-    updateBadges();
-    markAuthenticatedResourceReady('cart');
-    return;
-  }
-  for (const id of remote.keys()) {
+  for (const id of touchedIds) {
     if (!desired.has(id)) {
-      await StoreAPI.cart.removeItem(id);
+      if (remote.has(id)) {
+        await StoreAPI.cart.removeItem(id);
+        remote.delete(id);
+      }
       assertAuthenticatedRequestCurrent(authContext);
+      continue;
     }
-  }
-  for (const [id, quantity] of desired) {
-    if (!remote.has(id)) await StoreAPI.cart.addItem({ productId: id, quantity });
-    else if (remote.get(id) !== quantity) await StoreAPI.cart.updateItem(id, { quantity });
+    const quantity = desired.get(id);
+    if (!remote.has(id)) {
+      await StoreAPI.cart.addItem({ productId: id, quantity });
+    } else if (remote.get(id) !== quantity) {
+      await StoreAPI.cart.updateItem(id, { quantity });
+    }
+    remote.set(id, quantity);
     assertAuthenticatedRequestCurrent(authContext);
   }
   const refreshed = await StoreAPI.cart.get();
   assertAuthenticatedRequestCurrent(authContext);
-  cart = cartFromApi(refreshed);
-  updateBadges();
+  if (revision === cartSyncRevision) {
+    cart = adoptAuthenticatedCart(refreshed);
+    updateBadges();
+  }
   markAuthenticatedResourceReady('cart');
 }
 
@@ -518,9 +589,15 @@ function saveCart() {
     localStorage.setItem(LS.cart, JSON.stringify(cart));
     return Promise.resolve(true);
   }
-  const snapshot = cart.map(item => ({ id: String(item.id), qty: item.qty }));
+  const desired = cartSyncState(cart);
+  cartSyncIntents(authenticatedCartSyncBaseline, desired).forEach(intent => {
+    authenticatedCartPendingSyncIds.add(intent.id);
+  });
+  const touchedIds = new Set(authenticatedCartPendingSyncIds);
+  authenticatedCartSyncBaseline = new Map(desired);
+  const revision = ++cartSyncRevision;
   const authContext = captureAuthenticatedRequest();
-  cartSyncPromise = cartSyncPromise.catch(() => false).then(() => syncCartToServer(snapshot, authContext)).then(() => true).catch(async error => {
+  cartSyncPromise = cartSyncPromise.catch(() => false).then(() => syncCartToServer(desired, touchedIds, authContext, revision)).then(() => true).catch(async error => {
     if (handleStoreUnauthorized(error)) return false;
     if (!isAuthenticatedRequestCurrent(authContext)) return false;
     console.error('Cart synchronization failed', error);
@@ -528,9 +605,11 @@ function saveCart() {
     try {
       const refreshed = await StoreAPI.cart.get();
       if (!isAuthenticatedRequestCurrent(authContext)) return false;
-      cart = cartFromApi(refreshed);
-      updateBadges();
-      window.dispatchEvent(new CustomEvent('am:cart-reconciled'));
+      if (revision === cartSyncRevision) {
+        cart = adoptAuthenticatedCart(refreshed);
+        updateBadges();
+        window.dispatchEvent(new CustomEvent('am:cart-reconciled'));
+      }
     } catch (reloadError) {
       if (handleStoreUnauthorized(reloadError)) return false;
       authenticatedResourceState.cart = 'error';
@@ -543,28 +622,32 @@ function saveCart() {
   return cartSyncPromise;
 }
 
-async function syncWishlistToServer(snapshot, authContext) {
+async function syncWishlistToServer(desired, touchedIds, authContext, revision) {
   assertAuthenticatedRequestCurrent(authContext);
   const remotePayload = await StoreAPI.wishlist.get();
   assertAuthenticatedRequestCurrent(authContext);
   const remote = new Set(wishlistFromApi(remotePayload));
-  const desired = new Set(snapshot.map(String));
-  for (const id of remote) {
+  for (const id of touchedIds) {
     if (!desired.has(id)) {
-      await StoreAPI.wishlist.removeItem(id);
+      if (remote.has(id)) {
+        await StoreAPI.wishlist.removeItem(id);
+        remote.delete(id);
+      }
       assertAuthenticatedRequestCurrent(authContext);
+      continue;
     }
-  }
-  for (const id of desired) {
     if (!remote.has(id)) {
       await StoreAPI.wishlist.addItem({ productId: id });
+      remote.add(id);
       assertAuthenticatedRequestCurrent(authContext);
     }
   }
   const refreshed = await StoreAPI.wishlist.get();
   assertAuthenticatedRequestCurrent(authContext);
-  wishlist = wishlistFromApi(refreshed);
-  updateBadges();
+  if (revision === wishlistSyncRevision) {
+    wishlist = adoptAuthenticatedWishlist(refreshed);
+    updateBadges();
+  }
   markAuthenticatedResourceReady('wishlist');
 }
 
@@ -574,9 +657,15 @@ function saveWish() {
     localStorage.setItem(LS.wish, JSON.stringify(wishlist));
     return Promise.resolve();
   }
-  const snapshot = [...wishlist];
+  const desired = wishlistSyncState(wishlist);
+  wishlistSyncIntents(authenticatedWishlistSyncBaseline, desired).forEach(intent => {
+    authenticatedWishlistPendingSyncIds.add(intent.id);
+  });
+  const touchedIds = new Set(authenticatedWishlistPendingSyncIds);
+  authenticatedWishlistSyncBaseline = new Set(desired);
+  const revision = ++wishlistSyncRevision;
   const authContext = captureAuthenticatedRequest();
-  wishlistSyncPromise = wishlistSyncPromise.catch(() => {}).then(() => syncWishlistToServer(snapshot, authContext)).catch(async error => {
+  wishlistSyncPromise = wishlistSyncPromise.catch(() => {}).then(() => syncWishlistToServer(desired, touchedIds, authContext, revision)).catch(async error => {
     if (handleStoreUnauthorized(error)) return null;
     if (!isAuthenticatedRequestCurrent(authContext)) return null;
     console.error('Wishlist synchronization failed', error);
@@ -584,11 +673,13 @@ function saveWish() {
     try {
       const refreshed = await StoreAPI.wishlist.get();
       if (!isAuthenticatedRequestCurrent(authContext)) return null;
-      wishlist = wishlistFromApi(refreshed);
-      updateBadges();
-      window.dispatchEvent(new CustomEvent('am:account-resources-recovered', {
-        detail: { resources: ['wishlist'] }
-      }));
+      if (revision === wishlistSyncRevision) {
+        wishlist = adoptAuthenticatedWishlist(refreshed);
+        updateBadges();
+        window.dispatchEvent(new CustomEvent('am:account-resources-recovered', {
+          detail: { resources: ['wishlist'] }
+        }));
+      }
     } catch (reloadError) {
       if (handleStoreUnauthorized(reloadError)) return null;
       authenticatedResourceState.wishlist = 'error';
@@ -2063,8 +2154,8 @@ async function retryAuthenticatedResources() {
     const resource = requested[index];
     if (result.status === 'fulfilled') {
       try {
-        if (resource === 'cart') cart = cartFromApi(result.value);
-        else if (resource === 'wishlist') wishlist = wishlistFromApi(result.value);
+        if (resource === 'cart') cart = adoptAuthenticatedCart(result.value);
+        else if (resource === 'wishlist') wishlist = adoptAuthenticatedWishlist(result.value);
         else if (resource === 'notifications') {
           const state = notificationsFromApi(result.value);
           accountNotifications = state.notifications;
@@ -2136,6 +2227,7 @@ async function loadAuthenticatedState() {
   currentPreferences = session.user.preferences || null;
   cart = [];
   wishlist = [];
+  resetAuthenticatedCommerceSyncState();
   Object.keys(authenticatedResourceState).forEach(resource => {
     authenticatedResourceState[resource] = 'loading';
   });
@@ -2165,7 +2257,7 @@ async function loadAuthenticatedState() {
   const searchPayload = valueAt(5);
   try {
     if (resources[0].status !== 'fulfilled') throw resources[0].reason;
-    cart = cartFromApi(cartPayload);
+    cart = adoptAuthenticatedCart(cartPayload);
     authenticatedResourceState.cart = 'ready';
   } catch (error) {
     authenticatedResourceState.cart = 'error';
@@ -2173,7 +2265,7 @@ async function loadAuthenticatedState() {
   }
   try {
     if (resources[1].status !== 'fulfilled') throw resources[1].reason;
-    wishlist = wishlistFromApi(wishPayload);
+    wishlist = adoptAuthenticatedWishlist(wishPayload);
     authenticatedResourceState.wishlist = 'ready';
   } catch (error) {
     authenticatedResourceState.wishlist = 'error';

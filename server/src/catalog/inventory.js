@@ -78,17 +78,60 @@ export async function reserveOrderInventory(connection, orderId, verifiedItems) 
 // allocation rows as the historical checkout audit and restore only inventory
 // that received the finite-stock guarantee.
 export async function releaseOrderInventory(connection, orderId) {
-  const [result] = await connection.execute(
-    `UPDATE catalog_inventory inventory
-       JOIN order_inventory_allocations allocation
-         ON allocation.product_ref_id = inventory.product_ref_id
-        AND allocation.order_id = ?
+  const [allocations] = await connection.execute(
+    `SELECT allocation.product_ref_id, allocation.quantity
+       FROM order_inventory_allocations allocation
+       JOIN orders released_order ON released_order.id = allocation.order_id
+       JOIN catalog_product_refs product ON product.id = allocation.product_ref_id
+      WHERE allocation.order_id = ?
         AND allocation.inventory_policy = 'finite'
-        SET inventory.available_quantity = LEAST(
-          inventory.source_quantity,
-          inventory.available_quantity + allocation.quantity
-        )`,
+        AND released_order.status = 'cancelled'
+      ORDER BY product.external_id, allocation.product_ref_id
+      FOR UPDATE`,
     [orderId]
   );
-  return result.affectedRows;
+
+  let affectedRows = 0;
+  for (const allocation of allocations) {
+    // Serialize releases and new reservations for this product before deriving
+    // the active-allocation ceiling. Both cancellation flows reach this helper
+    // through locking reads, so a waiter takes its first consistent read only
+    // after the preceding inventory owner commits.
+    const [inventoryRows] = await connection.execute(
+      `SELECT product_ref_id, available_quantity, source_quantity
+         FROM catalog_inventory
+        WHERE product_ref_id = ?
+        FOR UPDATE`,
+      [allocation.product_ref_id]
+    );
+    if (!inventoryRows.length) continue;
+
+    const [activeRows] = await connection.execute(
+      `SELECT COALESCE(SUM(active_allocation.quantity), 0) AS active_quantity
+         FROM order_inventory_allocations active_allocation
+         JOIN orders active_order ON active_order.id = active_allocation.order_id
+        WHERE active_allocation.product_ref_id = ?
+          AND active_allocation.inventory_policy = 'finite'
+          AND active_order.status <> 'cancelled'`,
+      [allocation.product_ref_id]
+    );
+    const availableQuantity = Number(inventoryRows[0].available_quantity);
+    const sourceQuantity = Number(inventoryRows[0].source_quantity);
+    const activeQuantity = Number(activeRows[0].active_quantity);
+    const activeCeiling = Math.max(0, sourceQuantity - activeQuantity);
+    const nextAvailableQuantity = Math.min(
+      availableQuantity + Number(allocation.quantity),
+      activeCeiling
+    );
+    if (nextAvailableQuantity === availableQuantity) continue;
+
+    const [result] = await connection.execute(
+      `UPDATE catalog_inventory
+          SET available_quantity = ?
+        WHERE product_ref_id = ?`,
+      [nextAvailableQuantity, allocation.product_ref_id]
+    );
+    affectedRows += result.affectedRows;
+  }
+  return affectedRows;
 }

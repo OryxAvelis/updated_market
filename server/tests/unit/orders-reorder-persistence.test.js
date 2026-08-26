@@ -34,6 +34,7 @@ async function loadOrdersHarness({ storage, mergeGuest, fetchProduct, cartGet, i
     URLSearchParams,
     cart: [],
     cartFromApi: payload => payload.cart.items.map(item => ({ id: item.productId, qty: item.quantity })),
+    adoptAuthenticatedCart: payload => payload.cart.items.map(item => ({ id: item.productId, qty: item.quantity })),
     console: { error() {}, log() {}, warn() {} },
     document: { activeElement: null, addEventListener() {} },
     escapeHtml: value => String(value ?? ''),

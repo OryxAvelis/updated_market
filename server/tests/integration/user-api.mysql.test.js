@@ -835,6 +835,74 @@ databaseDescribe('user API with MySQL', () => {
     expect(recommendations.body.products.every((product) => product.id !== products[0].id)).toBe(true);
   }, 60_000);
 
+  it('serializes concurrent same-product cart additions across authenticated sessions', async () => {
+    const product = uniqueProduct('cart-concurrent-add', trackedProductIds, {
+      price: '9.50',
+      stock_quantity: 20
+    });
+    const { app } = testApp([product]);
+    const email = uniqueEmail('cart-concurrent-add', trackedEmails);
+    const firstDevice = request.agent(app);
+    const account = await register(firstDevice, email, 'Concurrent Cart Customer');
+
+    const secondDevice = request.agent(app);
+    const secondLoginCsrf = await csrfFor(secondDevice);
+    const secondLogin = await secondDevice
+      .post('/api/v1/auth/login')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', secondLoginCsrf)
+      .send({ email, password: testPassword });
+    expect(secondLogin.status).toBe(200);
+    expect(secondLogin.body.user.id).toBe(account.response.body.user.id);
+    expect(typeof secondLogin.body.csrfToken).toBe('string');
+
+    const initialCart = await firstDevice.get('/api/v1/cart');
+    expect(initialCart.status).toBe(200);
+    expect(initialCart.body.cart.items).toEqual([]);
+
+    const [firstAdd, secondAdd] = await Promise.all([
+      firstDevice
+        .post('/api/v1/cart/items')
+        .set('Origin', origin)
+        .set('X-CSRF-Token', account.csrfToken)
+        .send({ productId: product.id, quantity: 2 }),
+      secondDevice
+        .post('/api/v1/cart/items')
+        .set('Origin', origin)
+        .set('X-CSRF-Token', secondLogin.body.csrfToken)
+        .send({ productId: product.id, quantity: 3 })
+    ]);
+    expect(firstAdd.status).toBe(201);
+    expect(secondAdd.status).toBe(201);
+
+    const finalCart = await secondDevice.get('/api/v1/cart');
+    expect(finalCart.status).toBe(200);
+    expect(finalCart.body.cart.version).toBe(initialCart.body.cart.version + 2);
+    expect(finalCart.body.cart.items).toEqual([
+      expect.objectContaining({ productId: product.id, quantity: 5 })
+    ]);
+
+    const [rows] = await pool.execute(
+      `SELECT ci.quantity, c.version,
+              (SELECT COUNT(*)
+                 FROM auth_sessions s
+                WHERE s.user_id = u.id
+                  AND s.revoked_at IS NULL
+                  AND s.idle_expires_at > UTC_TIMESTAMP(3)
+                  AND s.absolute_expires_at > UTC_TIMESTAMP(3)) AS active_sessions
+         FROM users u
+         JOIN carts c ON c.user_id = u.id
+         JOIN cart_items ci ON ci.cart_id = c.id
+         JOIN catalog_product_refs r ON r.id = ci.product_ref_id
+        WHERE u.email_normalized = ? AND r.external_id = ?`,
+      [email, product.id]
+    );
+    expect(rows).toHaveLength(1);
+    expect(Number(rows[0].quantity)).toBe(5);
+    expect(Number(rows[0].version)).toBe(Number(initialCart.body.cart.version) + 2);
+    expect(Number(rows[0].active_sessions)).toBeGreaterThanOrEqual(2);
+  }, 60_000);
+
   it('merges a guest cart using catalog-authoritative availability and pricing', async () => {
     const product = uniqueProduct('cart', trackedProductIds, { price: '12.34', stock_quantity: 10 });
     const { app, catalog } = testApp([product]);
@@ -1735,6 +1803,18 @@ databaseDescribe('user API with MySQL', () => {
     });
     const returnId = requestedReturn.body.return.id;
 
+    const orderWithPersistedReturn = await shopper.get(`/api/v1/orders/${orderId}`);
+    expect(orderWithPersistedReturn.status).toBe(200);
+    expect(orderWithPersistedReturn.body.order.returns).toEqual([{
+      id: returnId,
+      status: 'requested',
+      reason: 'not_as_described',
+      details: 'Integration return request',
+      requestedAt: requestedReturn.body.return.requestedAt,
+      updatedAt: requestedReturn.body.return.updatedAt
+    }]);
+    expect(orderWithPersistedReturn.body.order.items[0].returnedQuantity).toBe(1);
+
     const replayedReturn = await shopper
       .post(`/api/v1/orders/${orderId}/returns`)
       .set('Origin', origin)
@@ -1759,6 +1839,9 @@ databaseDescribe('user API with MySQL', () => {
 
     const stranger = request.agent(app);
     await register(stranger, uniqueEmail('return-stranger', trackedEmails), 'Return Stranger');
+    const concealedOrderReturn = await stranger.get(`/api/v1/orders/${orderId}`);
+    expect(concealedOrderReturn.status).toBe(404);
+    expect(concealedOrderReturn.body.error.code).toBe('ORDER_NOT_FOUND');
     const concealedReturn = await stranger.get(`/api/v1/returns/${returnId}`);
     expect(concealedReturn.status).toBe(404);
     expect(concealedReturn.body.error.code).toBe('RETURN_NOT_FOUND');
@@ -1771,6 +1854,24 @@ databaseDescribe('user API with MySQL', () => {
       .send({ reason: 'quality', items: [{ orderItemId, quantity: 1 }] });
     expect(excessiveReturn.status).toBe(409);
     expect(excessiveReturn.body.error.code).toBe('RETURN_QUANTITY_INVALID');
+
+    await pool.execute(
+      "UPDATE return_requests SET status = 'rejected' WHERE public_id = ?",
+      [returnId]
+    );
+    const rejectedReturnOrder = await shopper.get(`/api/v1/orders/${orderId}`);
+    expect(rejectedReturnOrder.status).toBe(200);
+    expect(rejectedReturnOrder.body.order.returns).toMatchObject([{ id: returnId, status: 'rejected' }]);
+    expect(rejectedReturnOrder.body.order.items[0].returnedQuantity).toBe(0);
+
+    await pool.execute(
+      "UPDATE return_requests SET status = 'cancelled' WHERE public_id = ?",
+      [returnId]
+    );
+    const cancelledReturnOrder = await shopper.get(`/api/v1/orders/${orderId}`);
+    expect(cancelledReturnOrder.status).toBe(200);
+    expect(cancelledReturnOrder.body.order.returns).toMatchObject([{ id: returnId, status: 'cancelled' }]);
+    expect(cancelledReturnOrder.body.order.items[0].returnedQuantity).toBe(0);
   }, 60_000);
 
   it('enforces review ownership while exposing the published rating summary', async () => {

@@ -1,16 +1,16 @@
 /**
  * Orders admin page.
- * Status edits intentionally update only order.status in the browser-local am_orders array.
+ * Orders are loaded and updated through the authenticated administrator API.
  */
 (() => {
   'use strict';
 
   Object.assign(I18N.en, {
     title_admin_orders: 'Orders — AM MARKET Admin',
-    admin_orders_kicker: 'Local order operations',
+    admin_orders_kicker: 'Database order operations',
     admin_orders_title: 'Orders',
-    admin_orders_intro: 'Review browser-local orders and update their local workflow status.',
-    admin_local_only: 'Local only',
+    admin_orders_intro: 'Review MySQL-backed orders and update their workflow status securely.',
+    admin_local_only: 'Live database',
     admin_orders_search_label: 'Search orders',
     admin_orders_search_placeholder: 'Order, customer, phone or email',
     admin_orders_filter_label: 'Status',
@@ -21,9 +21,9 @@
     admin_status_shipping: 'Shipping',
     admin_status_delivered: 'Delivered',
     admin_clear_filters: 'Clear filters',
-    admin_orders_local_note: 'Status changes are stored in this browser only and are not sent to a server.',
-    admin_orders_loading: 'Loading local orders…',
-    admin_orders_table_caption: 'Local order list',
+    admin_orders_local_note: 'Status changes are validated and saved to the AM MARKET database.',
+    admin_orders_loading: 'Loading database orders…',
+    admin_orders_table_caption: 'Database order list',
     admin_orders_col_order: 'Order',
     admin_orders_col_customer: 'Customer',
     admin_orders_col_date: 'Date',
@@ -35,14 +35,14 @@
     admin_close: 'Close',
     admin_orders_new_status: 'New status',
     admin_cancel: 'Cancel',
-    admin_orders_update_status: 'Update local status',
+    admin_orders_update_status: 'Update order status',
     admin_orders_count: '{shown} of {total} orders',
-    admin_orders_empty_title: 'No local orders yet',
+    admin_orders_empty_title: 'No orders yet',
     admin_orders_empty_text: 'Orders placed through the storefront will appear here.',
     admin_orders_filtered_title: 'No matching orders',
     admin_orders_filtered_text: 'Try another search or status filter.',
     admin_orders_error_title: 'Orders could not be loaded',
-    admin_orders_error_text: 'The browser-local order data is unavailable or invalid.',
+    admin_orders_error_text: 'The authenticated order service is unavailable. Try again.',
     admin_retry: 'Retry',
     admin_view_details: 'View details',
     admin_orders_item_count: '{count} item(s)',
@@ -70,8 +70,12 @@
     admin_orders_free: 'Free',
     admin_orders_status_required: 'Choose one of the supported order statuses.',
     admin_orders_current_unsupported: 'Current: {status} — choose a supported status',
-    admin_orders_status_changed: 'Order {id} status changed locally to {status}.',
-    admin_orders_status_failed: 'The local status change could not be stored.',
+    admin_orders_status_changed: 'Order {id} status changed to {status}.',
+    admin_orders_status_failed: 'The status change could not be saved to the database.',
+    admin_orders_role_required: 'Owner or manager access is required to update order status.',
+    admin_orders_cancel_title: 'Cancel this order?',
+    admin_orders_cancel_message: 'Reserved inventory will be released and the customer will be notified. This cannot be undone.',
+    admin_orders_cancel_confirm: 'Cancel order',
     admin_orders_status_unchanged: 'Order {id} already has this status.',
     admin_orders_missing: 'This order is no longer available.',
     admin_not_available: 'Not available'
@@ -79,10 +83,10 @@
 
   Object.assign(I18N.fr, {
     title_admin_orders: 'Commandes — Administration AM MARKET',
-    admin_orders_kicker: 'Gestion locale des commandes',
+    admin_orders_kicker: 'Gestion des commandes en base',
     admin_orders_title: 'Commandes',
-    admin_orders_intro: 'Consultez les commandes enregistrées dans ce navigateur et modifiez leur état local.',
-    admin_local_only: 'Local uniquement',
+    admin_orders_intro: 'Consultez les commandes MySQL et modifiez leur état de manière sécurisée.',
+    admin_local_only: 'Base en direct',
     admin_orders_search_label: 'Rechercher des commandes',
     admin_orders_search_placeholder: 'Commande, client, téléphone ou e-mail',
     admin_orders_filter_label: 'État',
@@ -93,9 +97,9 @@
     admin_status_shipping: 'En livraison',
     admin_status_delivered: 'Livrée',
     admin_clear_filters: 'Effacer les filtres',
-    admin_orders_local_note: 'Les changements d’état sont stockés uniquement dans ce navigateur et ne sont envoyés à aucun serveur.',
-    admin_orders_loading: 'Chargement des commandes locales…',
-    admin_orders_table_caption: 'Liste locale des commandes',
+    admin_orders_local_note: 'Les changements d’état sont validés et enregistrés dans la base AM MARKET.',
+    admin_orders_loading: 'Chargement des commandes de la base…',
+    admin_orders_table_caption: 'Liste des commandes de la base',
     admin_orders_col_order: 'Commande',
     admin_orders_col_customer: 'Client',
     admin_orders_col_date: 'Date',
@@ -107,14 +111,14 @@
     admin_close: 'Fermer',
     admin_orders_new_status: 'Nouvel état',
     admin_cancel: 'Annuler',
-    admin_orders_update_status: 'Mettre à jour localement',
+    admin_orders_update_status: 'Mettre à jour l’état',
     admin_orders_count: '{shown} commande(s) sur {total}',
-    admin_orders_empty_title: 'Aucune commande locale',
+    admin_orders_empty_title: 'Aucune commande',
     admin_orders_empty_text: 'Les commandes passées depuis la boutique apparaîtront ici.',
     admin_orders_filtered_title: 'Aucune commande correspondante',
     admin_orders_filtered_text: 'Essayez une autre recherche ou un autre filtre d’état.',
     admin_orders_error_title: 'Impossible de charger les commandes',
-    admin_orders_error_text: 'Les données locales de commande sont indisponibles ou invalides.',
+    admin_orders_error_text: 'Le service de commandes authentifié est indisponible. Réessayez.',
     admin_retry: 'Réessayer',
     admin_view_details: 'Voir le détail',
     admin_orders_item_count: '{count} article(s)',
@@ -142,17 +146,29 @@
     admin_orders_free: 'Gratuite',
     admin_orders_status_required: 'Choisissez l’un des états de commande pris en charge.',
     admin_orders_current_unsupported: 'État actuel : {status} — choisissez un état pris en charge',
-    admin_orders_status_changed: 'L’état de la commande {id} a été modifié localement en « {status} ».',
-    admin_orders_status_failed: 'Le changement d’état local n’a pas pu être stocké.',
+    admin_orders_status_changed: 'L’état de la commande {id} a été modifié en « {status} ».',
+    admin_orders_status_failed: 'Le changement d’état n’a pas pu être enregistré dans la base.',
+    admin_orders_role_required: 'Un accès propriétaire ou responsable est requis pour modifier l’état d’une commande.',
+    admin_orders_cancel_title: 'Annuler cette commande ?',
+    admin_orders_cancel_message: 'Le stock réservé sera libéré et le client sera informé. Cette action est irréversible.',
+    admin_orders_cancel_confirm: 'Annuler la commande',
     admin_orders_status_unchanged: 'La commande {id} possède déjà cet état.',
     admin_orders_missing: 'Cette commande n’est plus disponible.',
     admin_not_available: 'Non disponible'
   });
 
-  const STATUSES = ['Processing', 'Confirmed', 'Preparing', 'Shipping', 'Delivered'];
+  const STATUSES = ['Confirmed', 'Preparing', 'Shipping', 'Delivered', 'Cancelled'];
+  const STATUS_TRANSITIONS = Object.freeze({
+    Confirmed: Object.freeze(['Preparing', 'Cancelled']),
+    Preparing: Object.freeze(['Shipping', 'Cancelled']),
+    Shipping: Object.freeze(['Delivered']),
+    Delivered: Object.freeze([]),
+    Cancelled: Object.freeze([])
+  });
   let sourceOrders = [];
   let activeOrderIndex = -1;
   let initialized = false;
+  let canUpdateOrders = false;
 
   const byId = id => document.getElementById(id);
   const esc = value => AdminCore.escape(value == null ? '' : String(value));
@@ -199,7 +215,7 @@
       title: t(titleKey),
       body: t(textKey),
       actionLabel: retry ? t('admin_retry') : '',
-      onAction: retry ? loadOrders : null
+      onAction: retry ? () => loadOrders({ refresh: true }) : null
     });
   }
 
@@ -312,8 +328,13 @@
     const select = byId('adminOrderStatusEdit');
     select.querySelector('[data-unsupported-status]')?.remove();
     const current = STATUSES.find(status => normalized(status) === normalized(order?.status || 'Processing'));
+    [...select.options].forEach(option => { option.disabled = false; });
     if (current) {
       select.value = current;
+      const allowed = STATUS_TRANSITIONS[current] || [];
+      [...select.options].forEach(option => {
+        option.disabled = option.value !== current && !allowed.includes(option.value);
+      });
     } else {
       const option = document.createElement('option');
       option.value = '';
@@ -323,7 +344,9 @@
       option.textContent = t('admin_orders_current_unsupported', { status: order?.status || t('admin_not_available') });
       select.prepend(option);
     }
-    byId('adminOrderStatusError').textContent = '';
+    select.disabled = !canUpdateOrders;
+    byId('adminOrderStatusSave').disabled = !canUpdateOrders;
+    byId('adminOrderStatusError').textContent = canUpdateOrders ? '' : t('admin_orders_role_required');
   }
 
   function openOrder(index) {
@@ -354,6 +377,10 @@
     const order = sourceOrders[activeOrderIndex];
 
     error.textContent = '';
+    if (!canUpdateOrders) {
+      error.textContent = t('admin_orders_role_required');
+      return;
+    }
     if (!order) {
       error.textContent = t('admin_orders_missing');
       return;
@@ -368,53 +395,54 @@
       closeOrder();
       return;
     }
+    if (nextStatus === 'Cancelled') {
+      const accepted = await AdminCore.confirm({
+        title: t('admin_orders_cancel_title'),
+        message: t('admin_orders_cancel_message'),
+        confirmLabel: t('admin_orders_cancel_confirm')
+      });
+      if (!accepted) return;
+    }
 
-    const previousStatus = order.status;
     AdminCore.setBusy(button, true);
     try {
-      // Deliberately mutate this field only; all unknown order fields remain untouched.
-      order.status = nextStatus;
-      saveOrders();
+      const updated = await AdminCore.updateOrderStatus(order.publicId, nextStatus.toLowerCase());
+      sourceOrders = AdminCore.getOrders();
       AdminCore.toast(t('admin_orders_status_changed', {
-        id: order.id,
-        status: statusLabel(nextStatus)
+        id: updated.id,
+        status: statusLabel(updated.status)
       }), 'success');
       renderOrders();
       closeOrder();
-    } catch {
-      order.status = previousStatus;
-      error.textContent = t('admin_orders_status_failed');
+    } catch (requestError) {
+      error.textContent = requestError?.message || t('admin_orders_status_failed');
       AdminCore.toast(t('admin_orders_status_failed'), 'error');
     } finally {
       AdminCore.setBusy(button, false);
     }
   }
 
-  function loadOrders() {
+  async function loadOrders({ refresh = false } = {}) {
     const state = byId('adminOrdersState');
     byId('adminOrdersTableWrap').hidden = true;
     state.hidden = false;
     AdminCore.state(state, { type: 'loading', title: t('admin_orders_loading') });
 
-    queueMicrotask(() => {
-      try {
-        const stored = AdminCore.readResult(AdminCore.storageKeys.orders, []);
-        if (!stored.ok || !Array.isArray(stored.value) || !Array.isArray(orders)) {
-          throw new TypeError('am_orders could not be read as an array');
-        }
-        sourceOrders = orders;
-        renderOrders();
-      } catch {
-        sourceOrders = [];
-        byId('adminOrdersCount').textContent = '';
-        showState('error', 'admin_orders_error_title', 'admin_orders_error_text', true);
-      }
-    });
+    if (refresh) await AdminCore.refreshLiveData({ includeCustomers: false });
+    if (AdminCore.dataError('orders')) {
+      sourceOrders = [];
+      byId('adminOrdersCount').textContent = '';
+      showState('error', 'admin_orders_error_title', 'admin_orders_error_text', true);
+      return;
+    }
+    sourceOrders = AdminCore.getOrders();
+    renderOrders();
   }
 
   function init() {
     if (initialized) return;
     initialized = true;
+    canUpdateOrders = ['owner', 'manager'].includes(String(AdminCore.session?.role || '').toLowerCase());
     applyI18n(document);
 
     byId('adminOrderSearch').addEventListener('input', renderOrders);
@@ -432,7 +460,7 @@
       if (event.target === byId('adminOrderDialog')) closeOrder();
     });
 
-    loadOrders();
+    void loadOrders();
   }
 
   window.addEventListener('admin:ready', init, { once: true });
@@ -444,9 +472,9 @@
       prepareStatusControl(sourceOrders[activeOrderIndex]);
     }
   });
-  window.addEventListener('storage', event => {
-    if (!initialized || event.key !== 'am_orders') return;
-    loadState();
-    loadOrders();
+  window.addEventListener('admin:datachange', event => {
+    if (!initialized || event.detail?.resource !== 'orders') return;
+    sourceOrders = AdminCore.getOrders();
+    renderOrders();
   });
 })();

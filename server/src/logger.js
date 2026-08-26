@@ -17,8 +17,11 @@ export const logger = pino({
       '*.newPassword',
       '*.token',
       '*.csrfToken',
+      '*.apiKey',
+      '*.resend.apiKey',
       'config.db.password',
       'config.smtp.password',
+      'config.email.resend.apiKey',
       'config.fulfillment.secret'
     ],
     censor: '[REDACTED]'

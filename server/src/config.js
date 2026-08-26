@@ -35,6 +35,21 @@ const optionalEmail = z.preprocess(
   z.string().trim().email().max(254).transform((value) => value.toLowerCase()).optional()
 );
 
+const optionalEmailProvider = z.preprocess(
+  (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+  z.enum(['smtp', 'resend']).optional()
+);
+
+const mailFrom = z.string()
+  .trim()
+  .min(3)
+  .max(320)
+  .refine((value) => !/[\r\n]/.test(value), 'must not contain line breaks')
+  .refine(
+    (value) => /^(?:[^<>\s@]+@[^<>\s@]+\.[^<>\s@]+|[^<>\r\n]+\s<[^<>\s@]+@[^<>\s@]+\.[^<>\s@]+>)$/.test(value),
+    'must be an email address or a name followed by an email address in angle brackets'
+  );
+
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   HOST: z.string().default(renderDefaultsEnabled ? '0.0.0.0' : '127.0.0.1'),
@@ -88,12 +103,19 @@ const schema = z.object({
   LOW_STOCK_DEFAULT_THRESHOLD: z.coerce.number().int().min(1).max(1000).default(5),
   LOW_STOCK_NOTIFICATION_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),
 
+  EMAIL_PROVIDER: optionalEmailProvider,
+  EMAIL_HTTP_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(8000),
+  RESEND_API_KEY: optionalText,
+  RESEND_FROM: z.preprocess(
+    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+    mailFrom.optional()
+  ),
   SMTP_HOST: optionalText,
   SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
   SMTP_SECURE: boolValue.default(false),
   SMTP_USER: optionalText,
   SMTP_PASSWORD: optionalText,
-  SMTP_FROM: z.string().min(3).default('AM MARKET <no-reply@example.com>'),
+  SMTP_FROM: mailFrom.default('AM MARKET <no-reply@example.com>'),
 
   FULFILLMENT_WEBHOOK_SECRET: optionalText,
   FULFILLMENT_WEBHOOK_SECRET_FILE: optionalText,
@@ -108,10 +130,32 @@ if (!parsed.success) {
 
 const env = parsed.data;
 const appUrl = new URL(env.APP_ORIGIN);
+const passwordResetUrl = new URL(env.PASSWORD_RESET_URL);
 const isTest = env.NODE_ENV === 'test';
 const isProduction = env.NODE_ENV === 'production';
 const secureCookies = appUrl.protocol === 'https:' && !isTest;
 const allowedOrigins = new Set(env.ALLOWED_ORIGINS.split(',').map((item) => new URL(item.trim()).origin));
+const hasSmtpSettings = Boolean(env.SMTP_HOST || env.SMTP_USER || env.SMTP_PASSWORD);
+const hasResendSettings = Boolean(env.RESEND_API_KEY || env.RESEND_FROM);
+
+if (!env.EMAIL_PROVIDER && hasSmtpSettings && hasResendSettings) {
+  throw new Error('EMAIL_PROVIDER is required when both SMTP and Resend settings are present.');
+}
+const emailProvider = env.EMAIL_PROVIDER || (hasResendSettings ? 'resend' : hasSmtpSettings ? 'smtp' : 'none');
+if (emailProvider === 'smtp') {
+  if (!env.SMTP_HOST) throw new Error('SMTP_HOST is required when EMAIL_PROVIDER=smtp.');
+  if (Boolean(env.SMTP_USER) !== Boolean(env.SMTP_PASSWORD)) {
+    throw new Error('SMTP_USER and SMTP_PASSWORD must be configured together.');
+  }
+  if (hasResendSettings) throw new Error('Remove Resend settings when EMAIL_PROVIDER=smtp.');
+}
+if (emailProvider === 'resend') {
+  if (!env.RESEND_API_KEY || !/^re_[A-Za-z0-9_-]{16,}$/.test(env.RESEND_API_KEY)) {
+    throw new Error('A valid RESEND_API_KEY is required when EMAIL_PROVIDER=resend.');
+  }
+  if (!env.RESEND_FROM) throw new Error('RESEND_FROM is required when EMAIL_PROVIDER=resend.');
+  if (hasSmtpSettings) throw new Error('Remove SMTP connection settings when EMAIL_PROVIDER=resend.');
+}
 
 function isLoopbackHost(value) {
   return new Set(['127.0.0.1', '::1', '[::1]', 'localhost']).has(String(value || '').trim().toLowerCase());
@@ -132,7 +176,7 @@ if (isProduction && !env.DB_TLS) {
 if (isProduction && !env.DB_PASSWORD) {
   throw new Error('DB_PASSWORD is required in production.');
 }
-if (isProduction && new URL(env.PASSWORD_RESET_URL).protocol !== 'https:') {
+if (isProduction && passwordResetUrl.protocol !== 'https:') {
   throw new Error('PASSWORD_RESET_URL must use HTTPS in production.');
 }
 if (isProduction && env.TLS_TERMINATED_BY_PROXY && env.TRUST_PROXY < 1) {
@@ -166,6 +210,12 @@ if (env.LOCAL_DEV_LOGIN) {
   if (env.TRUST_PROXY !== 0 || env.TLS_TERMINATED_BY_PROXY) {
     throw new Error('LOCAL_DEV_LOGIN cannot run behind a proxy.');
   }
+}
+if (passwordResetUrl.username || passwordResetUrl.password) {
+  throw new Error('PASSWORD_RESET_URL must not contain URL credentials.');
+}
+if (passwordResetUrl.origin !== appUrl.origin) {
+  throw new Error('PASSWORD_RESET_URL must use the APP_ORIGIN origin.');
 }
 
 function resolveOptionalPath(value) {
@@ -270,6 +320,14 @@ export const config = Object.freeze({
     user: env.SMTP_USER,
     password: env.SMTP_PASSWORD,
     from: env.SMTP_FROM
+  },
+  email: {
+    provider: emailProvider,
+    httpTimeoutMs: env.EMAIL_HTTP_TIMEOUT_MS,
+    resend: {
+      apiKey: env.RESEND_API_KEY,
+      from: env.RESEND_FROM
+    }
   },
   fulfillment: {
     toleranceMs: env.FULFILLMENT_WEBHOOK_TOLERANCE_SECONDS * 1000,

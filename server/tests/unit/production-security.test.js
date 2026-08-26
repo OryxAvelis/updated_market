@@ -101,6 +101,12 @@ describe('production transport fail-closed configuration', () => {
   it.each([
     ['unencrypted MySQL', { DB_TLS: 'false' }, 'DB_TLS must remain enabled'],
     ['an insecure allowed origin', { ALLOWED_ORIGINS: 'http://market.example.com' }, 'must use HTTPS'],
+    ['a cross-origin password-reset destination', {
+      PASSWORD_RESET_URL: 'https://attacker.example/reset-password.html'
+    }, 'PASSWORD_RESET_URL must use the APP_ORIGIN origin'],
+    ['a credential-bearing password-reset destination', {
+      PASSWORD_RESET_URL: 'https://user:password@market.example.com/reset-password.html'
+    }, 'PASSWORD_RESET_URL must not contain URL credentials'],
     ['a missing trusted proxy hop', { TRUST_PROXY: '0' }, 'TRUST_PROXY must identify'],
     ['an unsafe HSTS preload policy', { HSTS_PRELOAD: 'true' }, 'HSTS_PRELOAD requires']
   ])('rejects %s', (_label, overrides, expectedMessage) => {
@@ -190,6 +196,118 @@ describe('production transport fail-closed configuration', () => {
     expect(csp).toContain("connect-src 'self' https://api.mmarket.ma");
     expect(csp).not.toContain('catalog.internal.example');
     expect(csp).not.toContain('connect-src *');
+  });
+});
+
+describe('password-reset email provider configuration', () => {
+  const noEmailProvider = {
+    EMAIL_PROVIDER: '',
+    RESEND_API_KEY: '',
+    RESEND_FROM: '',
+    SMTP_HOST: '',
+    SMTP_USER: '',
+    SMTP_PASSWORD: ''
+  };
+
+  it('supports an explicitly configured Resend HTTPS provider and otherwise stays safely disabled', () => {
+    const disabled = runModule(`
+      const { config } = await import('./src/config.js');
+      console.log(config.email.provider);
+    `, productionEnvironment(noEmailProvider));
+    expect(disabled).toBe('none');
+
+    const enabled = runModule(`
+      const { config } = await import('./src/config.js');
+      console.log(JSON.stringify({
+        provider: config.email.provider,
+        from: config.email.resend.from,
+        timeoutMs: config.email.httpTimeoutMs
+      }));
+    `, productionEnvironment({
+      ...noEmailProvider,
+      EMAIL_PROVIDER: 'resend',
+      RESEND_API_KEY: 're_unit_test_key_1234567890',
+      RESEND_FROM: 'AM MARKET <reset@market.example>',
+      EMAIL_HTTP_TIMEOUT_MS: '5000'
+    }));
+    expect(JSON.parse(enabled)).toEqual({
+      provider: 'resend',
+      from: 'AM MARKET <reset@market.example>',
+      timeoutMs: 5000
+    });
+  });
+
+  it('keeps legacy SMTP-only configuration routed through the SMTP provider', () => {
+    const output = runModule(`
+      const { config } = await import('./src/config.js');
+      console.log(JSON.stringify({
+        provider: config.email.provider,
+        host: config.smtp.host,
+        authenticated: Boolean(config.smtp.user && config.smtp.password)
+      }));
+    `, productionEnvironment({
+      ...noEmailProvider,
+      SMTP_HOST: 'smtp.example.com',
+      SMTP_USER: 'mailer',
+      SMTP_PASSWORD: 'unit-test-smtp-password'
+    }));
+    expect(JSON.parse(output)).toEqual({
+      provider: 'smtp',
+      host: 'smtp.example.com',
+      authenticated: true
+    });
+  });
+
+  it('redacts the Resend API key from structured application logs', () => {
+    const apiKey = 're_unit_test_log_secret_1234567890';
+    const output = runModule(`
+      const [{ logger }, { config }] = await Promise.all([
+        import('./src/logger.js'), import('./src/config.js')
+      ]);
+      logger.info({ config }, 'configuration audit');
+    `, productionEnvironment({
+      ...noEmailProvider,
+      LOG_LEVEL: 'info',
+      EMAIL_PROVIDER: 'resend',
+      RESEND_API_KEY: apiKey,
+      RESEND_FROM: 'AM MARKET <reset@market.example>'
+    }));
+    expect(output).not.toContain(apiKey);
+    expect(output).toContain('[REDACTED]');
+  });
+
+  it.each([
+    ['a missing Resend API key', {
+      ...noEmailProvider,
+      EMAIL_PROVIDER: 'resend',
+      RESEND_FROM: 'AM MARKET <reset@market.example>'
+    }, 'valid RESEND_API_KEY'],
+    ['an invalid Resend sender', {
+      ...noEmailProvider,
+      EMAIL_PROVIDER: 'resend',
+      RESEND_API_KEY: 're_unit_test_key_1234567890',
+      RESEND_FROM: 'not an address'
+    }, 'RESEND_FROM'],
+    ['ambiguous provider credentials', {
+      ...noEmailProvider,
+      RESEND_API_KEY: 're_unit_test_key_1234567890',
+      RESEND_FROM: 'AM MARKET <reset@market.example>',
+      SMTP_HOST: 'smtp.example.com'
+    }, 'EMAIL_PROVIDER is required'],
+    ['partial SMTP authentication', {
+      ...noEmailProvider,
+      EMAIL_PROVIDER: 'smtp',
+      SMTP_HOST: 'smtp.example.com',
+      SMTP_USER: 'mailer'
+    }, 'must be configured together']
+  ])('rejects %s', (_label, overrides, expectedMessage) => {
+    const result = spawnSync(process.execPath, ['--input-type=module', '--eval', "await import('./src/config.js')"], {
+      cwd: serverRoot,
+      env: productionEnvironment(overrides),
+      encoding: 'utf8'
+    });
+    expect(result.status).not.toBe(0);
+    expect(`${result.stdout}\n${result.stderr}`).toContain(expectedMessage);
   });
 });
 

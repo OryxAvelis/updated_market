@@ -1,8 +1,9 @@
 /**
  * AM MARKET admin shared UI.
  *
- * Authentication is delegated exclusively to the server-backed adapter in
- * admin-auth.js. Existing administrative workspace edits remain browser-local.
+ * Authentication and operational order/customer data are delegated to the
+ * server-backed adapter in admin-auth.js. Catalog workspace overlays remain
+ * browser-local until dedicated catalog administration endpoints are added.
  */
 (async () => {
   'use strict';
@@ -51,7 +52,7 @@
       admin_skip_content: 'Skip to admin content',
       admin_panel: 'Admin panel',
       admin_workspace: 'Administration workspace',
-      admin_local_note: 'Workspace edits on these screens stay in this browser; administrator access is verified by the server.',
+      admin_local_note: 'Orders and customers come from the secure AM MARKET database. Catalog workspace drafts stay in this browser.',
       admin_primary_nav: 'Admin sections',
       admin_brand_label: 'AM MARKET admin panel',
       admin_display_settings: 'Display settings',
@@ -77,7 +78,7 @@
       admin_nav_analytics: 'Analytics',
       admin_nav_settings: 'Settings',
       admin_loading: 'Loading…',
-      admin_loading_body: 'Retrieving the latest browser data.',
+      admin_loading_body: 'Retrieving the latest database data.',
       admin_empty: 'Nothing here yet',
       admin_error: 'Something went wrong',
       admin_retry: 'Try again',
@@ -109,38 +110,38 @@
       admin_login_notice_title: 'Protected administrator access',
       admin_login_notice: 'Your session is protected by the AM MARKET server and a secure HTTP-only cookie.',
       admin_login_storefront: 'Return to storefront',
-      admin_dashboard_eyebrow: 'Browser snapshot',
+      admin_dashboard_eyebrow: 'Live store snapshot',
       admin_dashboard_title: 'Store overview',
-      admin_dashboard_intro: 'Local orders and the read-only AM MARKET catalog at a glance.',
+      admin_dashboard_intro: 'Database-backed orders, customers, and the AM MARKET catalog at a glance.',
       admin_dashboard_metrics: 'Dashboard metrics',
       admin_dashboard_refresh: 'Refresh dashboard',
       admin_dashboard_refreshing: 'Refreshing…',
       admin_dashboard_refreshed: 'Dashboard refreshed',
-      admin_dashboard_sales: 'Sales',
+      admin_dashboard_sales: 'Gross order value',
       admin_dashboard_orders: 'Orders',
       admin_dashboard_customers: 'Customers',
       admin_dashboard_products: 'Products',
-      admin_dashboard_local_orders: 'From local browser orders',
-      admin_dashboard_unique_customers: 'Unique local order contacts',
+      admin_dashboard_local_orders: 'From the latest database orders',
+      admin_dashboard_unique_customers: 'Registered customers in the latest loaded directory',
       admin_dashboard_catalog_total: 'Catalog plus local product overlay',
-      admin_dashboard_local_label: 'Local browser',
-      admin_dashboard_six_months: 'Last six months',
-      admin_dashboard_period_total: 'Period total',
-      admin_dashboard_no_orders: 'No local orders yet',
-      admin_dashboard_local_banner_title: 'Local browser data',
-      admin_dashboard_local_banner: 'Sales, orders and customers are calculated from orders stored in this browser only.',
-      admin_dashboard_sales_trend: 'Sales trend',
-      admin_dashboard_sales_chart_label: 'Sales trend chart',
+      admin_dashboard_local_label: 'Live database',
+      admin_dashboard_six_months: 'Last six months · before settlement or refunds',
+      admin_dashboard_period_total: 'Gross period value',
+      admin_dashboard_no_orders: 'No database orders yet',
+      admin_dashboard_local_banner_title: 'Live database data',
+      admin_dashboard_local_banner: 'Gross order value and order activity use the latest database orders; customer totals come from MySQL.',
+      admin_dashboard_sales_trend: 'Gross order value trend',
+      admin_dashboard_sales_chart_label: 'Gross non-cancelled order value trend chart',
       admin_dashboard_order_status: 'Order status',
       admin_dashboard_status_chart_label: 'Orders grouped by status',
       admin_dashboard_recent_orders: 'Recent orders',
-      admin_dashboard_recent_intro: 'The newest orders stored in this browser.',
+      admin_dashboard_recent_intro: 'The newest orders stored in the AM MARKET database.',
       admin_dashboard_order_id: 'Order',
       admin_dashboard_date: 'Date',
       admin_dashboard_customer: 'Customer',
       admin_dashboard_total: 'Total',
       admin_dashboard_status: 'Status',
-      admin_dashboard_no_recent_title: 'No local orders to show',
+      admin_dashboard_no_recent_title: 'No orders to show',
       admin_dashboard_no_recent_body: 'Complete an order in the storefront to see it here.',
       admin_dashboard_open_storefront: 'Open storefront',
       admin_dashboard_catalog: 'Catalog snapshot',
@@ -155,9 +156,10 @@
       admin_dashboard_full_catalog: 'Availability covers the full catalog.',
       admin_dashboard_loaded_sample: 'Availability reflects {n} loaded catalog products.',
       admin_dashboard_catalog_error_title: 'Catalog unavailable',
-      admin_dashboard_catalog_error_body: 'The read-only catalog could not be loaded. Local order metrics are still available.',
+      admin_dashboard_catalog_error_body: 'The read-only catalog could not be loaded. Database order metrics are still available.',
       admin_dashboard_local_only_title: 'Data sources',
-      admin_dashboard_local_only_body: 'This dashboard reads storefront orders saved on this device and the public catalog. Workspace edits stay on this device until dedicated administrator data APIs are connected.',
+      admin_dashboard_local_only_body: 'This dashboard reads authenticated order and customer data from MySQL and product information from the public catalog.',
+      admin_database_unavailable: 'Database data is temporarily unavailable.',
       admin_status_processing: 'Processing',
       admin_status_confirmed: 'Confirmed',
       admin_status_preparing: 'Preparing',
@@ -165,7 +167,7 @@
       admin_status_delivered: 'Delivered',
       admin_status_cancelled: 'Cancelled',
       admin_status_other: 'Other',
-      admin_unknown_customer: 'Local customer',
+      admin_unknown_customer: 'Customer',
       admin_not_available: 'Not available'
     },
     fr: {
@@ -183,7 +185,7 @@
       admin_skip_content: 'Aller au contenu administrateur',
       admin_panel: 'Espace administrateur',
       admin_workspace: 'Espace d’administration',
-      admin_local_note: 'Les modifications de cet espace restent dans ce navigateur ; l’accès administrateur est vérifié par le serveur.',
+      admin_local_note: 'Les commandes et clients proviennent de la base AM MARKET sécurisée. Les brouillons du catalogue restent dans ce navigateur.',
       admin_primary_nav: 'Sections administrateur',
       admin_brand_label: 'Espace administrateur AM MARKET',
       admin_display_settings: 'Paramètres d’affichage',
@@ -209,7 +211,7 @@
       admin_nav_analytics: 'Analyses',
       admin_nav_settings: 'Paramètres',
       admin_loading: 'Chargement…',
-      admin_loading_body: 'Récupération des dernières données du navigateur.',
+      admin_loading_body: 'Récupération des dernières données de la base.',
       admin_empty: 'Aucun élément pour le moment',
       admin_error: 'Une erreur est survenue',
       admin_retry: 'Réessayer',
@@ -241,38 +243,38 @@
       admin_login_notice_title: 'Accès administrateur protégé',
       admin_login_notice: 'Votre session est protégée par le serveur AM MARKET et un cookie HTTP-only sécurisé.',
       admin_login_storefront: 'Retour à la boutique',
-      admin_dashboard_eyebrow: 'Aperçu du navigateur',
+      admin_dashboard_eyebrow: 'Aperçu en direct',
       admin_dashboard_title: 'Vue d’ensemble de la boutique',
-      admin_dashboard_intro: 'Les commandes locales et le catalogue AM MARKET en lecture seule en un coup d’œil.',
+      admin_dashboard_intro: 'Les commandes, clients et le catalogue AM MARKET en un coup d’œil.',
       admin_dashboard_metrics: 'Indicateurs du tableau de bord',
       admin_dashboard_refresh: 'Actualiser le tableau de bord',
       admin_dashboard_refreshing: 'Actualisation…',
       admin_dashboard_refreshed: 'Tableau de bord actualisé',
-      admin_dashboard_sales: 'Ventes',
+      admin_dashboard_sales: 'Valeur brute des commandes',
       admin_dashboard_orders: 'Commandes',
       admin_dashboard_customers: 'Clients',
       admin_dashboard_products: 'Produits',
-      admin_dashboard_local_orders: 'D’après les commandes locales du navigateur',
-      admin_dashboard_unique_customers: 'Contacts uniques des commandes locales',
+      admin_dashboard_local_orders: 'D’après les dernières commandes en base',
+      admin_dashboard_unique_customers: 'Clients enregistrés dans le dernier répertoire chargé',
       admin_dashboard_catalog_total: 'Catalogue et surcouche produit locale',
-      admin_dashboard_local_label: 'Navigateur local',
-      admin_dashboard_six_months: 'Six derniers mois',
-      admin_dashboard_period_total: 'Total de la période',
-      admin_dashboard_no_orders: 'Aucune commande locale',
-      admin_dashboard_local_banner_title: 'Données locales du navigateur',
-      admin_dashboard_local_banner: 'Les ventes, commandes et clients sont calculés à partir des commandes stockées uniquement dans ce navigateur.',
-      admin_dashboard_sales_trend: 'Évolution des ventes',
-      admin_dashboard_sales_chart_label: 'Graphique de l’évolution des ventes',
+      admin_dashboard_local_label: 'Base en direct',
+      admin_dashboard_six_months: 'Six derniers mois · avant règlement ou remboursement',
+      admin_dashboard_period_total: 'Valeur brute de la période',
+      admin_dashboard_no_orders: 'Aucune commande dans la base',
+      admin_dashboard_local_banner_title: 'Données de la base en direct',
+      admin_dashboard_local_banner: 'La valeur brute et l’activité des commandes utilisent les dernières données en base ; les totaux clients proviennent de MySQL.',
+      admin_dashboard_sales_trend: 'Évolution de la valeur brute',
+      admin_dashboard_sales_chart_label: 'Graphique de la valeur brute des commandes non annulées',
       admin_dashboard_order_status: 'Statut des commandes',
       admin_dashboard_status_chart_label: 'Commandes regroupées par statut',
       admin_dashboard_recent_orders: 'Commandes récentes',
-      admin_dashboard_recent_intro: 'Les commandes les plus récentes stockées dans ce navigateur.',
+      admin_dashboard_recent_intro: 'Les commandes les plus récentes stockées dans la base AM MARKET.',
       admin_dashboard_order_id: 'Commande',
       admin_dashboard_date: 'Date',
       admin_dashboard_customer: 'Client',
       admin_dashboard_total: 'Total',
       admin_dashboard_status: 'Statut',
-      admin_dashboard_no_recent_title: 'Aucune commande locale à afficher',
+      admin_dashboard_no_recent_title: 'Aucune commande à afficher',
       admin_dashboard_no_recent_body: 'Finalisez une commande dans la boutique pour la voir ici.',
       admin_dashboard_open_storefront: 'Ouvrir la boutique',
       admin_dashboard_catalog: 'Aperçu du catalogue',
@@ -287,9 +289,10 @@
       admin_dashboard_full_catalog: 'La disponibilité couvre tout le catalogue.',
       admin_dashboard_loaded_sample: 'La disponibilité reflète {n} produits du catalogue chargés.',
       admin_dashboard_catalog_error_title: 'Catalogue indisponible',
-      admin_dashboard_catalog_error_body: 'Le catalogue en lecture seule n’a pas pu être chargé. Les indicateurs de commandes locales restent disponibles.',
+      admin_dashboard_catalog_error_body: 'Le catalogue en lecture seule n’a pas pu être chargé. Les indicateurs de la base restent disponibles.',
       admin_dashboard_local_only_title: 'Sources de données',
-      admin_dashboard_local_only_body: 'Ce tableau de bord lit les commandes de la boutique enregistrées sur cet appareil et le catalogue public. Les modifications de l’espace restent sur cet appareil jusqu’à la connexion d’API de données administrateur dédiées.',
+      admin_dashboard_local_only_body: 'Ce tableau de bord lit les commandes et clients authentifiés depuis MySQL et les produits depuis le catalogue public.',
+      admin_database_unavailable: 'Les données de la base sont temporairement indisponibles.',
       admin_status_processing: 'En traitement',
       admin_status_confirmed: 'Confirmée',
       admin_status_preparing: 'En préparation',
@@ -297,7 +300,7 @@
       admin_status_delivered: 'Livrée',
       admin_status_cancelled: 'Annulée',
       admin_status_other: 'Autre',
-      admin_unknown_customer: 'Client local',
+      admin_unknown_customer: 'Client',
       admin_not_available: 'Non disponible'
     }
   };
@@ -324,6 +327,12 @@
     return;
   }
 
+  const LIVE_DATA_PAGES = new Set(['dashboard', 'orders', 'customers', 'analytics']);
+  const liveData = {
+    orders: [],
+    customers: [],
+    errors: { orders: null, customers: null }
+  };
   let drawerOpen = false;
   let drawerTrigger = null;
 
@@ -367,6 +376,166 @@
       toast(tr('admin_storage_error'), 'error');
       return undefined;
     }
+  }
+
+  function finiteNumber(value, fallback = 0) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : fallback;
+  }
+
+  function normalizedStatus(value) {
+    const status = String(value || '').trim().toLowerCase();
+    const labels = {
+      processing: 'Processing',
+      confirmed: 'Confirmed',
+      preparing: 'Preparing',
+      shipping: 'Shipping',
+      delivered: 'Delivered',
+      cancelled: 'Cancelled'
+    };
+    return labels[status] || (status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Confirmed');
+  }
+
+  function paymentSummary(order) {
+    if (typeof order?.payment === 'string' && order.payment.trim()) return order.payment.trim();
+    const method = String(order?.paymentMethod || order?.payment_method || '').trim().toUpperCase();
+    const status = String(order?.paymentStatus || order?.payment_status || '').trim().replaceAll('_', ' ');
+    const reference = String(order?.paymentReference || order?.payment_reference || order?.orderNumber || '').trim();
+    return [method, status, reference ? `Ref ${reference}` : ''].filter(Boolean).join(' · ');
+  }
+
+  function normalizeOrder(rawOrder) {
+    if (!rawOrder || typeof rawOrder !== 'object') throw new TypeError('Invalid administrator order');
+    const publicId = String(rawOrder.publicId || rawOrder.id || '').trim();
+    const orderNumber = String(rawOrder.orderNumber || rawOrder.order_number || publicId).trim();
+    if (!publicId || !orderNumber) throw new TypeError('Administrator order identity is missing');
+    const sourceBuyer = rawOrder.buyer && typeof rawOrder.buyer === 'object'
+      ? rawOrder.buyer
+      : (rawOrder.customer && typeof rawOrder.customer === 'object' ? rawOrder.customer : {});
+    const address = sourceBuyer.address || [sourceBuyer.addressLine1, sourceBuyer.addressLine2].filter(Boolean).join(', ');
+    const items = Array.isArray(rawOrder.items) ? rawOrder.items.map((item) => {
+      if (!item || typeof item !== 'object') return null;
+      const quantity = Math.max(0, Math.floor(finiteNumber(item.quantity ?? item.qty)));
+      const unitPrice = finiteNumber(item.unitPrice ?? item.price);
+      return {
+        ...item,
+        id: String(item.id ?? item.productId ?? ''),
+        productId: String(item.productId ?? item.id ?? ''),
+        name: String(item.name || ''),
+        qty: quantity,
+        quantity,
+        price: unitPrice,
+        unitPrice,
+        lineTotal: finiteNumber(item.lineTotal, unitPrice * quantity)
+      };
+    }).filter(Boolean) : [];
+    const subtotal = finiteNumber(rawOrder.subtotal);
+    const delivery = finiteNumber(rawOrder.deliveryFee ?? rawOrder.delivery);
+    const buyerNote = [rawOrder.note, sourceBuyer.note, sourceBuyer.deliveryInstructions]
+      .map(value => String(value || '').trim())
+      .filter((value, index, values) => value && values.indexOf(value) === index)
+      .join(' · ');
+    return {
+      ...rawOrder,
+      id: orderNumber,
+      publicId,
+      orderNumber,
+      status: normalizedStatus(rawOrder.status),
+      payment: paymentSummary(rawOrder),
+      date: rawOrder.placedAt || rawOrder.date || rawOrder.createdAt || rawOrder.created_at || '',
+      placedAt: rawOrder.placedAt || rawOrder.date || rawOrder.createdAt || rawOrder.created_at || '',
+      subtotal,
+      delivery,
+      deliveryFee: delivery,
+      total: finiteNumber(rawOrder.total, subtotal + delivery),
+      buyer: {
+        ...sourceBuyer,
+        name: sourceBuyer.name || sourceBuyer.displayName || '',
+        address,
+        quartier: sourceBuyer.district || sourceBuyer.quartier || '',
+        note: buyerNote
+      },
+      items
+    };
+  }
+
+  function normalizeCustomer(rawCustomer) {
+    if (!rawCustomer || typeof rawCustomer !== 'object') throw new TypeError('Invalid administrator customer');
+    const id = String(rawCustomer.id || rawCustomer.publicId || rawCustomer.email || '').trim();
+    if (!id) throw new TypeError('Administrator customer identity is missing');
+    return {
+      ...rawCustomer,
+      id,
+      name: rawCustomer.name || rawCustomer.displayName || '',
+      displayName: rawCustomer.displayName || rawCustomer.name || '',
+      orderCount: Math.max(0, Math.floor(finiteNumber(rawCustomer.orderCount))),
+      totalSpent: finiteNumber(rawCustomer.totalSpent),
+      lastOrderAt: rawCustomer.lastOrderAt || null
+    };
+  }
+
+  function publishOrders(nextOrders) {
+    liveData.orders = nextOrders;
+    // core.js intentionally keeps this legacy shared binding for existing admin
+    // visualizations. It now mirrors server data and is never persisted locally.
+    if (typeof orders !== 'undefined') orders = nextOrders;
+    window.dispatchEvent(new CustomEvent('admin:datachange', { detail: { resource: 'orders' } }));
+  }
+
+  async function refreshOrders() {
+    try {
+      const payload = await window.AdminAuth.request('/orders?limit=200');
+      if (!Array.isArray(payload?.orders)) throw new TypeError('Invalid administrator orders response');
+      const nextOrders = payload.orders.map(normalizeOrder);
+      liveData.errors.orders = null;
+      publishOrders(nextOrders);
+      return nextOrders;
+    } catch (error) {
+      liveData.errors.orders = error;
+      publishOrders([]);
+      return [];
+    }
+  }
+
+  async function refreshCustomers() {
+    try {
+      const payload = await window.AdminAuth.request('/customers?limit=200');
+      if (!Array.isArray(payload?.customers)) throw new TypeError('Invalid administrator customers response');
+      liveData.customers = payload.customers.map(normalizeCustomer);
+      liveData.errors.customers = null;
+      window.dispatchEvent(new CustomEvent('admin:datachange', { detail: { resource: 'customers' } }));
+      return liveData.customers;
+    } catch (error) {
+      liveData.customers = [];
+      liveData.errors.customers = error;
+      window.dispatchEvent(new CustomEvent('admin:datachange', { detail: { resource: 'customers' } }));
+      return [];
+    }
+  }
+
+  async function refreshLiveData({ includeCustomers = page === 'dashboard' || page === 'customers' } = {}) {
+    const tasks = [refreshOrders()];
+    if (includeCustomers) tasks.push(refreshCustomers());
+    await Promise.all(tasks);
+    return { orders: [...liveData.orders], customers: [...liveData.customers] };
+  }
+
+  async function updateOrderStatus(publicId, status) {
+    const normalizedPublicId = String(publicId || '').trim();
+    const normalizedNextStatus = String(status || '').trim().toLowerCase();
+    if (!normalizedPublicId || !normalizedNextStatus) throw new TypeError('Order identity and status are required');
+    const payload = await window.AdminAuth.request(`/orders/${encodeURIComponent(normalizedPublicId)}/status`, {
+      method: 'PATCH',
+      body: { status: normalizedNextStatus }
+    });
+    const updated = normalizeOrder(payload?.order);
+    const currentIndex = liveData.orders.findIndex(order => order.publicId === updated.publicId);
+    const nextOrders = [...liveData.orders];
+    if (currentIndex >= 0) nextOrders.splice(currentIndex, 1, updated);
+    else nextOrders.unshift(updated);
+    liveData.errors.orders = null;
+    publishOrders(nextOrders);
+    return updated;
   }
 
   function formatDate(value, options = {}) {
@@ -567,7 +736,7 @@
           <nav class="admin-nav" aria-label="Admin sections" data-i18n-aria="admin_primary_nav">${links}</nav>
           <div class="admin-sidebar-note">
             <i class="fa-solid fa-laptop-file" aria-hidden="true"></i>
-            <div><strong data-i18n="admin_workspace">Administration workspace</strong><p data-i18n="admin_local_note">Workspace edits on these screens stay in this browser; administrator access is verified by the server.</p></div>
+            <div><strong data-i18n="admin_workspace">Administration workspace</strong><p data-i18n="admin_local_note">Orders and customers come from the secure AM MARKET database. Catalog workspace drafts stay in this browser.</p></div>
           </div>
         </aside>
         <button class="admin-drawer-overlay" type="button" data-admin-drawer-close tabindex="-1" aria-label="Close admin menu" data-i18n-aria="admin_close_menu"></button>
@@ -713,7 +882,12 @@
     syncControls: updateDynamicControls,
     escape: escapeValue,
     formatDate,
-    flattenCategories
+    flattenCategories,
+    getOrders: () => [...liveData.orders],
+    getCustomers: () => [...liveData.customers],
+    dataError: resource => liveData.errors[String(resource)] || null,
+    refreshLiveData,
+    updateOrderStatus
   });
   window.AdminCore = api;
 
@@ -747,18 +921,19 @@
     updateDynamicControls();
   });
 
-  function initializeAdminUi() {
+  async function initializeAdminUi() {
     ensureFeedback();
     if (!publicPage) buildShell();
     else bindControls(document);
     updateDynamicControls();
+    if (!publicPage && LIVE_DATA_PAGES.has(page)) await refreshLiveData();
     body?.classList.add('admin-ready');
     window.dispatchEvent(new CustomEvent('admin:ready', { detail: { session, page, core: api } }));
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeAdminUi, { once: true });
+    document.addEventListener('DOMContentLoaded', () => { void initializeAdminUi(); }, { once: true });
   } else {
-    initializeAdminUi();
+    void initializeAdminUi();
   }
 })();

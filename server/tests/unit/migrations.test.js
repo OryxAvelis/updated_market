@@ -86,13 +86,41 @@ describe('migration source safety', () => {
       '0008_inventory_allocation_policy.sql',
       '0009_local_demo_safety.sql',
       '0010_admin_auth.sql',
-      '0011_customer_consistency_backfill.sql'
+      '0011_customer_consistency_backfill.sql',
+      '0012_supported_payment_preferences.sql',
+      '0013_admin_tracking_source.sql'
     ]);
-    expect(migrations.map((migration) => migration.statements.length)).toEqual([25, 1, 2, 1, 1, 1, 8, 1, 2, 2, 2]);
+    expect(migrations.map((migration) => migration.statements.length)).toEqual([25, 1, 2, 1, 1, 1, 8, 1, 2, 2, 2, 2, 1]);
     for (const migration of migrations) {
       expect(migration.checksum).toMatch(/^[a-f0-9]{64}$/);
       expect(migration.statements.every((statement) => (statement.match(/;/g) || []).length === 1)).toBe(true);
     }
+  });
+
+  it('tightens only saved payment preferences after the consistency backfill', async () => {
+    const migrations = await loadMigrations();
+    const migration = migrations.find((entry) => entry.name === '0012_supported_payment_preferences.sql');
+
+    expect(migration.name).toBe('0012_supported_payment_preferences.sql');
+    expect(migration.statements[0]).toMatch(
+      /UPDATE\s+user_preferences[\s\S]+SET\s+default_payment\s*=\s*'cod'[\s\S]+WHERE\s+default_payment\s*=\s*'card'/i
+    );
+    expect(migration.statements[1]).toMatch(
+      /ALTER\s+TABLE\s+user_preferences[\s\S]+DROP\s+CHECK\s+chk_user_preferences_payment[\s\S]+ADD\s+CONSTRAINT\s+chk_user_preferences_payment[\s\S]+default_payment\s+IN\s*\(\s*'cod'\s*,\s*'wafacash'\s*,\s*'cashplus'\s*\)/i
+    );
+    expect(migration.statements.join('\n')).not.toMatch(
+      /(?:ALTER\s+TABLE|UPDATE|INSERT\s+INTO|DELETE\s+FROM)\s+orders\b|chk_orders_payment_method/i
+    );
+  });
+
+  it('adds an explicit administrator source to order tracking events', async () => {
+    const migrations = await loadMigrations();
+    const migration = migrations.find((entry) => entry.name === '0013_admin_tracking_source.sql');
+
+    expect(migration.statements).toHaveLength(1);
+    expect(migration.statements[0]).toMatch(
+      /ALTER\s+TABLE\s+order_tracking_events[\s\S]+DROP\s+CHECK\s+chk_order_tracking_events_source[\s\S]+ADD\s+CONSTRAINT\s+chk_order_tracking_events_source[\s\S]+source\s+IN\s*\([\s\S]*'admin'[\s\S]*\)/i
+    );
   });
 });
 
@@ -102,9 +130,9 @@ describe('migration execution safety', () => {
     const first = await runMigrations({ database: fake.database, log: silentLog });
     const second = await runMigrations({ database: fake.database, log: silentLog });
 
-    expect(first).toEqual({ applied: 11, total: 11 });
-    expect(second).toEqual({ applied: 0, total: 11 });
-    expect(fake.applied.size).toBe(11);
+    expect(first).toEqual({ applied: 13, total: 13 });
+    expect(second).toEqual({ applied: 0, total: 13 });
+    expect(fake.applied.size).toBe(13);
     expect(fake.calls.filter((call) => call.sql?.includes('GET_LOCK'))).toHaveLength(2);
     expect(fake.calls.filter((call) => call.sql?.includes('RELEASE_LOCK'))).toHaveLength(2);
     expect(fake.calls.some((call) => /multipleStatements/i.test(call.sql || ''))).toBe(false);

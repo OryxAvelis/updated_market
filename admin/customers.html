@@ -18,11 +18,11 @@
     <section class="admin-page admin-customers-page" aria-labelledby="adminCustomersTitle">
       <header class="admin-page-header">
         <div>
-          <p class="admin-page-eyebrow" data-i18n="admin_customers_kicker">Order-derived directory</p>
+          <p class="admin-page-eyebrow" data-i18n="admin_customers_kicker">Database customer directory</p>
           <h1 id="adminCustomersTitle" class="admin-page-title" data-i18n="admin_customers_title">Customers</h1>
-          <p class="admin-page-intro" data-i18n="admin_customers_intro">Customer records shown here come from buyer details in orders available on this device.</p>
+          <p class="admin-page-intro" data-i18n="admin_customers_intro">Review registered customer accounts and guest order contacts with their database order history.</p>
         </div>
-        <span class="admin-badge admin-local-badge"><i class="fa-solid fa-laptop" aria-hidden="true"></i> <span data-i18n="admin_local_only">Data on this device</span></span>
+        <span class="admin-badge admin-local-badge"><i class="fa-solid fa-database" aria-hidden="true"></i> <span data-i18n="admin_local_only">Live database</span></span>
       </header>
 
       <div class="admin-customers-toolbar" role="search">
@@ -41,7 +41,7 @@
 
       <div class="admin-list-summary">
         <p id="adminCustomersCount" aria-live="polite"></p>
-        <p class="admin-local-note" data-i18n="admin_customers_privacy_note">Customer records use order details available on this device; missing buyer fields remain blank.</p>
+        <p class="admin-local-note" data-i18n="admin_customers_privacy_note">Customer details are shown only to authenticated administrators; missing fields remain blank.</p>
       </div>
 
       <div id="adminCustomersState" class="admin-list-state" role="status" aria-live="polite">
@@ -51,7 +51,7 @@
 
       <div id="adminCustomersTableWrap" class="admin-table-wrap" hidden>
         <table class="admin-table admin-customers-table">
-          <caption class="visually-hidden" data-i18n="admin_customers_table_caption">Customers derived from orders available on this device</caption>
+          <caption class="visually-hidden" data-i18n="admin_customers_table_caption">Customer accounts and guest order contacts from the AM MARKET database</caption>
           <thead>
             <tr>
               <th scope="col" data-i18n="admin_customers_col_customer">Customer</th>

@@ -6,6 +6,7 @@ import express from 'express';
 import helmet from 'helmet';
 import pinoHttp from 'pino-http';
 import { createAdminAuthRouter } from './admin/routes.js';
+import { createAdminOperationsRouter } from './admin/operations-routes.js';
 import { requireAdminCsrf } from './admin/csrf.js';
 import { loadAdminSession, requireAdminPage } from './admin/session.js';
 import { createAccountRouter } from './account/routes.js';
@@ -202,7 +203,14 @@ export function createApp({
   app.use(cookieParser());
   app.use(express.json({ limit: '32kb', strict: true }));
   app.use(requireJsonForBody);
-  app.use('/api/v1/admin', requireTrustedOrigin, loadAdminSession, requireAdminCsrf, createAdminAuthRouter());
+  app.use(
+    '/api/v1/admin',
+    requireTrustedOrigin,
+    loadAdminSession,
+    requireAdminCsrf,
+    createAdminAuthRouter(),
+    createAdminOperationsRouter()
+  );
   app.use('/api/v1', requireTrustedOrigin, loadSession, preventPrivateResponseCaching, requireCsrf);
 
   app.use('/api/v1/health', createHealthRouter());

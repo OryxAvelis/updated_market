@@ -413,7 +413,7 @@ async function renderCheckout({ fromRetry = false } = {}) {
     if (checkoutSessionExpired || requestSequence !== checkoutCartRequestSequence ||
         (authenticated && !isAuthenticatedRequestCurrent(authContext))) return false;
     if (authenticated) {
-      cart = cartFromApi(payload);
+      cart = adoptAuthenticatedCart(payload);
       updateBadges();
     }
     checkoutCartSnapshot = serverCart;
@@ -716,7 +716,7 @@ async function placeOrder(event) {
         note: $('cNote').value.trim() || null
       }, { idempotencyKey: checkoutIdempotencyKey });
       if (checkoutSessionExpired || !isAuthenticatedRequestCurrent(authContext)) return;
-      cart = [];
+      cart = adoptAuthenticatedCartState([]);
       updateBadges();
     } else {
       const input = guestOrderInput();

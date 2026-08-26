@@ -141,9 +141,7 @@
   const API_PAGE_SIZE = 100;
   const MAX_API_PAGES = 30;
   const LOCAL_STATES = ['in', 'low', 'out', 'not-tracked'];
-  const STORAGE_KEY = AdminCore.keys?.inventory === 'am_admin_inventory_v1'
-    ? AdminCore.keys.inventory
-    : 'am_admin_inventory_v1';
+  let storageKey = 'am_admin_inventory_v1';
 
   let catalogProducts = [];
   let catalogTotalCount = 0;
@@ -160,7 +158,7 @@
   const normalized = value => clean(value).toLocaleLowerCase();
 
   function readOverrides() {
-    const value = AdminCore.read(STORAGE_KEY, {});
+    const value = AdminCore.read(storageKey, {});
     overrides = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   }
 
@@ -525,7 +523,7 @@
       return;
     }
 
-    const result = AdminCore.write(STORAGE_KEY, nextOverrides);
+    const result = AdminCore.write(storageKey, nextOverrides);
     if (result === undefined) {
       error.textContent = t('admin_inventory_store_failed');
       AdminCore.setBusy(saveButton, false);
@@ -543,6 +541,9 @@
   function init() {
     if (initialized) return;
     initialized = true;
+    storageKey = AdminCore.keys?.inventory === 'am_admin_inventory_v1'
+      ? AdminCore.keys.inventory
+      : 'am_admin_inventory_v1';
     applyI18n(document);
     readOverrides();
 
@@ -599,7 +600,7 @@
     renderInventory();
   });
   window.addEventListener('storage', event => {
-    if (!initialized || event.key !== STORAGE_KEY) return;
+    if (!initialized || event.key !== storageKey) return;
     readOverrides();
     renderInventory();
   });

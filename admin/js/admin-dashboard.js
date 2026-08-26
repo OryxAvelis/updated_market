@@ -1,10 +1,14 @@
-/** AM MARKET admin dashboard: device order data + existing read-only catalog. */
+/** AM MARKET admin dashboard: database order/customer data + read-only catalog. */
 Object.assign(I18N.en, {
-  admin_workspace_label: 'Administration workspace'
+  admin_workspace_label: 'Administration workspace',
+  admin_dashboard_customer_order_fallback: 'Unique customers from the latest database orders',
+  admin_dashboard_customer_unavailable: 'Customer directory temporarily unavailable'
 });
 
 Object.assign(I18N.fr, {
-  admin_workspace_label: 'Espace d’administration'
+  admin_workspace_label: 'Espace d’administration',
+  admin_dashboard_customer_order_fallback: 'Clients uniques d’après les dernières commandes en base',
+  admin_dashboard_customer_unavailable: 'Annuaire clients temporairement indisponible'
 });
 
 (() => {
@@ -26,10 +30,7 @@ Object.assign(I18N.fr, {
   }
 
   function validOrders() {
-    const value = AdminCore.read(AdminCore.storageKeys.orders, []);
-    return Array.isArray(value)
-      ? value.filter(order => order && order.id != null && Array.isArray(order.items))
-      : [];
+    return AdminCore.getOrders().filter(order => order && order.id != null && Array.isArray(order.items));
   }
 
   function productOverlay() {
@@ -192,38 +193,48 @@ Object.assign(I18N.fr, {
     AdminCore.state(document.getElementById('adminCatalogSnapshot'), { type: 'loading', title: translate('admin_loading'), body: translate('admin_loading_body') });
   }
 
-  function sourceNotice() {
+  function sourceNotice(data) {
     const container = document.getElementById('adminDashboardSource');
     if (!container) return;
+    if (data.ordersError) {
+      container.innerHTML = `
+        <div class="admin-inline-notice">
+          <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+          <div><strong>${escape(translate('admin_error'))}</strong><p>${escape(translate('admin_database_unavailable'))}</p></div>
+        </div>`;
+      return;
+    }
     const titleKey = 'admin_dashboard_local_banner_title';
     const bodyKey = 'admin_dashboard_local_banner';
     container.innerHTML = `
       <div class="admin-inline-notice">
-        <i class="fa-solid fa-hard-drive" aria-hidden="true"></i>
+        <i class="fa-solid fa-database" aria-hidden="true"></i>
         <div><strong data-i18n="${titleKey}">${escape(translate(titleKey))}</strong><p data-i18n="${bodyKey}">${escape(translate(bodyKey))}</p></div>
       </div>`;
   }
 
   function renderMetrics(data) {
-    const { orders, catalog, catalogError } = data;
+    const { orders, customers, catalog, catalogError, ordersError } = data;
     const productSummary = productStatusSummary(catalog);
     const sales = orders
       .filter(order => normalizeStatus(order.status) !== 'cancelled')
       .reduce((sum, order) => sum + orderTotal(order), 0);
     const orderCount = orders.length;
-    const customers = uniqueCustomerCount(orders);
+    const customerCount = data.customersError ? uniqueCustomerCount(orders) : customers.length;
     const source = orders.length
       ? translate('admin_dashboard_local_orders')
       : translate('admin_dashboard_no_orders');
 
-    document.getElementById('adminMetricSales').textContent = money(sales);
-    document.getElementById('adminMetricOrders').textContent = formatCount(orderCount);
-    document.getElementById('adminMetricCustomers').textContent = formatCount(customers);
-    document.getElementById('adminMetricSalesNote').textContent = source;
-    document.getElementById('adminMetricOrdersNote').textContent = source;
-    document.getElementById('adminMetricCustomersNote').textContent = orders.length
-      ? translate('admin_dashboard_unique_customers')
-      : translate('admin_dashboard_no_orders');
+    document.getElementById('adminMetricSales').textContent = ordersError ? '—' : money(sales);
+    document.getElementById('adminMetricOrders').textContent = ordersError ? '—' : formatCount(orderCount);
+    document.getElementById('adminMetricCustomers').textContent = data.customersError && ordersError ? '—' : formatCount(customerCount);
+    document.getElementById('adminMetricSalesNote').textContent = ordersError ? translate('admin_database_unavailable') : source;
+    document.getElementById('adminMetricOrdersNote').textContent = ordersError ? translate('admin_database_unavailable') : source;
+    document.getElementById('adminMetricCustomersNote').textContent = data.customersError
+      ? (ordersError || !orders.length
+        ? translate('admin_dashboard_customer_unavailable')
+        : translate('admin_dashboard_customer_order_fallback'))
+      : translate('admin_dashboard_unique_customers');
     document.getElementById('adminMetricProducts').textContent = catalogError ? '—' : formatCount(productSummary.total);
     document.getElementById('adminMetricProductsNote').textContent = catalogError ? translate('admin_not_available') : translate('admin_dashboard_catalog_total');
   }
@@ -232,6 +243,12 @@ Object.assign(I18N.fr, {
     const container = document.getElementById('adminSalesChart');
     const badge = document.getElementById('adminSalesChartBadge');
     const subtitle = document.getElementById('adminSalesChartSubtitle');
+    if (data.ordersError) {
+      AdminCore.state(container, { type: 'error', title: translate('admin_error'), body: translate('admin_database_unavailable') });
+      badge.textContent = translate('admin_not_available');
+      subtitle.textContent = translate('admin_database_unavailable');
+      return;
+    }
     const series = monthSeries(data.orders);
     const values = series.map(point => point.value);
     const maximum = Math.max(...values, 1);
@@ -272,6 +289,12 @@ Object.assign(I18N.fr, {
     const container = document.getElementById('adminStatusChart');
     const badge = document.getElementById('adminStatusChartBadge');
     const subtitle = document.getElementById('adminStatusChartSubtitle');
+    if (data.ordersError) {
+      AdminCore.state(container, { type: 'error', title: translate('admin_error'), body: translate('admin_database_unavailable') });
+      badge.textContent = translate('admin_not_available');
+      subtitle.textContent = translate('admin_database_unavailable');
+      return;
+    }
     const counts = statusCounts(data.orders);
     const order = ['processing', 'confirmed', 'preparing', 'shipping', 'delivered', 'cancelled', 'other'];
     const entries = order.filter(status => counts[status] > 0).map(status => [status, counts[status]]);
@@ -304,6 +327,10 @@ Object.assign(I18N.fr, {
   function renderRecentOrders(data) {
     const container = document.getElementById('adminRecentOrders');
     if (!container) return;
+    if (data.ordersError) {
+      AdminCore.state(container, { type: 'error', title: translate('admin_error'), body: translate('admin_database_unavailable') });
+      return;
+    }
     if (!data.orders.length) {
       AdminCore.state(container, {
         type: 'empty',
@@ -380,7 +407,7 @@ Object.assign(I18N.fr, {
   }
 
   function render(data) {
-    sourceNotice();
+    sourceNotice(data);
     renderMetrics(data);
     renderSalesChart(data);
     renderStatusChart(data);
@@ -393,7 +420,9 @@ Object.assign(I18N.fr, {
     const refresh = document.getElementById('adminDashboardRefresh');
     if (refresh) AdminCore.setBusy(refresh, true, translate('admin_dashboard_refreshing'));
     setLoading();
+    if (announce) await AdminCore.refreshLiveData({ includeCustomers: true });
     const orders = validOrders();
+    const customers = AdminCore.getCustomers();
     let catalog = null;
     let catalogError = null;
     try {
@@ -403,10 +432,20 @@ Object.assign(I18N.fr, {
       catalog = { total: 0, products: [], categories: [], complete: false };
     }
     if (sequence !== loadSequence) return;
-    currentData = { orders, catalog, catalogError };
+    currentData = {
+      orders,
+      customers,
+      catalog,
+      catalogError,
+      ordersError: AdminCore.dataError('orders'),
+      customersError: AdminCore.dataError('customers')
+    };
     render(currentData);
     if (refresh) AdminCore.setBusy(refresh, false);
-    if (announce) AdminCore.toast(translate('admin_dashboard_refreshed'), catalogError ? 'warning' : 'success');
+    if (announce) {
+      const partialFailure = Boolean(catalogError || currentData.ordersError || currentData.customersError);
+      AdminCore.toast(translate('admin_dashboard_refreshed'), partialFailure ? 'warning' : 'success');
+    }
   }
 
   window.addEventListener('admin:ready', () => {
@@ -419,7 +458,4 @@ Object.assign(I18N.fr, {
     else setLoading();
   });
 
-  window.addEventListener('storage', event => {
-    if (event.key === AdminCore.storageKeys.orders) loadDashboard();
-  });
 })();

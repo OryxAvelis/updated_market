@@ -160,6 +160,7 @@
       wishlist = [];
       orders = [];
     }
+    resetAuthenticatedCommerceSyncState();
     accountNotifications = [];
     authenticatedRecent = [];
     authenticatedSearches = [];
@@ -806,12 +807,12 @@
     }
 
     try {
-      cart = cartFromApi(await guardedAuth(StoreAPI.cart.get()));
+      cart = adoptAuthenticatedCart(await guardedAuth(StoreAPI.cart.get()));
       updateBadges();
       if (cart.length === 0) return;
     } catch (reconcileError) {
       if (!clearError) {
-        cart = [];
+        cart = adoptAuthenticatedCartState([]);
         updateBadges();
       }
       throw incompleteClearError([clearError, reconcileError]);
@@ -821,7 +822,7 @@
 
   async function clearWishlistData() {
     const payload = await guardedAuth(StoreAPI.wishlist.get());
-    wishlist = wishlistFromApi(payload);
+    wishlist = adoptAuthenticatedWishlist(payload);
     updateBadges();
     const targetIds = [...new Set((payload.items || []).map((item) => String(item.productId)))];
     const confirmedRemoved = new Set();
@@ -838,11 +839,13 @@
 
     try {
       const current = await guardedAuth(StoreAPI.wishlist.get());
-      wishlist = wishlistFromApi(current);
+      wishlist = adoptAuthenticatedWishlist(current);
       updateBadges();
       if (wishlist.length === 0) return;
     } catch (error) {
-      wishlist = wishlist.filter((productId) => !confirmedRemoved.has(String(productId)));
+      wishlist = adoptAuthenticatedWishlistState(
+        wishlist.filter((productId) => !confirmedRemoved.has(String(productId)))
+      );
       updateBadges();
       failures.push(error);
     }

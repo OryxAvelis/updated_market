@@ -1,36 +1,36 @@
 /**
  * AM MARKET admin analytics.
- * Uses the orders available on this device and renders honest empty states.
+ * Uses authenticated MySQL-backed orders and renders honest error/empty states.
  */
 Object.assign(I18N.en, {
   title_admin_analytics: 'Analytics — AM MARKET Admin',
   admin_insights: 'Insights',
   admin_analytics_title: 'Analytics',
-  admin_analytics_intro: 'Review order activity available on this device for the selected period.',
+  admin_analytics_intro: 'Review database order activity for the selected period.',
   admin_period: 'Period',
   admin_last_7_days: 'Last 7 days',
   admin_last_30_days: 'Last 30 days',
   admin_last_90_days: 'Last 90 days',
-  admin_all_time: 'All time',
+  admin_all_time: 'All loaded orders',
   admin_analytics_metrics: 'Analytics metrics',
-  admin_sales_trend: 'Sales trend',
-  admin_sales_trend_sub: 'Order totals grouped across the selected period.',
+  admin_sales_trend: 'Gross order value trend',
+  admin_sales_trend_sub: 'Non-cancelled order totals before payment settlement or refunds.',
   admin_orders_by_status: 'Orders by status',
   admin_orders_by_status_sub: 'Distribution of the selected order data.',
   admin_best_sellers: 'Best sellers',
   admin_best_sellers_sub: 'Ranked by units in the selected order data.',
   admin_loading: 'Loading…',
-  admin_local_analytics_source: 'Showing orders available on this device for the selected period.',
+  admin_local_analytics_source: 'Showing the latest database orders; value metrics exclude cancellations and are gross before settlement or refunds.',
   admin_empty_analytics_source: 'No orders match the selected period. Metrics show zero and charts remain empty.',
   admin_empty_data: 'No matching orders',
-  admin_local_data: 'Device order data',
-  admin_sales: 'Sales',
+  admin_local_data: 'Live database data',
+  admin_sales: 'Gross order value',
   admin_orders_metric: 'Orders',
   admin_average_order_value: 'Average order value',
   admin_top_product: 'Top product',
   admin_no_product: 'No product',
   admin_units: '{n} units',
-  admin_revenue: 'Revenue',
+  admin_revenue: 'Gross item value',
   admin_product: 'Product',
   admin_quantity: 'Quantity',
   admin_status_processing: 'Processing',
@@ -38,9 +38,10 @@ Object.assign(I18N.en, {
   admin_status_preparing: 'Preparing',
   admin_status_shipping: 'On the way',
   admin_status_delivered: 'Delivered',
-  admin_sales_chart_label: 'Sales over time',
+  admin_sales_chart_label: 'Gross non-cancelled order value over time',
   admin_status_chart_label: 'Orders grouped by status',
   admin_metric_source_local: 'Calculated from selected orders',
+  admin_analytics_unavailable: 'Database analytics are temporarily unavailable.',
   admin_no_orders_period_title: 'No orders for this period',
   admin_no_orders_period_body: 'Choose a wider period or wait for new orders to appear.'
 });
@@ -49,31 +50,31 @@ Object.assign(I18N.fr, {
   title_admin_analytics: 'Analyses — Administration AM MARKET',
   admin_insights: 'Analyses',
   admin_analytics_title: 'Analyses',
-  admin_analytics_intro: 'Consultez l’activité des commandes disponible sur cet appareil pour la période choisie.',
+  admin_analytics_intro: 'Consultez l’activité des commandes de la base pour la période choisie.',
   admin_period: 'Période',
   admin_last_7_days: '7 derniers jours',
   admin_last_30_days: '30 derniers jours',
   admin_last_90_days: '90 derniers jours',
-  admin_all_time: 'Toute la période',
+  admin_all_time: 'Toutes les commandes chargées',
   admin_analytics_metrics: 'Indicateurs analytiques',
-  admin_sales_trend: 'Évolution des ventes',
-  admin_sales_trend_sub: 'Totaux des commandes regroupés sur la période sélectionnée.',
+  admin_sales_trend: 'Évolution de la valeur brute',
+  admin_sales_trend_sub: 'Totaux des commandes non annulées avant règlement ou remboursement.',
   admin_orders_by_status: 'Commandes par statut',
   admin_orders_by_status_sub: 'Répartition des commandes sélectionnées.',
   admin_best_sellers: 'Meilleures ventes',
   admin_best_sellers_sub: 'Classement par unités dans les commandes sélectionnées.',
   admin_loading: 'Chargement…',
-  admin_local_analytics_source: 'Affichage des commandes disponibles sur cet appareil pour la période choisie.',
+  admin_local_analytics_source: 'Affichage des dernières commandes en base ; les valeurs excluent les annulations et restent brutes avant règlement ou remboursement.',
   admin_empty_analytics_source: 'Aucune commande ne correspond à la période choisie. Les indicateurs sont à zéro et les graphiques restent vides.',
   admin_empty_data: 'Aucune commande correspondante',
-  admin_local_data: 'Commandes de cet appareil',
-  admin_sales: 'Ventes',
+  admin_local_data: 'Données de la base en direct',
+  admin_sales: 'Valeur brute des commandes',
   admin_orders_metric: 'Commandes',
   admin_average_order_value: 'Panier moyen',
   admin_top_product: 'Meilleur produit',
   admin_no_product: 'Aucun produit',
   admin_units: '{n} unités',
-  admin_revenue: 'Chiffre',
+  admin_revenue: 'Valeur brute des articles',
   admin_product: 'Produit',
   admin_quantity: 'Quantité',
   admin_status_processing: 'En cours',
@@ -81,9 +82,10 @@ Object.assign(I18N.fr, {
   admin_status_preparing: 'En préparation',
   admin_status_shipping: 'En livraison',
   admin_status_delivered: 'Livrée',
-  admin_sales_chart_label: 'Ventes dans le temps',
+  admin_sales_chart_label: 'Valeur brute des commandes non annulées dans le temps',
   admin_status_chart_label: 'Commandes regroupées par statut',
   admin_metric_source_local: 'Calculé depuis les commandes sélectionnées',
+  admin_analytics_unavailable: 'Les analyses de la base sont temporairement indisponibles.',
   admin_no_orders_period_title: 'Aucune commande pour cette période',
   admin_no_orders_period_body: 'Choisissez une période plus large ou attendez de nouvelles commandes.'
 });
@@ -101,7 +103,7 @@ function selectedPeriodOrders(orderList) {
 }
 
 function analyticsDataset() {
-  const available = (Array.isArray(orders) ? orders : []).filter(order => {
+  const available = AdminCore.getOrders().filter(order => {
     const timestamp = Date.parse(order?.date);
     return order && Array.isArray(order.items) && Number.isFinite(timestamp);
   });
@@ -128,7 +130,9 @@ function aggregateProducts(dataset) {
   const products = new Map();
   dataset.forEach(order => {
     (order.items || []).forEach(item => {
-      const key = String(item.id ?? item.nameKey ?? item.name ?? 'unknown');
+      // The API item id identifies one order line. productId is the stable
+      // catalog identity needed to aggregate the same product across orders.
+      const key = String(item.productId ?? item.id ?? item.nameKey ?? item.name ?? 'unknown');
       const current = products.get(key) || { name: productName(item), qty: 0, revenue: 0 };
       const qty = Math.max(0, Number(item.qty) || 0);
       current.name = productName(item);
@@ -267,6 +271,18 @@ function renderBestSellers(dataset) {
 }
 
 function renderAnalytics() {
+  if (AdminCore.dataError('orders')) {
+    const message = t('admin_analytics_unavailable');
+    document.getElementById('analyticsSourceNote').innerHTML = `<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span>${AdminCore.escape(message)}</span><strong>${AdminCore.escape(t('admin_not_available'))}</strong>`;
+    document.getElementById('analyticsMetrics').innerHTML = [
+      ['coins', 'admin_sales'], ['bag-shopping', 'admin_orders_metric'],
+      ['chart-line', 'admin_average_order_value'], ['basket-shopping', 'admin_top_product']
+    ].map(([icon, label]) => `<article class="admin-metric-card"><span class="admin-metric-icon"><i class="fa-solid fa-${icon}" aria-hidden="true"></i></span><div><p>${AdminCore.escape(t(label))}</p><strong>—</strong><small>${AdminCore.escape(message)}</small></div></article>`).join('');
+    ['salesTrendChart', 'orderStatusChart', 'bestSellersList'].forEach(id => {
+      AdminCore.state(document.getElementById(id), { type: 'error', title: t('admin_error'), body: message });
+    });
+    return;
+  }
   const dataset = analyticsDataset();
   const note = document.getElementById('analyticsSourceNote');
   note.innerHTML = `<i class="fa-solid fa-${analyticsIsEmpty ? 'circle-info' : 'database'}" aria-hidden="true"></i><span>${t(analyticsIsEmpty ? 'admin_empty_analytics_source' : 'admin_local_analytics_source')}</span><strong>${t(analyticsIsEmpty ? 'admin_empty_data' : 'admin_local_data')}</strong>`;

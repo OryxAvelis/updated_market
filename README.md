@@ -79,7 +79,9 @@ A plain static preview can still browse the public product and category catalog:
 
 ## Password-reset email
 
-Set the `SMTP_*` variables described in `server/.env.example` through the deployment secret manager. A reset request always returns the same generic response. Tokens are random, short-lived, stored only as digests, usable once, and revoked if delivery fails. Without SMTP credentials the reset route remains safe, but no email can be delivered.
+Set `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, and `RESEND_FROM` through the deployment secret manager to deliver password resets over Resend's HTTPS API. The sender must use a domain verified in the Resend account. Self-hosted environments can instead set `EMAIL_PROVIDER=smtp` and the `SMTP_*` variables described in `server/.env.example`. Configure only one provider.
+
+A reset request always returns the same generic response. Tokens are random, short-lived, stored only as digests, usable once, and revoked if delivery times out, is rejected, or otherwise fails. Without a configured provider the route remains safe, but no email can be delivered. API keys, SMTP passwords, and sender-domain credentials must never be committed or logged.
 
 ## Tests
 
@@ -106,11 +108,11 @@ Use `server/deploy/Caddyfile.example` as the TLS edge template and follow `serve
 
 ### Free Render and Aiven preview
 
-The repository-level `render.yaml` deploys the existing Node.js storefront as one free Render web service in Frankfurt. Render supplies the public HTTPS origin and port at runtime; the application trusts exactly one Render proxy hop and keeps `Secure`, `HttpOnly` authentication cookies enabled. The free instance can sleep and therefore runs with the in-process low-stock evaluator disabled.
+The repository-level `render.yaml` deploys the existing Node.js storefront as one free Render web service in Frankfurt. Render supplies the public HTTPS origin and port at runtime; the application trusts exactly one Render proxy hop and keeps `Secure`, `HttpOnly` authentication cookies enabled. The in-process low-stock evaluator is enabled while the free instance is awake; evaluation pauses whenever Render sleeps the service and resumes after it wakes.
 
 Use an external Aiven for MySQL service and enter its host, port, application password, and TLS hostname only when Render prompts for the `sync: false` variables. Upload Aiven's CA certificate as the Render secret file `aiven-ca.pem`; it is exposed only at `/etc/secrets/aiven-ca.pem` and is never committed. Apply migrations from a trusted local machine with the separate database administrator credentials before the first deployment. Do not give the running Render service the database administrator password.
 
-Render derives `APP_ORIGIN`, `ALLOWED_ORIGINS`, and `PASSWORD_RESET_URL` from its trusted `RENDER_EXTERNAL_URL`. If a custom domain is added later, set those three variables explicitly to the custom HTTPS origin. Render free services block SMTP ports, so password-reset delivery must use a supported HTTPS mail provider before it can send production email.
+Render derives `APP_ORIGIN`, `ALLOWED_ORIGINS`, and `PASSWORD_RESET_URL` from its trusted `RENDER_EXTERNAL_URL`. If a custom domain is added later, set those three variables explicitly to the custom HTTPS origin. The blueprint uses the built-in Resend HTTPS adapter because Render free services block SMTP ports. When Render prompts, provide a sending-only `RESEND_API_KEY` and a `RESEND_FROM` sender on a verified domain; both values remain outside Git.
 
 Database details and invariants are documented in `server/docs/database.md`.
 
@@ -118,6 +120,6 @@ Database details and invariants are documented in `server/docs/database.md`.
 
 - Card entry is disabled until a PCI-compliant payment provider is connected; the application never collects card details itself.
 - Guest order detail and tracking require the server-issued token retained by the current tab and remain available only until its configured expiry (30 days by default); closing the tab can end local access sooner. Guest cancellation, returns and cross-device history require a customer account or support workflow.
-- Password-reset delivery requires production SMTP credentials.
+- Password-reset delivery requires a configured HTTPS email provider on Render (or SMTP credentials on a host that permits SMTP).
 - Finite inventory reservation and low-stock evaluation are exact only when the upstream product payload includes `stock_quantity`; availability-only products remain orderable but cannot have a mathematical oversell guarantee without an upstream quantity.
 - Carrier-specific tracking locations and delivery progress require the configured fulfillment integration to send authenticated status updates.

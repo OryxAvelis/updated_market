@@ -20,9 +20,9 @@
         <div>
           <p class="admin-page-eyebrow" data-i18n="admin_orders_kicker">Order operations</p>
           <h1 id="adminOrdersTitle" class="admin-page-title" data-i18n="admin_orders_title">Orders</h1>
-          <p class="admin-page-intro" data-i18n="admin_orders_intro">Review orders available on this device and update their workflow status.</p>
+          <p class="admin-page-intro" data-i18n="admin_orders_intro">Review database orders and update their workflow status.</p>
         </div>
-        <span class="admin-badge admin-local-badge"><i class="fa-solid fa-laptop" aria-hidden="true"></i> <span data-i18n="admin_local_only">Data on this device</span></span>
+        <span class="admin-badge admin-local-badge"><i class="fa-solid fa-database" aria-hidden="true"></i> <span data-i18n="admin_local_only">Live database</span></span>
       </header>
 
       <div class="admin-orders-toolbar" role="search">
@@ -37,11 +37,11 @@
           <label class="admin-form-label" for="adminOrderStatus" data-i18n="admin_orders_filter_label">Status</label>
           <select id="adminOrderStatus" class="admin-select">
             <option value="all" data-i18n="admin_orders_all_statuses">All statuses</option>
-            <option value="Processing" data-i18n="admin_status_processing">Processing</option>
             <option value="Confirmed" data-i18n="admin_status_confirmed">Confirmed</option>
             <option value="Preparing" data-i18n="admin_status_preparing">Preparing</option>
             <option value="Shipping" data-i18n="admin_status_shipping">Shipping</option>
             <option value="Delivered" data-i18n="admin_status_delivered">Delivered</option>
+            <option value="Cancelled" data-i18n="admin_status_cancelled">Cancelled</option>
           </select>
         </div>
         <button class="admin-button admin-button--secondary admin-orders-clear" id="adminOrdersClear" type="button">
@@ -52,17 +52,17 @@
 
       <div class="admin-list-summary">
         <p id="adminOrdersCount" aria-live="polite"></p>
-        <p class="admin-local-note" data-i18n="admin_orders_local_note">Status changes are saved on this device and are not sent to the server.</p>
+        <p class="admin-local-note" data-i18n="admin_orders_local_note">Status changes are validated and saved to the AM MARKET database.</p>
       </div>
 
       <div id="adminOrdersState" class="admin-list-state" role="status" aria-live="polite">
         <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
-        <span data-i18n="admin_orders_loading">Loading orders from this device…</span>
+        <span data-i18n="admin_orders_loading">Loading database orders…</span>
       </div>
 
       <div id="adminOrdersTableWrap" class="admin-table-wrap" hidden>
         <table class="admin-table admin-orders-table">
-          <caption class="visually-hidden" data-i18n="admin_orders_table_caption">Orders available on this device</caption>
+          <caption class="visually-hidden" data-i18n="admin_orders_table_caption">Database order list</caption>
           <thead>
             <tr>
               <th scope="col" data-i18n="admin_orders_col_order">Order</th>
@@ -94,11 +94,11 @@
         <div class="admin-field">
           <label class="admin-form-label" for="adminOrderStatusEdit"><span data-i18n="admin_orders_new_status">New status</span> <span class="admin-required" aria-hidden="true">*</span></label>
           <select id="adminOrderStatusEdit" class="admin-select" required>
-            <option value="Processing" data-i18n="admin_status_processing">Processing</option>
             <option value="Confirmed" data-i18n="admin_status_confirmed">Confirmed</option>
             <option value="Preparing" data-i18n="admin_status_preparing">Preparing</option>
             <option value="Shipping" data-i18n="admin_status_shipping">Shipping</option>
             <option value="Delivered" data-i18n="admin_status_delivered">Delivered</option>
+            <option value="Cancelled" data-i18n="admin_status_cancelled">Cancelled</option>
           </select>
           <p id="adminOrderStatusError" class="admin-field-error" role="alert"></p>
         </div>
@@ -106,7 +106,7 @@
           <button id="adminOrderStatusCancel" class="admin-button admin-button--secondary" type="button" data-i18n="admin_cancel">Cancel</button>
           <button id="adminOrderStatusSave" class="admin-button admin-button--primary" type="submit">
             <i class="fa-solid fa-rotate" aria-hidden="true"></i>
-            <span data-i18n="admin_orders_update_status">Update status on this device</span>
+            <span data-i18n="admin_orders_update_status">Update order status</span>
           </button>
         </div>
       </form>

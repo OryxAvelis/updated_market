@@ -32,6 +32,14 @@ services:
         sync: false
       - key: LOW_STOCK_EVALUATOR_ENABLED
         value: "true"
+      - key: EMAIL_PROVIDER
+        value: resend
+      - key: EMAIL_HTTP_TIMEOUT_MS
+        value: "8000"
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM
+        sync: false
       - key: LOCAL_DEV_LOGIN
         value: "false"
       - key: HSTS_MAX_AGE_SECONDS

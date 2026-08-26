@@ -164,6 +164,13 @@ async function getOrder(database, userId, publicId) {
        FROM order_tracking_events WHERE order_id = ? ORDER BY occurred_at, id`,
     [order.id]
   );
+  const [returns] = await database.execute(
+    `SELECT public_id, status, reason_code, details, requested_at, updated_at
+       FROM return_requests
+      WHERE order_id = ? AND user_id = ?
+      ORDER BY requested_at, id`,
+    [order.id, userId]
+  );
   const returnWindow = returnWindowMetadata(order.status, order.delivered_at);
   return {
     id: order.public_id,
@@ -210,6 +217,14 @@ async function getOrder(database, userId, publicId) {
       source: event.source,
       location: event.location,
       occurredAt: orderDateToIso(event.occurred_at)
+    })),
+    returns: returns.map((request) => ({
+      id: request.public_id,
+      status: request.status,
+      reason: request.reason_code,
+      details: request.details,
+      requestedAt: orderDateToIso(request.requested_at),
+      updatedAt: orderDateToIso(request.updated_at)
     }))
   };
 }

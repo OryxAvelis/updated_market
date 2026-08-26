@@ -30,6 +30,15 @@ const ORDER_STATUS_COPY = Object.freeze({
   cancelled: ['Cancelled', 'Annulée']
 });
 
+const RETURN_STATUS_COPY = Object.freeze({
+  requested: ['Requested', 'Demandé'],
+  approved: ['Approved', 'Approuvé'],
+  rejected: ['Rejected', 'Refusé'],
+  received: ['Received', 'Reçu'],
+  refunded: ['Refunded', 'Remboursé'],
+  cancelled: ['Cancelled', 'Annulé']
+});
+
 const TRACKING_MESSAGE_COPY = Object.freeze({
   order_confirmed: ['Your order has been confirmed.', 'Votre commande a été confirmée.'],
   order_preparing: ['Your order is being prepared.', 'Votre commande est en cours de préparation.'],
@@ -137,7 +146,7 @@ function cartQuantities(payload) {
 }
 
 function applyAuthoritativeCart(payload) {
-  cart = cartFromApi(payload);
+  cart = adoptAuthenticatedCart(payload);
   updateBadges();
 }
 
@@ -437,28 +446,53 @@ async function discardBlockedReorderRecovery(orderId, button) {
   }
 }
 
-function returnProgressFor(orderId) {
-  return submittedReturns.get(orderId) || { ids: [], quantities: new Map() };
+function returnProgressFor(order) {
+  const optimistic = submittedReturns.get(order.id) || { submissions: new Map() };
+  const persisted = Array.isArray(order.returns)
+    ? order.returns.filter(request => typeof request?.id === 'string' && request.id.trim())
+    : [];
+  const persistedIds = new Set(persisted.map(request => request.id));
+  const summaries = new Map();
+  optimistic.submissions.forEach((submission, id) => summaries.set(id, submission.summary));
+  persisted.forEach(request => summaries.set(request.id, request));
+  const ids = persisted.map(request => request.id);
+  const quantities = new Map();
+  const unresolvedSubmissions = new Map();
+  optimistic.submissions.forEach((submission, id) => {
+    if (persistedIds.has(id)) return;
+    unresolvedSubmissions.set(id, submission);
+    ids.push(id);
+    submission.quantities.forEach((quantity, itemId) => {
+      quantities.set(itemId, (quantities.get(itemId) || 0) + quantity);
+    });
+  });
+  if (unresolvedSubmissions.size !== optimistic.submissions.size) {
+    if (unresolvedSubmissions.size) submittedReturns.set(order.id, { submissions: unresolvedSubmissions });
+    else submittedReturns.delete(order.id);
+  }
+  return { ids, quantities, summaries };
 }
 
 function remainingReturnQuantity(order, item) {
   const authoritativeReturned = Math.max(0, Number(item.returnedQuantity) || 0);
-  const optimisticReturnedFloor = returnProgressFor(order.id).quantities.get(item.id) || 0;
-  const returned = Math.max(authoritativeReturned, optimisticReturnedFloor);
+  const optimisticReturned = returnProgressFor(order).quantities.get(item.id) || 0;
+  const returned = authoritativeReturned + optimisticReturned;
   return Math.max(0, Number(item.quantity || 0) - returned);
 }
 
-function recordSubmittedReturn(order, returnId, items) {
-  const current = returnProgressFor(order.id);
-  const quantities = new Map(current.quantities);
+function recordSubmittedReturn(order, returnRequest, items) {
+  const returnId = typeof returnRequest?.id === 'string' ? returnRequest.id.trim() : '';
+  if (!returnId) return;
+  const current = submittedReturns.get(order.id) || { submissions: new Map() };
+  const submissions = new Map(current.submissions);
+  const quantities = new Map();
   items.forEach(item => {
     const source = order.items.find(orderItem => orderItem.id === item.orderItemId);
     if (!source) return;
-    const authoritativeReturned = Math.max(0, Number(source.returnedQuantity) || 0);
-    const priorReturnedFloor = Math.max(authoritativeReturned, quantities.get(source.id) || 0);
-    quantities.set(source.id, priorReturnedFloor + item.quantity);
+    quantities.set(source.id, (quantities.get(source.id) || 0) + item.quantity);
   });
-  submittedReturns.set(order.id, { ids: [...current.ids, returnId], quantities });
+  submissions.set(returnId, { summary: returnRequest, quantities });
+  submittedReturns.set(order.id, { submissions });
 }
 
 function returnPayloadSignature(payload) {
@@ -494,6 +528,30 @@ function statusLabel(status) {
   const copy = ORDER_STATUS_COPY[normalized];
   if (copy) return getLang() === 'fr' ? copy[1] : copy[0];
   return normalized.replace(/[_-]+/g, ' ').replace(/^./, letter => letter.toUpperCase());
+}
+
+function returnStatusLabel(status) {
+  const normalized = String(status || '').toLowerCase();
+  const copy = RETURN_STATUS_COPY[normalized];
+  if (copy) return getLang() === 'fr' ? copy[1] : copy[0];
+  return normalized.replace(/[_-]+/g, ' ').replace(/^./, letter => letter.toUpperCase());
+}
+
+function returnStatusPresentation(status) {
+  const normalized = String(status || 'requested').toLowerCase();
+  const presentations = {
+    requested: { alertClass: 'alert-success', icon: 'fa-circle-check', heading: orderCopy('Return requested', 'Retour demandé') },
+    approved: { alertClass: 'alert-info', icon: 'fa-circle-info', heading: orderCopy('Return approved', 'Retour approuvé') },
+    received: { alertClass: 'alert-info', icon: 'fa-circle-info', heading: orderCopy('Return received', 'Retour reçu') },
+    refunded: { alertClass: 'alert-success', icon: 'fa-circle-check', heading: orderCopy('Return refunded', 'Retour remboursé') },
+    rejected: { alertClass: 'alert-warning', icon: 'fa-circle-exclamation', heading: orderCopy('Return rejected', 'Retour refusé') },
+    cancelled: { alertClass: 'alert-secondary', icon: 'fa-circle-info', heading: orderCopy('Return cancelled', 'Retour annulé') }
+  };
+  return presentations[normalized] || {
+    alertClass: 'alert-info',
+    icon: 'fa-circle-info',
+    heading: orderCopy('Return update', 'Mise à jour du retour')
+  };
 }
 
 function formatOrderDate(value, includeTime = false) {
@@ -766,7 +824,7 @@ async function submitReturn(order, form) {
     if (!returnId) {
       throw Object.assign(new Error('The return response did not include a valid return ID.'), { code: 'INVALID_RESPONSE' });
     }
-    recordSubmittedReturn(order, returnId, items);
+    recordSubmittedReturn(order, result.return, items);
     // A resolved response confirms this logical return. A later return for any
     // remaining quantities must start with a fresh key.
     returnDraftAttempts.delete(order.id);
@@ -817,16 +875,20 @@ async function submitReturn(order, form) {
 }
 
 function returnPanel(order) {
-  if (order.returnEligible !== true) return '';
-  const progress = returnProgressFor(order.id);
+  const progress = returnProgressFor(order);
   const latestReturnId = progress.ids.at(-1);
+  if (order.returnEligible !== true && !latestReturnId) return '';
+  const latestReturn = latestReturnId ? progress.summaries.get(latestReturnId) : null;
+  const latestStatus = latestReturn?.status ? returnStatusLabel(latestReturn.status) : returnStatusLabel('requested');
+  const presentation = returnStatusPresentation(latestReturn?.status);
   const remainingItems = order.items.map(item => ({ item, remaining: remainingReturnQuantity(order, item) })).filter(entry => entry.remaining > 0);
+  const canReturnMore = order.returnEligible === true && remainingItems.length > 0;
   const confirmation = latestReturnId
-    ? `<div class="alert alert-success mt-3 mb-0" role="status" tabindex="-1" data-return-success="${escapeHtml(order.id)}"><i class="fa-solid fa-circle-check me-2" aria-hidden="true"></i><strong>${orderCopy('Return requested', 'Retour demandé')}</strong><span class="d-block small mt-1">${escapeHtml(remainingItems.length
-      ? orderCopy(`Request ${latestReturnId} was received. You can still request a return for the remaining eligible quantities below.`, `La demande ${latestReturnId} a été reçue. Vous pouvez encore demander le retour des quantités restantes éligibles ci-dessous.`)
-      : orderCopy(`Request ${latestReturnId} was received. We’ll notify you about updates.`, `La demande ${latestReturnId} a été reçue. Nous vous informerons des mises à jour.`))}</span></div>`
+    ? `<div class="alert ${presentation.alertClass} mt-3 mb-0" role="status" tabindex="-1" data-return-success="${escapeHtml(order.id)}"><i class="fa-solid ${presentation.icon} me-2" aria-hidden="true"></i><strong>${escapeHtml(presentation.heading)}</strong><span class="d-block small mt-1">${escapeHtml(canReturnMore
+      ? orderCopy(`Request ${latestReturnId} — Status: ${latestStatus}. You can still request a return for the remaining eligible quantities below.`, `Demande ${latestReturnId} — Statut : ${latestStatus}. Vous pouvez encore demander le retour des quantités restantes éligibles ci-dessous.`)
+      : orderCopy(`Request ${latestReturnId} — Status: ${latestStatus}. We’ll notify you about updates.`, `Demande ${latestReturnId} — Statut : ${latestStatus}. Nous vous informerons des mises à jour.`))}</span></div>`
     : '';
-  if (!remainingItems.length) return confirmation;
+  if (order.returnEligible !== true || !remainingItems.length) return confirmation;
   const pending = pendingReturns.has(order.id);
   const disabled = pending ? ' disabled' : '';
   return `${confirmation}<details class="order-details return-request"><summary aria-label="${escapeHtml(orderCopy(`Request a return for order ${order.orderNumber}`, `Demander un retour pour la commande ${order.orderNumber}`))}">${latestReturnId ? orderCopy('Return remaining items', 'Retourner les articles restants') : orderCopy('Request a return', 'Demander un retour')}</summary>
