@@ -311,6 +311,40 @@ describe('password-reset email provider configuration', () => {
   });
 });
 
+describe('database TLS CA configuration', () => {
+  it('accepts an inline database CA without exposing it on the config object', () => {
+    const output = runModule(`
+      const { config } = await import('./src/config.js');
+      console.log(JSON.stringify({
+        ca: config.readDatabaseCa().toString('utf8'),
+        exposed: Object.hasOwn(config.db, 'tlsCa')
+      }));
+    `, productionEnvironment({
+      DB_TLS_CA: '-----BEGIN CERTIFICATE-----\\nunit-test-ca\\n-----END CERTIFICATE-----',
+      DB_TLS_CA_PATH: ''
+    }));
+
+    expect(JSON.parse(output)).toEqual({
+      ca: '-----BEGIN CERTIFICATE-----\nunit-test-ca\n-----END CERTIFICATE-----\n',
+      exposed: false
+    });
+  });
+
+  it('rejects ambiguous database CA sources', () => {
+    const result = spawnSync(process.execPath, ['--input-type=module', '--eval', "await import('./src/config.js')"], {
+      cwd: serverRoot,
+      env: productionEnvironment({
+        DB_TLS_CA: 'inline-ca',
+        DB_TLS_CA_PATH: './certs/mysql-ca.pem'
+      }),
+      encoding: 'utf8'
+    });
+
+    expect(result.status).not.toBe(0);
+    expect(`${result.stdout}\n${result.stderr}`).toContain('Configure only one of DB_TLS_CA or DB_TLS_CA_PATH');
+  });
+});
+
 describe('local demo login fail-closed configuration', () => {
   const enabled = {
     LOCAL_DEV_LOGIN: 'true',

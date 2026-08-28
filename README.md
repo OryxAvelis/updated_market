@@ -131,6 +131,12 @@ Use an external Aiven for MySQL service and enter its host, port, application pa
 
 Render derives `APP_ORIGIN`, `ALLOWED_ORIGINS`, and `PASSWORD_RESET_URL` from its trusted `RENDER_EXTERNAL_URL`. If a custom domain is added later, set those three variables explicitly to the custom HTTPS origin. The blueprint uses the built-in Resend HTTPS adapter because Render free services block SMTP ports. When Render prompts, provide a sending-only `RESEND_API_KEY` and a `RESEND_FROM` sender on a verified domain; both values remain outside Git.
 
+### Free Back4App and Aiven preview
+
+The repository-level `Dockerfile` packages the same full-stack storefront for Back4App Web Deployment. It runs as the unprivileged `node` user, listens on port `8080`, trusts one HTTPS proxy hop, checks server JavaScript during the image build, and applies migrations with the separate migration account before starting the restricted runtime process.
+
+Back4App does not provide a secret-file mount like Render. Store Aiven's PEM certificate in the deployment secret manager as multiline `DB_TLS_CA`; alternatively, an escaped value containing `\\n` line separators is accepted. Configure `DB_TLS_CA` or `DB_TLS_CA_PATH`, never both. Set `APP_ORIGIN`, `ALLOWED_ORIGINS`, and `PASSWORD_RESET_URL` to the exact HTTPS `b4a.run` origin after Back4App assigns the application URL. Keep all database passwords, the inline CA, and the fulfillment secret outside Git.
+
 Database details and invariants are documented in `server/docs/database.md`.
 
 ## External-service boundaries

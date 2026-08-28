@@ -74,6 +74,7 @@ const schema = z.object({
   DB_PASSWORD: z.string().default(''),
   DB_CONNECTION_LIMIT: z.coerce.number().int().min(1).max(100).default(10),
   DB_TLS: boolValue.default(true),
+  DB_TLS_CA: optionalText,
   DB_TLS_CA_PATH: optionalText,
   DB_TLS_SERVERNAME: optionalText,
 
@@ -238,6 +239,16 @@ function readTextSecretFile(value, label) {
   return contents?.toString('utf8').trim();
 }
 
+if (env.DB_TLS_CA && env.DB_TLS_CA_PATH) {
+  throw new Error('Configure only one of DB_TLS_CA or DB_TLS_CA_PATH.');
+}
+
+function readDatabaseCa() {
+  if (!env.DB_TLS_CA) return readSecretFile(env.DB_TLS_CA_PATH, 'MySQL CA certificate');
+  const normalized = env.DB_TLS_CA.replace(/\\n/g, '\n').trim();
+  return Buffer.from(`${normalized}\n`, 'utf8');
+}
+
 if (env.FULFILLMENT_WEBHOOK_SECRET && env.FULFILLMENT_WEBHOOK_SECRET_FILE) {
   throw new Error('Configure only one of FULFILLMENT_WEBHOOK_SECRET or FULFILLMENT_WEBHOOK_SECRET_FILE.');
 }
@@ -335,6 +346,6 @@ export const config = Object.freeze({
   },
   readTlsCertificate: () => readSecretFile(env.TLS_CERT_PATH, 'TLS certificate'),
   readTlsPrivateKey: () => readSecretFile(env.TLS_KEY_PATH, 'TLS private key'),
-  readDatabaseCa: () => readSecretFile(env.DB_TLS_CA_PATH, 'MySQL CA certificate'),
+  readDatabaseCa,
   readFulfillmentWebhookSecret: () => fulfillmentWebhookSecret
 });

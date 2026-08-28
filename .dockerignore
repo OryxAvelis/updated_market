@@ -1,0 +1,14 @@
+.git
+.gitignore
+.env
+*.log
+*.png
+ui-audit
+server/.env
+server/certs
+server/node_modules
+server/coverage
+node_modules
+
+# Product imagery is runtime content and must remain in the build context.
+!img/**/*.png
