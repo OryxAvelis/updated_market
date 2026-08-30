@@ -59,6 +59,7 @@ const schema = z.object({
   ALLOWED_ORIGINS: z.string().default(defaultAppOrigin),
   TRUST_PROXY: z.coerce.number().int().min(0).max(5).default(renderDefaultsEnabled ? 1 : 0),
   TLS_TERMINATED_BY_PROXY: boolValue.default(renderDefaultsEnabled),
+  ENFORCE_PROXY_HTTPS_REDIRECT: boolValue.default(true),
   HSTS_MAX_AGE_SECONDS: z.coerce.number().int().min(0).max(63072000).default(300),
   HSTS_INCLUDE_SUBDOMAINS: boolValue.default(false),
   HSTS_PRELOAD: boolValue.default(false),
@@ -272,6 +273,7 @@ export const config = Object.freeze({
   allowedOrigins,
   trustProxy: env.TRUST_PROXY,
   tlsTerminatedByProxy: env.TLS_TERMINATED_BY_PROXY,
+  enforceProxyHttpsRedirect: env.ENFORCE_PROXY_HTTPS_REDIRECT,
   hsts: {
     maxAge: env.HSTS_MAX_AGE_SECONDS,
     includeSubDomains: env.HSTS_INCLUDE_SUBDOMAINS,

@@ -17,6 +17,7 @@ function productionEnvironment(overrides = {}) {
     FULFILLMENT_WEBHOOK_SECRET_FILE: '',
     TRUST_PROXY: '1',
     TLS_TERMINATED_BY_PROXY: 'true',
+    ENFORCE_PROXY_HTTPS_REDIRECT: 'true',
     LOCAL_DEV_LOGIN: 'false',
     LOCAL_DEV_LOGIN_USER_EMAIL: '',
     ...overrides
@@ -182,6 +183,25 @@ describe('production transport fail-closed configuration', () => {
     const { cacheControl } = JSON.parse(output);
     expect(cacheControl).toContain('max-age=0');
     expect(cacheControl).not.toContain('immutable');
+  });
+
+  it('allows a managed HTTPS edge to disable only the redundant application redirect', () => {
+    const output = runModule(`
+      const [{ createApp }, { default: request }] = await Promise.all([
+        import('./src/app.js'), import('supertest')
+      ]);
+      const response = await request(createApp({ database: {} })).get('/');
+      console.log(JSON.stringify({
+        status: response.status,
+        location: response.headers.location || null,
+        hsts: response.headers['strict-transport-security'] || null
+      }));
+    `, productionEnvironment({ ENFORCE_PROXY_HTTPS_REDIRECT: 'false' }));
+    expect(JSON.parse(output)).toEqual({
+      status: 200,
+      location: null,
+      hsts: 'max-age=300'
+    });
   });
 
   it('allows only the pinned public catalog as an external connection fallback', () => {

@@ -21,7 +21,8 @@ ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=8080 \
     TRUST_PROXY=1 \
-    TLS_TERMINATED_BY_PROXY=true
+    TLS_TERMINATED_BY_PROXY=true \
+    ENFORCE_PROXY_HTTPS_REDIRECT=false
 
 WORKDIR /app
 

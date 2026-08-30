@@ -113,7 +113,8 @@ function preventPrivateResponseCaching(req, res, next) {
 }
 
 function enforceProxyHttps(req, res, next) {
-  if (!config.isProduction || !config.tlsTerminatedByProxy || req.secure) return next();
+  if (!config.isProduction || !config.tlsTerminatedByProxy ||
+      !config.enforceProxyHttpsRedirect || req.secure) return next();
   // Keep the configured origin authoritative. Passing a scheme-relative
   // request target (//host/path) to the URL constructor would otherwise allow
   // an attacker-controlled redirect host.
