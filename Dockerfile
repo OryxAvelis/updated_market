@@ -29,6 +29,7 @@ COPY --from=build --chown=node:node /app/server/package.json /app/server/package
 COPY --from=build --chown=node:node /app/server/node_modules ./server/node_modules
 COPY --from=build --chown=node:node /app/server/src ./server/src
 COPY --from=build --chown=node:node /app/server/scripts/migrate-and-start.js ./server/scripts/migrate-and-start.js
+COPY --from=build --chown=node:node /app/server/certs/aiven-ca.pem ./server/certs/aiven-ca.pem
 COPY --from=build --chown=node:node /app/admin ./admin
 COPY --from=build --chown=node:node /app/css ./css
 COPY --from=build --chown=node:node /app/img ./img

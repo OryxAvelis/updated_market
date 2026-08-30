@@ -6,6 +6,8 @@
 ui-audit
 server/.env
 server/certs
+!server/certs/
+!server/certs/aiven-ca.pem
 server/node_modules
 server/coverage
 node_modules
