@@ -204,7 +204,7 @@ describe('production transport fail-closed configuration', () => {
     });
   });
 
-  it('accepts only the current same-host Back4App preview origin when dynamic previews are enabled', () => {
+  it('accepts only the current same-host Back4App preview origin behind its managed HTTPS edge', () => {
     const output = runModule(`
       const [{ createApp }, { default: request }] = await Promise.all([
         import('./src/app.js'), import('supertest')
@@ -216,7 +216,8 @@ describe('production transport fail-closed configuration', () => {
       const headers = (origin) => ({
         Host: hostname,
         Origin: origin,
-        'X-Forwarded-Proto': 'https'
+        'X-Forwarded-Proto': 'http',
+        'CloudFront-Forwarded-Proto': 'https'
       });
       const allowedPreflight = await request(app)
         .options('/api/v1/auth/register')
@@ -240,12 +241,38 @@ describe('production transport fail-closed configuration', () => {
         allowedCode: allowedMutation.body.error?.code || null,
         deniedCode: deniedMutation.body.error?.code || null
       }));
-    `, productionEnvironment({ BACK4APP_DYNAMIC_ORIGIN: 'true' }));
+    `, productionEnvironment({
+      BACK4APP_DYNAMIC_ORIGIN: 'true',
+      ENFORCE_PROXY_HTTPS_REDIRECT: 'false'
+    }));
     expect(JSON.parse(output)).toEqual({
       allowedCors: 'https://ammarket2026-xybllx49.b4a.run',
       deniedCors: null,
       allowedCode: 'CSRF_INVALID',
       deniedCode: 'ORIGIN_REJECTED'
+    });
+  });
+
+  it('does not trust an HTTP Back4App request without the managed-edge guarantee', () => {
+    const output = runModule(`
+      const [{ createApp }, { default: request }] = await Promise.all([
+        import('./src/app.js'), import('supertest')
+      ]);
+      const hostname = 'ammarket2026-xybllx49.b4a.run';
+      const response = await request(createApp({ database: {} }))
+        .options('/api/v1/auth/register')
+        .set('Host', hostname)
+        .set('Origin', 'https://' + hostname)
+        .set('X-Forwarded-Proto', 'http')
+        .set('Access-Control-Request-Method', 'POST');
+      console.log(JSON.stringify({
+        status: response.status,
+        allowedCors: response.headers['access-control-allow-origin'] || null
+      }));
+    `, productionEnvironment({ BACK4APP_DYNAMIC_ORIGIN: 'true' }));
+    expect(JSON.parse(output)).toEqual({
+      status: 308,
+      allowedCors: null
     });
   });
 

@@ -5,7 +5,14 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 const BACK4APP_HOST_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.b4a\.run$/i;
 
 function dynamicBack4AppOrigin(req, origin) {
-  if (!config.back4appDynamicOrigin || typeof origin !== 'string' || !req.secure) return null;
+  // Back4App's managed CloudFront edge guarantees public HTTPS, but its
+  // internal hop reports X-Forwarded-Proto=http. Disabling the redundant
+  // application redirect is the deployment's explicit assertion that this
+  // managed edge owns HTTPS, so treat that topology as secure here too.
+  const managedHttpsEdge = config.isProduction && config.tlsTerminatedByProxy &&
+    !config.enforceProxyHttpsRedirect;
+  if (!config.back4appDynamicOrigin || typeof origin !== 'string' ||
+      (!req.secure && !managedHttpsEdge)) return null;
   let parsed;
   try {
     parsed = new URL(origin);
