@@ -204,6 +204,67 @@ describe('production transport fail-closed configuration', () => {
     });
   });
 
+  it('accepts only the current same-host Back4App preview origin when dynamic previews are enabled', () => {
+    const output = runModule(`
+      const [{ createApp }, { default: request }] = await Promise.all([
+        import('./src/app.js'), import('supertest')
+      ]);
+      const app = createApp({ database: {} });
+      const hostname = 'ammarket2026-xybllx49.b4a.run';
+      const currentOrigin = \`https://\${hostname}\`;
+      const otherOrigin = 'https://another-preview.b4a.run';
+      const headers = (origin) => ({
+        Host: hostname,
+        Origin: origin,
+        'X-Forwarded-Proto': 'https'
+      });
+      const allowedPreflight = await request(app)
+        .options('/api/v1/auth/register')
+        .set(headers(currentOrigin))
+        .set('Access-Control-Request-Method', 'POST');
+      const deniedPreflight = await request(app)
+        .options('/api/v1/auth/register')
+        .set(headers(otherOrigin))
+        .set('Access-Control-Request-Method', 'POST');
+      const allowedMutation = await request(app)
+        .post('/api/v1/auth/register')
+        .set(headers(currentOrigin))
+        .send({});
+      const deniedMutation = await request(app)
+        .post('/api/v1/auth/register')
+        .set(headers(otherOrigin))
+        .send({});
+      console.log(JSON.stringify({
+        allowedCors: allowedPreflight.headers['access-control-allow-origin'] || null,
+        deniedCors: deniedPreflight.headers['access-control-allow-origin'] || null,
+        allowedCode: allowedMutation.body.error?.code || null,
+        deniedCode: deniedMutation.body.error?.code || null
+      }));
+    `, productionEnvironment({ BACK4APP_DYNAMIC_ORIGIN: 'true' }));
+    expect(JSON.parse(output)).toEqual({
+      allowedCors: 'https://ammarket2026-xybllx49.b4a.run',
+      deniedCors: null,
+      allowedCode: 'CSRF_INVALID',
+      deniedCode: 'ORIGIN_REJECTED'
+    });
+  });
+
+  it('requires the dynamic Back4App preview mode to stay behind the trusted production TLS proxy', () => {
+    const result = spawnSync(process.execPath, ['--input-type=module', '--eval', "await import('./src/config.js')"], {
+      cwd: serverRoot,
+      env: productionEnvironment({
+        BACK4APP_DYNAMIC_ORIGIN: 'true',
+        TLS_TERMINATED_BY_PROXY: 'false',
+        TRUST_PROXY: '0'
+      }),
+      encoding: 'utf8'
+    });
+    expect(result.status).not.toBe(0);
+    expect(`${result.stdout}\n${result.stderr}`).toContain(
+      'BACK4APP_DYNAMIC_ORIGIN requires production behind a trusted TLS proxy'
+    );
+  });
+
   it('allows only the pinned public catalog as an external connection fallback', () => {
     const output = runModule(`
       const [{ createApp }, { default: request }] = await Promise.all([

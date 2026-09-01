@@ -63,6 +63,26 @@ describe('Resend HTTPS password-reset delivery', () => {
     expect(body.html).not.toContain('Customer\r\nInjected line');
   });
 
+  it('uses a verified request-specific reset URL for rotating preview hosts', async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ id: 'email-delivery-id' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    }));
+
+    await service(fetchImpl).sendPasswordReset({
+      to: 'customer@example.com',
+      displayName: 'Customer',
+      token: 'secret-token',
+      resetUrl: 'https://ammarket2026-xybllx49.b4a.run/reset-password.html'
+    });
+
+    const body = JSON.parse(fetchImpl.mock.calls[0][1].body);
+    expect(body.text).toContain(
+      'https://ammarket2026-xybllx49.b4a.run/reset-password.html#token=secret-token'
+    );
+    expect(body.text).not.toContain(resetUrl);
+  });
+
   it.each([
     ['a rejected request', async () => new Response('{}', { status: 429 }), 'EMAIL_PROVIDER_REJECTED'],
     ['an invalid success body', async () => new Response('{}', {

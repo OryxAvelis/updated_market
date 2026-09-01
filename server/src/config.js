@@ -60,6 +60,7 @@ const schema = z.object({
   TRUST_PROXY: z.coerce.number().int().min(0).max(5).default(renderDefaultsEnabled ? 1 : 0),
   TLS_TERMINATED_BY_PROXY: boolValue.default(renderDefaultsEnabled),
   ENFORCE_PROXY_HTTPS_REDIRECT: boolValue.default(true),
+  BACK4APP_DYNAMIC_ORIGIN: boolValue.default(false),
   HSTS_MAX_AGE_SECONDS: z.coerce.number().int().min(0).max(63072000).default(300),
   HSTS_INCLUDE_SUBDOMAINS: boolValue.default(false),
   HSTS_PRELOAD: boolValue.default(false),
@@ -184,6 +185,10 @@ if (isProduction && passwordResetUrl.protocol !== 'https:') {
 if (isProduction && env.TLS_TERMINATED_BY_PROXY && env.TRUST_PROXY < 1) {
   throw new Error('TRUST_PROXY must identify the trusted TLS proxy in production.');
 }
+if (env.BACK4APP_DYNAMIC_ORIGIN &&
+    (!isProduction || !env.TLS_TERMINATED_BY_PROXY || env.TRUST_PROXY < 1)) {
+  throw new Error('BACK4APP_DYNAMIC_ORIGIN requires production behind a trusted TLS proxy.');
+}
 if (env.HSTS_PRELOAD && (!env.HSTS_INCLUDE_SUBDOMAINS || env.HSTS_MAX_AGE_SECONDS < 31536000)) {
   throw new Error('HSTS_PRELOAD requires HSTS_INCLUDE_SUBDOMAINS=true and HSTS_MAX_AGE_SECONDS of at least 31536000.');
 }
@@ -274,6 +279,7 @@ export const config = Object.freeze({
   trustProxy: env.TRUST_PROXY,
   tlsTerminatedByProxy: env.TLS_TERMINATED_BY_PROXY,
   enforceProxyHttpsRedirect: env.ENFORCE_PROXY_HTTPS_REDIRECT,
+  back4appDynamicOrigin: env.BACK4APP_DYNAMIC_ORIGIN,
   hsts: {
     maxAge: env.HSTS_MAX_AGE_SECONDS,
     includeSubDomains: env.HSTS_INCLUDE_SUBDOMAINS,

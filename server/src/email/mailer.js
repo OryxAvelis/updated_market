@@ -45,8 +45,8 @@ export function createResendMailService({
     async verify() {
       return true;
     },
-    async sendPasswordReset({ to, displayName, token }) {
-      const message = resetMessage({ displayName, token, resetUrl });
+    async sendPasswordReset({ to, displayName, token, resetUrl: requestResetUrl }) {
+      const message = resetMessage({ displayName, token, resetUrl: requestResetUrl || resetUrl });
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), timeoutMs);
       try {
@@ -112,8 +112,8 @@ function createSmtpMailService() {
     async verify() {
       return transport.verify();
     },
-    async sendPasswordReset({ to, displayName, token }) {
-      const message = resetMessage({ displayName, token });
+    async sendPasswordReset({ to, displayName, token, resetUrl }) {
+      const message = resetMessage({ displayName, token, resetUrl });
       await transport.sendMail({ from: config.smtp.from, to, ...message });
       return true;
     }

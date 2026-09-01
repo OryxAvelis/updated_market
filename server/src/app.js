@@ -37,7 +37,7 @@ import { createGuestOrdersRouter } from './orders/guest-routes.js';
 import { createOrdersRouter, createReturnsRouter } from './orders/routes.js';
 import { createStorefrontConfigRouter } from './storefront/routes.js';
 import { requireCsrf } from './security/csrf.js';
-import { requireTrustedOrigin } from './security/origin.js';
+import { requireTrustedOrigin, trustedRequestOrigin } from './security/origin.js';
 
 const userPages = new Set([
   'index.html', 'all-categories.html', 'categories.html', 'product.html',
@@ -88,7 +88,7 @@ function securityHeaders() {
 function exactCors(req, callback) {
   const origin = req.get('origin');
   if (!origin) return callback(null, { origin: false });
-  if (!config.allowedOrigins.has(origin)) return callback(null, { origin: false });
+  if (!trustedRequestOrigin(req, origin)) return callback(null, { origin: false });
   return callback(null, {
     origin,
     credentials: true,

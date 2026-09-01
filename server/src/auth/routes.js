@@ -9,6 +9,7 @@ import { logger } from '../logger.js';
 import { clearCsrfCookie, clearSessionCookie } from '../security/cookies.js';
 import { issueCsrfToken, issueSessionCsrfToken } from '../security/csrf.js';
 import { hashPassword, passwordNeedsRehash, verifyPassword } from '../security/passwords.js';
+import { passwordResetUrlForRequest } from '../security/origin.js';
 import { randomToken, tokenDigest } from '../security/tokens.js';
 import { displayNameSchema, emailSchema, optionalPhoneSchema, passwordSchema } from '../validation/common.js';
 import { createSession, requireAuth, revokeCurrentSession } from './session.js';
@@ -304,6 +305,7 @@ export function createAuthRouter({ mailService = createMailService() } = {}) {
 
   router.post('/password-reset/request', resetLimiter, async (req, res) => {
     const startedAt = performance.now();
+    const resetUrl = passwordResetUrlForRequest(req);
     const input = resetRequestSchema.parse(req.body);
     const user = isLocalDemoEmail(input.email)
       ? null
@@ -347,7 +349,8 @@ export function createAuthRouter({ mailService = createMailService() } = {}) {
             const delivered = await mailService.sendPasswordReset({
               to: resetRecipient.email,
               displayName: resetRecipient.display_name,
-              token
+              token,
+              resetUrl
             });
             if (delivered) return;
             await req.app.locals.db.execute(
