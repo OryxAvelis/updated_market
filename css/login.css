@@ -94,9 +94,10 @@ button { font-family: inherit; cursor: pointer; }
   width: min(980px, 100%);
   min-height: 560px;
   background: #fff;
+  border: 1px solid rgba(255,255,255,0.72);
   border-radius: 2%;
   overflow: hidden;
-  box-shadow: 0 24px 60px rgba(13,82,168,0.16);
+  box-shadow: 0 24px 60px rgba(13,82,168,0.16), 0 2px 10px rgba(13,82,168,0.06);
   animation: cardIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 @keyframes cardIn {
@@ -112,8 +113,15 @@ button { font-family: inherit; cursor: pointer; }
   padding: 48px 42px;
   color: #fff;
   background: linear-gradient(135deg, #3a8ef6 0%, #1a6fd4 55%, #0d52a8 100%);
+  background-size: 165% 165%;
   display: flex;
   align-items: center;
+  animation: brandFlow 11s ease-in-out infinite alternate;
+}
+
+@keyframes brandFlow {
+  from { background-position: 0% 35%; }
+  to { background-position: 100% 65%; }
 }
 
 .brand-content { position: relative; z-index: 2; }
@@ -126,9 +134,13 @@ button { font-family: inherit; cursor: pointer; }
   padding: 10px 18px;
   margin-bottom: 30px;
   box-shadow: 0 6px 18px rgba(0,0,0,0.18);
-  transition: transform 0.2s;
+  transform-origin: center;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s;
 }
-.auth-logo-card:hover { transform: translateY(-2px); }
+.auth-logo-card:hover {
+  transform: translateY(-3px) scale(1.015);
+  box-shadow: 0 12px 26px rgba(0,0,0,0.2);
+}
 .auth-logo-card img {
   height: 62px;
   width: auto;
@@ -166,7 +178,9 @@ button { font-family: inherit; cursor: pointer; }
   font-size: 0.88rem;
   font-weight: 500;
   animation: riseIn 0.6s ease both;
+  transition: transform 0.25s ease, color 0.25s ease;
 }
+.perks li:hover { transform: translateX(5px); }
 .perks li:nth-child(1) { animation-delay: 0.35s; }
 .perks li:nth-child(2) { animation-delay: 0.45s; }
 .perks li:nth-child(3) { animation-delay: 0.55s; }
@@ -182,6 +196,11 @@ button { font-family: inherit; cursor: pointer; }
   font-weight: 900;
   flex-shrink: 0;
   backdrop-filter: blur(4px);
+  transition: transform 0.25s ease, background 0.25s ease;
+}
+.perks li:hover .perk-icon {
+  transform: scale(1.08);
+  background: rgba(255,255,255,0.24);
 }
 
 /* ========== RIGHT FORM PANEL ========== */
@@ -192,6 +211,7 @@ button { font-family: inherit; cursor: pointer; }
   align-items: center;
   position: relative;
   overflow: hidden;
+  background: radial-gradient(380px 240px at 100% 0%, rgba(58,142,246,0.08), transparent 70%);
 }
 .auth-form-stack { width: 100%; }
 
@@ -240,6 +260,11 @@ button { font-family: inherit; cursor: pointer; }
   font-size: 0.82rem;
   font-weight: 650;
   line-height: 1.45;
+}
+.auth-alert:not([hidden]) { animation: alertIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes alertIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: none; }
 }
 .auth-alert--success {
   border-color: #86d4ab;
@@ -354,11 +379,7 @@ button { font-family: inherit; cursor: pointer; }
   font-weight: 800;
   letter-spacing: -0.4px;
 }
-.form-box h2[tabindex="-1"]:focus {
-  outline: 2px solid color-mix(in srgb, var(--orange) 78%, white);
-  outline-offset: 2px;
-  background: color-mix(in srgb, var(--orange) 8%, transparent);
-}
+.form-box h2[tabindex="-1"]:focus { outline: none; }
 .form-box .sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 26px; }
 
 /* Inputs */
@@ -372,12 +393,13 @@ button { font-family: inherit; cursor: pointer; }
   background: #f8faff;
   border: 1.5px solid var(--border);
   border-radius: 2%;
-  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  transition: border-color 0.2s, box-shadow 0.25s, background 0.2s, transform 0.2s;
 }
 .input-group-custom:focus-within {
   border-color: var(--orange);
   background: #fff;
   box-shadow: 0 0 0 4px rgba(26,111,212,0.12);
+  transform: translateY(-1px);
 }
 .field-icon {
   width: 20px;
@@ -387,8 +409,12 @@ button { font-family: inherit; cursor: pointer; }
   line-height: 1;
   text-align: center;
   flex: 0 0 20px;
+  transition: color 0.2s, transform 0.2s;
 }
-.input-group-custom:focus-within .field-icon { color: var(--orange); }
+.input-group-custom:focus-within .field-icon {
+  color: var(--orange);
+  transform: scale(1.08);
+}
 .input-group-custom input {
   flex: 1;
   border: none;
@@ -398,6 +424,13 @@ button { font-family: inherit; cursor: pointer; }
   color: var(--text);
   min-width: 0;
   min-height: 44px;
+}
+.input-group-custom input::placeholder {
+  color: color-mix(in srgb, var(--muted) 86%, transparent);
+  transition: color 0.2s;
+}
+.input-group-custom:focus-within input::placeholder {
+  color: color-mix(in srgb, var(--muted) 58%, transparent);
 }
 .eye {
   border: none;
@@ -465,6 +498,10 @@ button { font-family: inherit; cursor: pointer; }
   font: inherit;
   font-weight: 600;
 }
+.forgot,
+.link-btn { transition: color 0.2s, transform 0.2s; }
+.forgot:hover,
+.link-btn:hover { transform: translateY(-1px); }
 .forgot:hover { text-decoration: underline; }
 
 /* Submit button */
@@ -483,8 +520,25 @@ button { font-family: inherit; cursor: pointer; }
   align-items: center;
   justify-content: center;
   gap: 10px;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
   transition: background-position 0.35s, transform 0.15s, box-shadow 0.25s;
 }
+.btn-submit::after {
+  content: '';
+  position: absolute;
+  inset: -40% auto -40% -35%;
+  width: 24%;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.34), transparent);
+  transform: skewX(-18deg) translateX(-240%);
+  transition: transform 0.65s ease;
+}
+.btn-submit > * { position: relative; z-index: 1; }
+.btn-submit:hover::after,
+.btn-submit:focus-visible::after { transform: skewX(-18deg) translateX(720%); }
 .btn-submit > i:last-child { transition: transform 0.2s; }
 .btn-submit:hover {
   background-position: 100% 0;

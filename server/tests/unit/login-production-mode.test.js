@@ -17,7 +17,7 @@ describe('customer login production experience', () => {
     expect(html).toContain('autocomplete="new-password"');
     expect(html).toMatch(/id="loginPass"[^>]*required maxlength="128"/);
     expect(html).not.toMatch(/id="loginPass"[^>]*minlength="12"/);
-    expect(html.match(/v=20260825-real-accounts/g)).toHaveLength(4);
+    expect(html.match(/v=20260901-motion-polish/g)).toHaveLength(4);
 
     expect(html).not.toContain('demoLoginNotice');
     expect(html).not.toMatch(/local demo|any non-empty email|no real customer account/i);
